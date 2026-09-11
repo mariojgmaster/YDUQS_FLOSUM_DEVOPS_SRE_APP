@@ -1,0 +1,36 @@
+<!--
+  @description       : 
+  @author            : wrodrigues@triscal.com.br
+  @group             : 
+  @last modified on  : 08-08-2024
+  @last modified by  : wrodrigues@triscal.com.br
+-->
+<template>
+    <lightning-card title="Account List">
+        <div class="slds-p-around_medium">
+            <table class="slds-table slds-table_bordered slds-table_cell-buffer">
+                <tbody>
+                    <template if:true={existeRegistros}>
+                        <template for:each={objeto} for:item="item">
+                            <tr key={account.Id}>
+                                <td>
+                                    <div class="slds-truncate" title={item.NomeMembro__c}>{item.NomeMembro__c}</div>
+                                </td>
+                                <td>
+                                    <div class="slds-truncate" title={item.Papel__c}>{item.Papel__c}</div>
+                                </td>
+                            </tr>
+                        </template>
+                    </template>
+                    <template if:false={existeRegistros}>
+                        <tr>
+                            <td colspan="2">
+                                <div class="slds-align_absolute-center">Nenhum item a exibir.</div>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </lightning-card>
+</template>
