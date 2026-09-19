@@ -1,0 +1,54 @@
+<template>
+  <lightning-quick-action-panel header="Clonar Pipeline">
+    <template lwc:if={isLoading}>
+      <div class="slds-is-relative slds-p-vertical_x-large">
+        <lightning-spinner
+          alternative-text="Carregando dados do Pipeline"
+          size="small"
+        ></lightning-spinner>
+      </div>
+    </template>
+
+    <template lwc:elseif={loadError}>
+      <div class="slds-notify slds-notify_alert slds-alert_error" role="alert">
+        <span>{loadError}</span>
+      </div>
+    </template>
+
+    <template lwc:else>
+      <p class="slds-m-bottom_medium">
+        Serão clonados o Pipeline <strong>{sourceName}</strong> e
+        {stepCountLabel}.
+      </p>
+      <lightning-input
+        data-name="pipeline-name"
+        label="Nome do novo Pipeline"
+        value={newName}
+        maxlength={maxNameLength}
+        required
+        disabled={isSubmitting}
+        onchange={handleNameChange}
+      ></lightning-input>
+      <template lwc:if={submitError}>
+        <div class="slds-text-color_error slds-m-top_small" role="alert">
+          {submitError}
+        </div>
+      </template>
+    </template>
+
+    <div slot="footer">
+      <lightning-button
+        label="Cancelar"
+        disabled={isSubmitting}
+        onclick={handleCancel}
+      ></lightning-button>
+      <lightning-button
+        class="slds-m-left_x-small"
+        variant="brand"
+        label={submitLabel}
+        disabled={isCloneDisabled}
+        onclick={handleClone}
+      ></lightning-button>
+    </div>
+  </lightning-quick-action-panel>
+</template>
