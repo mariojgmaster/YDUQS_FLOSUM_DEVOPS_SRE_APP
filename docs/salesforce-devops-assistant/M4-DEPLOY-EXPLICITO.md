@@ -1,0 +1,105 @@
+# M4 — Deploy Salesforce explícito na DevSreFeat
+
+## Decisão de arquitetura
+
+- **Um único GitHub Environment por organização Salesforce.** No piloto, todos os workflows usam o Environment já existente `sf-devsrefeat-read` (nome legado), inclusive diagnósticos, testes Apex, Metadata M3 e M4.
+- Não criar novo Environment nem copiar secrets somente para permitir deploy.
+- Não exigir `Required reviewers` ou aprovação humana adicional na hora de executar o job. O **ato de solicitar manualmente o workflow + a confirmação textual + o SHA completo** constitui a intenção verificável.
+- Nunca interpretar teste, PR, merge, consulta ou comparação como autorização para deploy.
+- **Somente sandbox DevSreFeat neste piloto.** Produção e outras orgs precisam de políticas e configurações específicas, não herdam esta autorização.
+- Nenhum MCP, Node.js próprio ou OpenBao. Node.js do GitHub Actions apenas instala a Salesforce CLI.
+
+### Sobre o nome do GitHub Environment
+
+Nome atual (já funcional): `sf-devsrefeat-read`.
+
+Nome desejado para um modelo amplo: `sf-devsrefeat`, porém **GitHub não fornece mecanismo documentado de rename-in-place que migre secrets e proteção**; a API cria/atualiza um environment pelo nome e a remoção do antigo apaga seus secrets. Não fazer criação/exclusão automática. Enquanto for mantido o Environment existente, **preservar exatamente** `sf-devsrefeat-read` em todos os workflows. Não trocar o nome no YAML antes de uma migração planejada, pois o GitHub pode criar silenciosamente um Environment sem secrets ao executar um workflow com nome inexistente.
+
+Referência: https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments
+
+## Segurança do repositório público
+
+O repositório atual é **público**: logs e workflow YAML são observáveis. Não imprimir classes, tokens, respostas JSON da Salesforce, segredos, arquivos ZIP ou conteúdo da org.
+
+Como o mesmo Environment possui privilégios suficientes para escrita, **qualquer workflow autorizado a lê-lo merece confiança equivalente a deploy**. Recomenda-se proteger a `master`, impedir alterações não revisadas de `.github/workflows/**` e `scripts/ci/**`, restringir colaboradores com acesso de escrita e auditar as permissões do usuário ECA. Não configurar `Required reviewers` no Environment caso não deseje uma segunda aprovação do deployment. Uma revisão de alterações no repositório e uma aprovação de deploy são ações distintas.
+
+As regras de fluxo que garantem intenção não impedem abuso por alguém com permissão de alterar o próprio YAML na branch `master`. Governança do GitHub permanece fundamental.
+
+## Workflow do M4
+
+Arquivo: `.github/workflows/sf-devsrefeat-m4-deploy.yml`
+
+É disparado **somente por `workflow_dispatch`**. Não existem gatilhos `push`, `pull_request`, Issue, ChatOps ou schedule para deployment real.
+
+O job rejeita se:
+
+1. A execução não foi manual ou a branch não é `master`;
+2. O disparador não é o proprietário do repositório piloto;
+3. O usuário tentar usar **Re-run jobs** (`run_attempt > 1`);
+4. A confirmação não for exatamente `DEPLOY DevSreFeat`;
+5. O SHA informado não tiver 40 caracteres hexadecimais ou não for exatamente o SHA do commit checkado pelo GitHub;
+6. O domínio de destino não for `https://yduqs--devsrefeat.sandbox.my.salesforce.com`;
+7. O manifesto tiver outros componentes, wildcards, API diferente ou classes ausentes;
+8. Os segredos de ECA/JWT estiverem ausentes;
+9. A autenticação JWT ou o **dry-run com `RunSpecifiedTests`** falhar ou retornar conclusão incerta.
+
+O primeiro pacote autorizado contém **exatamente**:
+- `ApexClass:CompareSecurityCode`
+- `ApexClass:CompareSecurityCodeTest`
+
+O manifesto reutiliza `manifest/sf-devsrefeat-m3.xml`. O M4 **não executa deployments destrutivos**, não usa `--ignore-conflicts`, `--ignore-errors`, `--ignore-warnings` ou opção para pular testes.
+
+## Pré-requisitos (mesmo Environment, sem segredos novos)
+
+1. GitHub → Settings → Environments → `sf-devsrefeat-read`.
+2. Confirmar que `SF_CLIENT_ID`, `SF_USERNAME`, `SF_JWT_KEY` e `SF_INSTANCE_URL` continuam configurados conforme os testes anteriores.
+3. Deixar `Required reviewers` **desativado**, conforme decisão do projeto.
+4. Restringir deployment branches a `master` e proteger a branch. O script também faz essa validação.
+5. Confirmar que o usuário de integração da ECA tem permissões de Metadata API adequadas ao pacote e à política corporativa.
+
+## Como solicitar o primeiro deployment real
+
+1. Revisar/mesclar o PR que adiciona o workflow, sem executá-lo.
+2. Acessar GitHub → Actions → **Salesforce DevSreFeat - Deploy Explicito M4** → **Run workflow**.
+3. Selecionar `master`.
+4. Copiar o **SHA completo do commit atual da master** no campo `commit_sha`.
+5. Digitar exatamente `DEPLOY DevSreFeat` no campo `confirmation`.
+6. Conferir novamente sandbox, SHA e manifesto antes de pressionar o botão **Run workflow**.
+
+Isso é um ato **intencional de deployment real**. Não execute somente para verificar se o workflow está funcionando, a menos que deseje realmente reimplantar as duas classes Apex na DevSreFeat.
+
+O workflow primeiro usa:
+
+```bash
+sf project deploy start --dry-run \
+  --manifest manifest/sf-devsrefeat-m3.xml \
+  --test-level RunSpecifiedTests \
+  --tests CompareSecurityCodeTest \
+  --target-org devsrefeat-m4 --wait 60 --json
+```
+
+**Somente se aprovado**, ele executa o mesmo comando **sem `--dry-run`**.
+
+## Interpretar resultados
+
+| Código | Significado |
+|---|---|
+| `M4_INTENT_VERIFIED` | Identidade, branch, commit SHA, destino e componentes foram conferidos |
+| `M4_DRY_RUN_PASSED` | Validação e testes foram aprovados, sem alteração persistente |
+| `M4_REAL_DEPLOY_STARTING` | O workflow iniciou uma operação de escrita na sandbox |
+| `M4_REAL_DEPLOY_SUCCEEDED` | Salesforce confirmou o deployment persistente |
+| `M4_DEPLOY_UNCONFIRMED` | Não há confirmação conclusiva: verificar Deployment Status antes de nova tentativa |
+| `M4_DEPLOY_REPORTED_FAILURE` | Salesforce CLI retornou falha: confirmar no Deployment Status antes de nova tentativa |
+| `M4_RERUN_DENIED` | Uma repetição automática ou manual desse mesmo job não é permitida |
+
+**Nunca** interpretar `M4_DRY_RUN_PASSED` como deploy concluído. Nunca afirmar sucesso definitivo se houver erro/incompletude no retorno Salesforce.
+
+## Política para os próximos ambientes e ChatOps
+
+Uma ECA e um GitHub Environment por **organização Salesforce**, não por tipo de ação. Credenciais separadas entre sandboxes distintas e produção.
+
+O plugin pode elaborar uma solicitação ChatOps, mas um deploy real só é autorizado com evidência explícita da intenção, commit exato, manifesto revisado, usuário permitido e validação concluída. Uma Issue aberta ou um label inserido, por si só, **não** autoriza deployment.
+
+O conector GitHub do ChatGPT desta conversa não apresenta `workflow_dispatch` direto. Até existir fluxo seguro de disparo, o acionamento do M4 é feito na UI do GitHub, sem segunda aprovação de `Required reviewers`.
+
+Referência oficial do CLI: https://developer.salesforce.com/docs/platform/salesforce-cli-reference/guide/cli_reference_project_deploy_start.html
