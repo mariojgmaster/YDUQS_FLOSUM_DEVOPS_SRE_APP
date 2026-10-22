@@ -1,0 +1,129 @@
+# Piloto DevSreFeat: nenhum deploy, nenhuma consulta arbitraria.
+# Antes de executar: criar o Environment sf-devsrefeat-read com secrets/variables.
+# O repositorio e PUBLICO: NUNCA imprimir classes/IDs/tokens em logs ou artifacts.
+name: Salesforce DevSreFeat - Diagnostico Seguro
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: "Operacao autorizada (sem deploy)"
+        required: true
+        type: choice
+        default: connection-check
+        options:
+          - connection-check
+          - tooling-apex-summary
+          - apex-tests
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sf-devsrefeat-read
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    name: Run on DevSreFeat
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment: sf-devsrefeat-read
+    env:
+      SF_CLIENT_ID: ${{ secrets.SF_CLIENT_ID }}
+      SF_USERNAME: ${{ secrets.SF_USERNAME }}
+      SF_JWT_KEY: ${{ secrets.SF_JWT_KEY }}
+      SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
+      OPERATION: ${{ inputs.operation }}
+    steps:
+      - name: Validate target and required configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${SF_INSTANCE_URL:-}" != "https://yduqs--devsrefeat.sandbox.my.salesforce.com" ]]; then
+            echo "::error::Expected DevSreFeat My Domain in Environment variable SF_INSTANCE_URL"
+            exit 2
+          fi
+          for required in SF_CLIENT_ID SF_USERNAME SF_JWT_KEY; do
+            if [[ -z "${!required:-}" ]]; then
+              echo "::error::Required Environment secret is not configured: $required"
+              exit 2
+            fi
+          done
+          echo "Configured target: DevSreFeat (sandbox)"
+
+      - name: Checkout audited repository revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js for Salesforce CLI
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Salesforce CLI
+        run: npm install --global @salesforce/cli
+
+      - name: Authenticate through Salesforce ECA/JWT
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s' "$SF_JWT_KEY" > "$RUNNER_TEMP/sf-devsrefeat.key"
+          if ! sf org login jwt \
+            --client-id "$SF_CLIENT_ID" \
+            --username "$SF_USERNAME" \
+            --jwt-key-file "$RUNNER_TEMP/sf-devsrefeat.key" \
+            --instance-url "$SF_INSTANCE_URL" \
+            --alias devsrefeat-ci \
+            --json > "$RUNNER_TEMP/sf-auth.json" 2> "$RUNNER_TEMP/sf-auth.err"; then
+            echo "::error::JWT login failed. Check ECA, certificate, permission sets, user and My Domain."
+            exit 1
+          fi
+          echo "Salesforce JWT authentication completed."
+
+      - name: Execute allowlisted operation (sanitized output)
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$OPERATION" in
+            connection-check)
+              sf org display --target-org devsrefeat-ci --json > "$RUNNER_TEMP/sf-org.json"
+              echo "Salesforce org connection verified (details intentionally omitted)."
+              ;;
+            tooling-apex-summary)
+              sf data query \
+                --use-tooling-api \
+                --query "SELECT Id FROM ApexClass LIMIT 25" \
+                --target-org devsrefeat-ci \
+                --json > "$RUNNER_TEMP/sf-tooling.json"
+              jq -e '.status == 0' "$RUNNER_TEMP/sf-tooling.json" > /dev/null
+              echo "Tooling API reachable. Sample ApexClass records: $(jq -r '.result.totalSize' "$RUNNER_TEMP/sf-tooling.json")"
+              ;;
+            apex-tests)
+              if sf apex run test \
+                --test-level RunLocalTests \
+                --wait 60 \
+                --target-org devsrefeat-ci \
+                --json > "$RUNNER_TEMP/sf-test.json" 2> "$RUNNER_TEMP/sf-test.err"; then
+                echo "Apex test command completed successfully (details kept off public logs)."
+              else
+                echo "::error::Apex test command failed. Check result securely with org administrator."
+                exit 1
+              fi
+              ;;
+            *)
+              echo "::error::Operation not in allowlist"
+              exit 2
+              ;;
+          esac
+
+      - name: Remove temporary credentials and local outputs
+        if: always()
+        shell: bash
+        run: |
+          rm -f "$RUNNER_TEMP/sf-devsrefeat.key" \
+            "$RUNNER_TEMP/sf-auth.json" "$RUNNER_TEMP/sf-auth.err" \
+            "$RUNNER_TEMP/sf-org.json" "$RUNNER_TEMP/sf-tooling.json" \
+            "$RUNNER_TEMP/sf-test.json" "$RUNNER_TEMP/sf-test.err"
