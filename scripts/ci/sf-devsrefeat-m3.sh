@@ -85,16 +85,32 @@ diagnose_retrieve() {
 }
 
 if [[ "$OPERATION" == "retrieve" || "$OPERATION" == "compare" ]]; then
-  # --output-dir is officially supported with --manifest and must remain inside
-  # the project, outside all packageDirectories (force-app in this repository).
-  mkdir -p "$TEMP_DIR/retrieved"
+  # Never run retrieve from the checked-out repository when the sandbox has
+  # source tracking: the org may report conflicts against versioned classes.
+  # Use a fresh DX project with an empty source package and discard it on exit.
+  ISOLATED_PROJECT="$TEMP_DIR/isolated-sfdx-project"
+  RETRIEVED_DIR="$ISOLATED_PROJECT/retrieved"
+  mkdir -p "$ISOLATED_PROJECT/empty-source" "$RETRIEVED_DIR"
+  cat > "$ISOLATED_PROJECT/sfdx-project.json" <<'JSON'
+{
+  "packageDirectories": [{"path": "empty-source", "default": true}],
+  "name": "sf-devsrefeat-m3-readonly",
+  "namespace": "",
+  "sourceApiVersion": "67.0"
+}
+JSON
+  # Deliberately DO NOT use --ignore-conflicts against the real repository.
+  # Restrict the retrieval to the same reviewed two-class manifest.
   retrieve_exit=0
-  sf project retrieve start \
-    --manifest "$MANIFEST" \
-    --output-dir "$TEMP_DIR/retrieved" \
-    --target-org devsrefeat-m3 \
-    --wait 30 \
-    --json > "$TEMP_DIR/retrieve.json" 2> "$TEMP_DIR/retrieve.err" || retrieve_exit=$?
+  (
+    cd "$ISOLATED_PROJECT"
+    sf project retrieve start \
+      --manifest "$GITHUB_WORKSPACE/$MANIFEST" \
+      --output-dir "$RETRIEVED_DIR" \
+      --target-org devsrefeat-m3 \
+      --wait 30 \
+      --json
+  ) > "$TEMP_DIR/retrieve.json" 2> "$TEMP_DIR/retrieve.err" || retrieve_exit=$?
 
   if [[ "$retrieve_exit" -ne 0 ]]; then
     diagnose_retrieve
@@ -105,7 +121,7 @@ if [[ "$OPERATION" == "retrieve" || "$OPERATION" == "compare" ]]; then
 
   # Only count exact allowlisted files. Never print retrieved source or SHA hashes.
   if [[ "$OPERATION" == "retrieve" ]]; then
-    python3 - "$TEMP_DIR/retrieved" <<'PY'
+    python3 - "$RETRIEVED_DIR" <<'PY'
 import pathlib, sys
 root = pathlib.Path(sys.argv[1])
 names = {"CompareSecurityCode.cls", "CompareSecurityCodeTest.cls"}
@@ -117,7 +133,7 @@ if count != 2 or len(files) != 2:
     sys.exit(1)
 PY
   else
-    python3 - "$TEMP_DIR/retrieved" <<'PY'
+    python3 - "$RETRIEVED_DIR" <<'PY'
 import pathlib, sys
 root = pathlib.Path(sys.argv[1])
 local = pathlib.Path("force-app/main/default/classes")

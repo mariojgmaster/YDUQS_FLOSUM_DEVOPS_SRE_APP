@@ -35,7 +35,11 @@ O script trata respostas brutas apenas em arquivos temporários e imprime **some
 | `M3_RETRIEVE_TRANSIENT` | Problema temporário de rede, timeout ou limite |
 | `M3_RETRIEVE_UNCLASSIFIED` | Erro sem classificação segura; diagnosticar em ambiente privado |
 
-O comando `--manifest` com `--output-dir` é válido, conforme a referência oficial da Salesforce CLI. O script cria antecipadamente o diretório temporário **dentro do projeto** e **fora do package directory `force-app`**.
+O comando `--manifest` com `--output-dir` é válido, conforme a referência oficial da Salesforce CLI. Depois da execução M3 #2, identificamos `M3_RETRIEVE_SOURCE_CONFLICT`: a sandbox tem Source Tracking e a CLI detectou conflito no contexto do projeto versionado.
+
+**Correção proposta:** o script cria um projeto Salesforce DX **novo e isolado** sob o diretório temporário do runner, com `sfdx-project.json` próprio e pacote fonte inicialmente vazio. O retrieve ocorre com `cwd` neste projeto isolado, usando o mesmo manifesto fechado de duas classes; a comparação com os arquivos do GitHub só é feita em memória. O script não usa `--ignore-conflicts`, não sobrescreve `force-app` e não faz `git commit` ou upload de artefatos.
+
+Se `M3_RETRIEVE_SOURCE_CONFLICT` persistir mesmo no projeto isolado, **não** liberar `--ignore-conflicts` às cegas: verificar a saída detalhada em ambiente privado. A execução `validate` ainda será testada separadamente; sua própria verificação de conflitos precisa ser analisada antes de adicionar qualquer flag de bypass.
 
 Verificações recomendadas no Salesforce (sem aumentar permissões automaticamente):
 
@@ -63,14 +67,16 @@ Verificações recomendadas no Salesforce (sem aumentar permissões automaticame
 Comando executado pela CLI no runner:
 
 ```bash
+# Executado dentro de um projeto SFDX temporario com pacote fonte vazio
 sf project retrieve start \
-  --manifest manifest/sf-devsrefeat-m3.xml \
-  --output-dir <diretorio-temporario-no-runner> \
+  --manifest <caminho-absoluto-do-manifest-revisado> \
+  --output-dir <pasta-retrieved-do-projeto-isolado> \
   --target-org devsrefeat-m3 \
   --wait 30 --json
 ```
 
 - Não modifica o repositório nem grava metadados no package directory `force-app/`.
+- Executa a CLI a partir de um **SFDX temporário** com package directory vazio, isolado do Source Tracking do checkout; o conteúdo é descartado no fim do job.
 - Verifica se recuperou as **duas classes** esperadas; publica somente uma contagem.
 - O conteúdo recuperado permanece em diretório temporário, apagado ao final; **não é disponibilizado como artifact**, pois o repo é público.
 
