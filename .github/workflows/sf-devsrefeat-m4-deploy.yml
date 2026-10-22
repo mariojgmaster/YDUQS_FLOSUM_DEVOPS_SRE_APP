@@ -1,0 +1,174 @@
+# M4 pilot: explicit and auditable Salesforce deployment on DevSreFeat only.
+# Intentionally reuses the EXISTING GitHub Environment sf-devsrefeat-read.
+# No deployment approval gate; intention is proven by manual dispatch + SHA + phrase.
+# NEVER enable push, PR, schedule, issue_comment or workflow_run triggers here.
+name: Salesforce DevSreFeat - Deploy Explicito M4
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: "Cole o SHA completo (40 caracteres) do commit da master que deseja implantar"
+        required: true
+        type: string
+      confirmation:
+        description: "Digite exatamente DEPLOY DevSreFeat para autorizar o deployment REAL"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sf-devsrefeat-read
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # Pilot repository belongs to an individual. Only its owner can initiate deploys.
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' && github.actor == github.repository_owner }}
+    name: Validar e implantar explicitamente na DevSreFeat
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    # Same environment already used by SOQL, Apex testing and Metadata M3.
+    environment: sf-devsrefeat-read
+    env:
+      SF_CLIENT_ID: ${{ secrets.SF_CLIENT_ID }}
+      SF_USERNAME: ${{ secrets.SF_USERNAME }}
+      SF_JWT_KEY: ${{ secrets.SF_JWT_KEY }}
+      SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
+      REQUESTED_SHA: ${{ inputs.commit_sha }}
+      CONFIRMATION: ${{ inputs.confirmation }}
+      TARGET_SHA: ${{ github.sha }}
+      RUN_ATTEMPT: ${{ github.run_attempt }}
+      EVENT_NAME: ${{ github.event_name }}
+      REF_NAME: ${{ github.ref_name }}
+      GITHUB_OWNER: ${{ github.repository_owner }}
+      INVOKING_ACTOR: ${{ github.actor }}
+    steps:
+      - name: Checkout exact requested commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Verify explicit deployment intent and metadata allowlist
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$EVENT_NAME" == "workflow_dispatch" ]] || { echo "::error title=M4_MANUAL_ONLY::Deploy must be dispatched manually."; exit 1; }
+          [[ "$REF_NAME" == "master" ]] || { echo "::error title=M4_BRANCH_DENIED::Only master is deployable."; exit 1; }
+          [[ "$INVOKING_ACTOR" == "$GITHUB_OWNER" ]] || { echo "::error title=M4_ACTOR_DENIED::Only the pilot repository owner may deploy."; exit 1; }
+          [[ "$RUN_ATTEMPT" == "1" ]] || { echo "::error title=M4_RERUN_DENIED::Re-runs of a real deployment workflow are forbidden; make a fresh explicit request."; exit 1; }
+          [[ "$CONFIRMATION" == "DEPLOY DevSreFeat" ]] || { echo "::error title=M4_NO_CONFIRMATION::Type the exact deployment confirmation phrase."; exit 1; }
+          [[ "$REQUESTED_SHA" =~ ^[a-fA-F0-9]{40}$ ]] || { echo "::error title=M4_INVALID_SHA::Provide a full 40-character commit SHA."; exit 1; }
+          [[ "${REQUESTED_SHA,,}" == "${TARGET_SHA,,}" ]] || { echo "::error title=M4_SHA_MISMATCH::The manually supplied SHA does not match the checked-out master revision."; exit 1; }
+          [[ "$(git rev-parse HEAD)" == "$TARGET_SHA" ]] || { echo "::error title=M4_CHECKOUT_MISMATCH::Unexpected repository commit."; exit 1; }
+          [[ "$SF_INSTANCE_URL" == "https://yduqs--devsrefeat.sandbox.my.salesforce.com" ]] || { echo "::error title=M4_TARGET_DENIED::Only DevSreFeat sandbox is permitted."; exit 1; }
+          for name in SF_CLIENT_ID SF_USERNAME SF_JWT_KEY; do
+            [[ -n "${!name:-}" ]] || { echo "::error title=M4_SECRET_MISSING::Missing GitHub Environment secret."; exit 1; }
+          done
+          python3 - <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+          p = "manifest/sf-devsrefeat-m3.xml"
+          try:
+              root = ET.parse(p).getroot()
+              ns = {"m": "http://soap.sforce.com/2006/04/metadata"}
+              typ = root.findall("m:types", ns)
+              valid = (len(typ) == 1 and
+                  typ[0].findtext("m:name", namespaces=ns) == "ApexClass" and
+                  [e.text for e in typ[0].findall("m:members", ns)] ==
+                  ["CompareSecurityCode", "CompareSecurityCodeTest"])
+              if root.findtext("m:version", namespaces=ns) != "67.0":
+                  valid = False
+              if not valid:
+                  raise ValueError("Manifest is not the expected allowlist")
+          except Exception:
+              print("::error title=M4_MANIFEST_DENIED::The M4 pilot allows only two reviewed Apex classes.")
+              sys.exit(1)
+          print("M4_MANIFEST_VERIFIED: exact allowlist of two Apex classes.")
+          PY
+          test -f force-app/main/default/classes/CompareSecurityCode.cls
+          test -f force-app/main/default/classes/CompareSecurityCodeTest.cls
+          test -f force-app/main/default/classes/CompareSecurityCode.cls-meta.xml
+          test -f force-app/main/default/classes/CompareSecurityCodeTest.cls-meta.xml
+          echo "M4_INTENT_VERIFIED: manual dispatch, owner, master, SHA, target and component scope."
+
+      - name: Set up Salesforce CLI
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Salesforce CLI
+        run: npm install --global @salesforce/cli
+
+      - name: JWT login, dry-run and explicitly confirmed deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          KEY="$RUNNER_TEMP/m4-devsrefeat-jwt.key"
+          AUTH="$RUNNER_TEMP/m4-devsrefeat-auth.json"
+          DRY="$RUNNER_TEMP/m4-devsrefeat-dryrun.json"
+          REAL="$RUNNER_TEMP/m4-devsrefeat-deploy.json"
+          ERR="$RUNNER_TEMP/m4-devsrefeat-cli.err"
+          cleanup() { rm -f "$KEY" "$AUTH" "$DRY" "$REAL" "$ERR"; }
+          trap cleanup EXIT
+          printf '%s' "$SF_JWT_KEY" > "$KEY"
+          if ! openssl pkey -in "$KEY" -noout -passin pass: >/dev/null 2>&1; then
+            echo "::error title=M4_KEY_INVALID::Invalid PEM private key in the existing Environment."
+            exit 1
+          fi
+          if ! sf org login jwt \
+            --client-id "$SF_CLIENT_ID" \
+            --username "$SF_USERNAME" \
+            --jwt-key-file "$KEY" \
+            --instance-url "$SF_INSTANCE_URL" \
+            --alias devsrefeat-m4 \
+            --json > "$AUTH" 2> "$ERR"; then
+            echo "::error title=M4_AUTH_FAILED::JWT authentication failed. Review Salesforce Login History privately."
+            exit 1
+          fi
+          echo "M4_AUTH_PASSED: Salesforce JWT authentication completed."
+
+          # Dry-run uses the SAME checked-out source, target, manifest and Apex test.
+          if ! sf project deploy start \
+            --dry-run \
+            --manifest manifest/sf-devsrefeat-m3.xml \
+            --test-level RunSpecifiedTests \
+            --tests CompareSecurityCodeTest \
+            --target-org devsrefeat-m4 \
+            --wait 60 \
+            --json > "$DRY" 2> "$ERR"; then
+            echo "::error title=M4_DRY_RUN_FAILED::Dry-run failed. No real deploy attempted. Inspect results privately."
+            exit 1
+          fi
+          if ! jq -e '.status == 0 and .result.success == true and (.result.done == true or .result.status == "Succeeded")' "$DRY" >/dev/null 2>&1; then
+            echo "::error title=M4_DRY_RUN_INCOMPLETE::Dry-run not conclusively successful. No real deploy attempted."
+            exit 1
+          fi
+          echo "M4_DRY_RUN_PASSED: selected Apex metadata validated; no changes persisted."
+
+          # One last fail-closed guard immediately before the intentional write.
+          [[ "$CONFIRMATION" == "DEPLOY DevSreFeat" && "${REQUESTED_SHA,,}" == "${TARGET_SHA,,}" && "$RUN_ATTEMPT" == "1" ]] || {
+            echo "::error title=M4_WRITE_NOT_AUTHORIZED::Explicit deployment guards failed."
+            exit 1
+          }
+          echo "M4_REAL_DEPLOY_STARTING: intentional deployment to DevSreFeat."
+          deploy_exit=0
+          sf project deploy start \
+            --manifest manifest/sf-devsrefeat-m3.xml \
+            --test-level RunSpecifiedTests \
+            --tests CompareSecurityCodeTest \
+            --target-org devsrefeat-m4 \
+            --wait 60 \
+            --json > "$REAL" 2> "$ERR" || deploy_exit=$?
+          if [[ "$deploy_exit" -ne 0 ]]; then
+            echo "::error title=M4_DEPLOY_REPORTED_FAILURE::Real deploy returned an error. Verify Deployment Status before any new attempt."
+            exit 1
+          fi
+          if ! jq -e '.status == 0 and .result.success == true and (.result.done == true or .result.status == "Succeeded")' "$REAL" >/dev/null 2>&1; then
+            echo "::error title=M4_DEPLOY_UNCONFIRMED::Real deploy may still be running; verify Salesforce Deployment Status. Never retry blindly."
+            exit 1
+          fi
+          echo "M4_REAL_DEPLOY_SUCCEEDED: Salesforce confirmed the authorized deployment."
