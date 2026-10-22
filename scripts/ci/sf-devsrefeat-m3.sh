@@ -85,28 +85,27 @@ diagnose_retrieve() {
 }
 
 if [[ "$OPERATION" == "retrieve" || "$OPERATION" == "compare" ]]; then
-  # Never run retrieve from the checked-out repository when the sandbox has
-  # source tracking: the org may report conflicts against versioned classes.
-  # Use a fresh DX project with an empty source package and discard it on exit.
+  # Retrieve in Metadata API ZIP format rather than source format.
+  # CLI source-format retrieve can update tracking state and/or write files
+  # outside the output subtree when a sandbox has Source Tracking enabled.
+  # Metadata ZIP is immutable and inspectable without converting to SFDX.
   ISOLATED_PROJECT="$TEMP_DIR/isolated-sfdx-project"
-  RETRIEVED_DIR="$ISOLATED_PROJECT/retrieved"
-  mkdir -p "$ISOLATED_PROJECT/empty-source" "$RETRIEVED_DIR"
+  MDAPI_DIR="$TEMP_DIR/mdapi"
+  mkdir -p "$ISOLATED_PROJECT/empty-source" "$MDAPI_DIR"
   cat > "$ISOLATED_PROJECT/sfdx-project.json" <<'JSON'
 {
   "packageDirectories": [{"path": "empty-source", "default": true}],
-  "name": "sf-devsrefeat-m3-readonly",
+  "name": "sf-devsrefeat-m3-metadata",
   "namespace": "",
   "sourceApiVersion": "67.0"
 }
 JSON
-  # Deliberately DO NOT use --ignore-conflicts against the real repository.
-  # Restrict the retrieval to the same reviewed two-class manifest.
   retrieve_exit=0
   (
     cd "$ISOLATED_PROJECT"
     sf project retrieve start \
       --manifest "$GITHUB_WORKSPACE/$MANIFEST" \
-      --output-dir "$RETRIEVED_DIR" \
+      --target-metadata-dir "$MDAPI_DIR" \
       --target-org devsrefeat-m3 \
       --wait 30 \
       --json
@@ -119,49 +118,78 @@ JSON
     diagnose_retrieve
   fi
 
-  # Only count exact allowlisted files. Never print retrieved source or SHA hashes.
-  if [[ "$OPERATION" == "retrieve" ]]; then
-    python3 - "$RETRIEVED_DIR" <<'PY'
-import pathlib, sys
-root = pathlib.Path(sys.argv[1])
-names = {"CompareSecurityCode.cls", "CompareSecurityCodeTest.cls"}
-files = [p for p in root.rglob("*.cls") if p.parent.name == "classes" and p.name in names]
-count = len({p.name for p in files})
-print("M3_RETRIEVE_SUMMARY: Apex classes retrieved=" + str(count) + " expected=2")
-if count != 2 or len(files) != 2:
-    print("::error title=M3_RETRIEVE_MISSING::The selected source files were not returned.")
+  # Read only an allowlisted set of files inside the ZIP. Never extract it,
+  # upload it as an artifact, print the class bodies, or print hashes.
+  python3 - "$OPERATION" "$MDAPI_DIR" "$GITHUB_WORKSPACE/force-app/main/default/classes" <<'PY'
+from pathlib import Path, PurePosixPath
+from zipfile import ZipFile, BadZipFile
+import sys
+
+operation, mdapi_folder, checked_out_classes = sys.argv[1:]
+zip_root = Path(mdapi_folder)
+local_root = Path(checked_out_classes)
+
+def stop(code, description):
+    print(f"::error title={code}::{description}")
     sys.exit(1)
-PY
-  else
-    python3 - "$RETRIEVED_DIR" <<'PY'
-import pathlib, sys
-root = pathlib.Path(sys.argv[1])
-local = pathlib.Path("force-app/main/default/classes")
-names = [
+
+archives = [p for p in zip_root.glob("*.zip") if p.is_file()]
+if len(archives) != 1:
+    stop("M3_RETRIEVE_ARCHIVE_MISSING",
+         "The CLI succeeded but did not produce exactly one Metadata API ZIP.")
+
+source_names = ("CompareSecurityCode.cls", "CompareSecurityCodeTest.cls")
+all_names = (
     "CompareSecurityCode.cls",
     "CompareSecurityCode.cls-meta.xml",
     "CompareSecurityCodeTest.cls",
     "CompareSecurityCodeTest.cls-meta.xml",
-]
-same, different, missing = 0, 0, 0
-for name in names:
-    candidates = [p for p in root.rglob(name) if p.parent.name == "classes" and p.is_file()]
-    path = local / name
-    if len(candidates) != 1 or not path.is_file():
-        missing += 1
-        continue
-    # Normalize line endings only; no retrieved content or hashes leave the runner.
-    normalized = lambda x: x.read_bytes().replace(b"\r\n", b"\n").rstrip(b"\n")
-    if normalized(candidates[0]) == normalized(path):
-        same += 1
-    else:
-        different += 1
-print(f"M3_COMPARE_SUMMARY: same={same} different={different} missing={missing}")
-if different or missing:
-    print("::error title=M3_METADATA_DRIFT::Apex metadata differs or is missing; inspect comparison privately before a deployment.")
-    sys.exit(1)
+)
+try:
+    with ZipFile(archives[0]) as archive:
+        matched = {}
+        for entry in archive.infolist():
+            parts = PurePosixPath(entry.filename).parts
+            if (".." in parts or entry.filename.startswith("/")):
+                stop("M3_RETRIEVE_ARCHIVE_UNSAFE", "An unsafe ZIP member path was detected.")
+            if entry.is_dir() or len(parts) < 2 or parts[-2] != "classes":
+                continue
+            if parts[-1] in all_names:
+                if parts[-1] in matched or entry.file_size > 2_000_000:
+                    stop("M3_RETRIEVE_ARCHIVE_UNSAFE",
+                         "Duplicate or oversized metadata component in the returned ZIP.")
+                matched[parts[-1]] = entry
+
+        sources_found = sum(name in matched for name in source_names)
+        if sources_found != len(source_names):
+            print(f"M3_RETRIEVE_SUMMARY: Apex classes retrieved={sources_found} expected=2")
+            stop("M3_RETRIEVE_MISSING",
+                 "The Metadata API ZIP does not contain both expected Apex classes.")
+
+        if operation == "retrieve":
+            print("M3_RETRIEVE_SUMMARY: Apex classes retrieved=2 expected=2")
+        else:
+            same = different = missing = 0
+            for name in all_names:
+                file_path = local_root / name
+                if name not in matched or not file_path.is_file():
+                    missing += 1
+                    continue
+                if file_path.stat().st_size > 2_000_000:
+                    stop("M3_COMPARE_FILE_TOO_LARGE", "An allowlisted local file is too large.")
+                remote = archive.read(matched[name]).replace(b"\r\n", b"\n").rstrip(b"\n")
+                local = file_path.read_bytes().replace(b"\r\n", b"\n").rstrip(b"\n")
+                if remote == local:
+                    same += 1
+                else:
+                    different += 1
+            print(f"M3_COMPARE_SUMMARY: same={same} different={different} missing={missing}")
+            if different or missing:
+                stop("M3_METADATA_DRIFT",
+                     "The retrieved metadata differs from GitHub or a file is missing; review privately.")
+except BadZipFile:
+    stop("M3_RETRIEVE_INVALID_ARCHIVE", "The Metadata API archive is invalid.")
 PY
-  fi
 else
   # Salesforce recommends deploy start --dry-run for sandbox validation, not deploy validate.
   exit_code=0
