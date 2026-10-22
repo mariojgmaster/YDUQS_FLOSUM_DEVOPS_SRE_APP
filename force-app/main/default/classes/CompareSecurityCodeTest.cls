@@ -32,7 +32,7 @@ private class CompareSecurityCodeTest {
         CompareSecurityCode.InputParameters invalidInput =
             new CompareSecurityCode.InputParameters();
         invalidInput.contactId = testContact.Id;
-        invalidInput.securityCode = savedContact.ChaveSeguranca__c + '_invalid';
+        invalidInput.securityCode = testContact.ChaveSeguranca__c;
 
         List<CompareSecurityCode.OutputResult> results =
             CompareSecurityCode.compareSecurityCode(
