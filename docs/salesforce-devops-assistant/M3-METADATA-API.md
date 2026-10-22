@@ -16,6 +16,36 @@
 
 O script recusa alterações não aprovadas nesse manifesto e verifica o My Domain para evitar executar no ambiente errado.
 
+## Diagnóstico de falhas de retrieve
+
+Se `retrieve` falhar **depois** de `JWT authorization succeeded`, o problema não é necessariamente a ECA. O comando `sf project retrieve start` depende de permissões de **Metadata API**, diferentes das operações REST/Tooling API já homologadas.
+
+A documentação Salesforce exige, para acesso à Metadata API, **`Modify Metadata Through Metadata API Functions` ou `Modify All Data`**, além das permissões específicas do tipo de metadados. Essas permissões concedem também capacidade de modificação de metadados e **não são somente leitura**. Não habilitar nenhuma delas sem autorização administrativa e revisão de segurança corporativa. Idealmente, separar identidades e GitHub Environments para diagnósticos de baixo privilégio e operações que requerem permissão de Metadata API.
+
+O script trata respostas brutas apenas em arquivos temporários e imprime **somente categorias de erro** no GitHub, porque o repositório é público. Códigos previstos:
+
+| Código | Interpretação inicial |
+|---|---|
+| `M3_RETRIEVE_PERMISSION` | Possível falta de permissão da Metadata API ou específica de ApexClass |
+| `M3_RETRIEVE_LOCAL_PATH` | Diretório de saída inválido, não gravável ou fora do projeto |
+| `M3_RETRIEVE_CLI_FLAGS` | Flags incompatíveis com versão instalada da CLI |
+| `M3_RETRIEVE_SOURCE_CONFLICT` | Conflito de source tracking |
+| `M3_RETRIEVE_METADATA` | Componentes/nomes ou tipo de metadata indisponíveis |
+| `M3_RETRIEVE_SESSION` | Token/sessão rejeitados pela Metadata API |
+| `M3_RETRIEVE_TRANSIENT` | Problema temporário de rede, timeout ou limite |
+| `M3_RETRIEVE_UNCLASSIFIED` | Erro sem classificação segura; diagnosticar em ambiente privado |
+
+O comando `--manifest` com `--output-dir` é válido, conforme a referência oficial da Salesforce CLI. O script cria antecipadamente o diretório temporário **dentro do projeto** e **fora do package directory `force-app`**.
+
+Verificações recomendadas no Salesforce (sem aumentar permissões automaticamente):
+
+1. **Setup → Users → usuário configurado em `SF_USERNAME`**: identificar Profile e Permission Sets realmente atribuídos.
+2. Conferir `API Enabled`, `Modify Metadata Through Metadata API Functions` e eventuais permissões específicas dos componentes que serão recuperados. Não habilitar `Modify All Data` apenas para liberar o retrieve.
+3. Manter revisão/segregação de acesso antes de passar de Tooling API para Metadata API.
+4. Não copiar JSON bruto, nomes internos ou tokens dos jobs do GitHub público.
+
+**Fontes:** [Salesforce Metadata API Edit Access](https://help.salesforce.com/s/articleView?id=meta_modify_metadata_perm.htm&language=en_US&type=5) e [CLI project retrieve start](https://developer.salesforce.com/docs/platform/salesforce-cli-reference/guide/cli_reference_project_retrieve_start.html).
+
 ## Antes da primeira execução
 
 1. Revisar o PR de M3 e confirmar que os três arquivos (`.github/workflows/sf-devsrefeat-metadata.yml`, `scripts/ci/sf-devsrefeat-m3.sh` e `manifest/sf-devsrefeat-m3.xml`) contêm apenas ações autorizadas.

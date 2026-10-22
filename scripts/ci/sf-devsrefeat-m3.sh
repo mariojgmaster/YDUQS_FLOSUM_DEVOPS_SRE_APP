@@ -60,17 +60,47 @@ if ! sf org login jwt \
 fi
 echo "JWT authorization succeeded for the configured sandbox (details withheld)."
 
+# Classify only known CLI/Salesforce errors. Never publish raw metadata
+# responses, usernames, org IDs, sources or full stack traces in this PUBLIC repo.
+diagnose_retrieve() {
+  local stdout="$TEMP_DIR/retrieve.json"
+  local stderr="$TEMP_DIR/retrieve.err"
+  if grep -Eiq 'INVALID_SESSION_ID|invalid access token|session expired|expired access token' "$stdout" "$stderr"; then
+    abort "M3_RETRIEVE_SESSION" "The Salesforce session was rejected by Metadata API; inspect OAuth user/session policies."
+  elif grep -Eiq 'INSUFFICIENT_ACCESS|INVALID_PERMISSION|not authorized|unauthorized|access denied|insufficient privileges|Modify Metadata Through Metadata API Functions|Modify All Data|missing.*permission|permission.*required|permission.*denied' "$stdout" "$stderr"; then
+    abort "M3_RETRIEVE_PERMISSION" "The integration user might lack Metadata API permissions. Review Modify Metadata Through Metadata API Functions and required type-specific permissions with an admin; do not grant wider access automatically."
+  elif grep -Eiq 'outputDirOutsideProject|outputDirOverlapsPackage|retrieveTargetDirOverlapsPackage|output directory|output-dir|outside.*project|ENOENT|EACCES|permission denied.*directory' "$stdout" "$stderr"; then
+    abort "M3_RETRIEVE_LOCAL_PATH" "Salesforce CLI rejected the local retrieval path. Verify a writable directory inside the SFDX project outside force-app."
+  elif grep -Eiq 'Nonexistent flag|Unexpected argument|unknown flag|flag .* not found|unknown option|invalid option|Invalid flag' "$stdout" "$stderr"; then
+    abort "M3_RETRIEVE_CLI_FLAGS" "CLI arguments are not supported by the installed version. Inspect the available sf project retrieve start flags privately."
+  elif grep -Eiq 'SourceConflict|source conflict|conflicts detected|conflict detected' "$stdout" "$stderr"; then
+    abort "M3_RETRIEVE_SOURCE_CONFLICT" "Source tracking reported a conflict. Do not bypass or overwrite local project files."
+  elif grep -Eiq 'No source-backed components|no metadata found|metadata .* not found|Could not find.*metadata|ENTITY_IS_DELETED|INVALID_TYPE|UNKNOWN_EXCEPTION' "$stdout" "$stderr"; then
+    abort "M3_RETRIEVE_METADATA" "Manifest component/type may be unavailable or retrieval was rejected; verify ApexClass metadata names and org access."
+  elif grep -Eiq 'REQUEST_LIMIT_EXCEEDED|rate limit|ETIMEDOUT|ECONNRESET|EAI_AGAIN|ENOTFOUND|timed out|network error' "$stdout" "$stderr"; then
+    abort "M3_RETRIEVE_TRANSIENT" "The request hit a network, timeout or rate-limit error. Review limits and retry only when appropriate."
+  else
+    abort "M3_RETRIEVE_UNCLASSIFIED" "Retrieve failed with an unclassified error. Raw output stays private; inspect the exact error only in an authorized, non-public Salesforce CLI environment."
+  fi
+}
+
 if [[ "$OPERATION" == "retrieve" || "$OPERATION" == "compare" ]]; then
-  if ! sf project retrieve start \
+  # --output-dir is officially supported with --manifest and must remain inside
+  # the project, outside all packageDirectories (force-app in this repository).
+  mkdir -p "$TEMP_DIR/retrieved"
+  retrieve_exit=0
+  sf project retrieve start \
     --manifest "$MANIFEST" \
     --output-dir "$TEMP_DIR/retrieved" \
     --target-org devsrefeat-m3 \
     --wait 30 \
-    --json > "$TEMP_DIR/retrieve.json" 2> "$TEMP_DIR/retrieve.err"; then
-    abort "M3_RETRIEVE_FAILED" "Metadata retrieval failed; inspect permissions/API access using a secure Salesforce client."
+    --json > "$TEMP_DIR/retrieve.json" 2> "$TEMP_DIR/retrieve.err" || retrieve_exit=$?
+
+  if [[ "$retrieve_exit" -ne 0 ]]; then
+    diagnose_retrieve
   fi
   if ! jq -e '.status == 0' "$TEMP_DIR/retrieve.json" >/dev/null 2>&1; then
-    abort "M3_RETRIEVE_INCOMPLETE" "Retrieval returned a non-success status; org output intentionally withheld."
+    diagnose_retrieve
   fi
 
   # Only count exact allowlisted files. Never print retrieved source or SHA hashes.
