@@ -71,17 +71,42 @@ jobs:
           set -euo pipefail
           umask 077
           printf '%s' "$SF_JWT_KEY" > "$RUNNER_TEMP/sf-devsrefeat.key"
-          if ! sf org login jwt \
+
+          # Detect malformed/truncated secrets without printing the private key.
+          if ! openssl pkey -in "$RUNNER_TEMP/sf-devsrefeat.key" -noout -passin pass: >/dev/null 2>&1; then
+            echo "::error title=JWT_KEY_INVALID::SF_JWT_KEY is not a valid unencrypted PEM private key. Check multi-line GitHub Environment Secret."
+            exit 1
+          fi
+
+          # Keep Salesforce's raw stdout/stderr private; GitHub repo is public.
+          if sf org login jwt \
             --client-id "$SF_CLIENT_ID" \
             --username "$SF_USERNAME" \
             --jwt-key-file "$RUNNER_TEMP/sf-devsrefeat.key" \
             --instance-url "$SF_INSTANCE_URL" \
             --alias devsrefeat-ci \
             --json > "$RUNNER_TEMP/sf-auth.json" 2> "$RUNNER_TEMP/sf-auth.err"; then
-            echo "::error::JWT login failed. Check ECA, certificate, permission sets, user and My Domain."
+            echo "Salesforce JWT authentication completed."
+          else
+            # Classify only known errors. NEVER echo raw JSON/stderr: they can
+            # include Salesforce identifiers, usernames, URLs or tokens.
+            if grep -Eiq "user hasn't approved this consumer|user has not approved this consumer|user is not admin approved|not approved" "$RUNNER_TEMP/sf-auth.json" "$RUNNER_TEMP/sf-auth.err"; then
+              echo "::error title=JWT_USER_NOT_PREAUTHORIZED::Check ECA permitted users, assigned permission set and integration user."
+            elif grep -Eiq "client identifier invalid|invalid client id|invalid_client|client id is invalid" "$RUNNER_TEMP/sf-auth.json" "$RUNNER_TEMP/sf-auth.err"; then
+              echo "::error title=JWT_CLIENT_ID_INVALID::Check SF_CLIENT_ID against Consumer Key of the DevSreFeat ECA."
+            elif grep -Eiq "audience is invalid|invalid audience|audience.*invalid" "$RUNNER_TEMP/sf-auth.json" "$RUNNER_TEMP/sf-auth.err"; then
+              echo "::error title=JWT_AUDIENCE_INVALID::Review My Domain URL and Salesforce login/audience policy."
+            elif grep -Eiq "invalid signature|signature validation failed|signature is invalid|certificate.*(invalid|mismatch)" "$RUNNER_TEMP/sf-auth.json" "$RUNNER_TEMP/sf-auth.err"; then
+              echo "::error title=JWT_CERT_MISMATCH::Check uploaded ECA certificate matches the private key in the GitHub Environment Secret."
+            elif grep -Eiq "ip restricted|ip_restricted" "$RUNNER_TEMP/sf-auth.json" "$RUNNER_TEMP/sf-auth.err"; then
+              echo "::error title=JWT_IP_RESTRICTED::Inspect Salesforce IP access policies for the integration user."
+            elif grep -Eiq "expired|assertion.*invalid|invalid_grant|jwt.*flow.*disabled" "$RUNNER_TEMP/sf-auth.json" "$RUNNER_TEMP/sf-auth.err"; then
+              echo "::error title=JWT_GRANT_REJECTED::Review JWT Bearer Flow activation, app policy, certificate, user and time synchronization."
+            else
+              echo "::error title=JWT_AUTH_UNCLASSIFIED::OAuth login failed but raw error was withheld to protect this public repository; review the ECA and Salesforce Login History."
+            fi
             exit 1
           fi
-          echo "Salesforce JWT authentication completed."
 
       - name: Execute allowlisted operation (sanitized output)
         shell: bash
