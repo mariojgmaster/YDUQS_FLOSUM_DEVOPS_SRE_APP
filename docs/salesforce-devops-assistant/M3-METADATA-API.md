@@ -37,9 +37,9 @@ O script trata respostas brutas apenas em arquivos temporários e imprime **some
 
 O comando `--manifest` com `--output-dir` é válido, conforme a referência oficial da Salesforce CLI. Depois da execução M3 #2, identificamos `M3_RETRIEVE_SOURCE_CONFLICT`: a sandbox tem Source Tracking e a CLI detectou conflito no contexto do projeto versionado.
 
-**Correção proposta:** o script cria um projeto Salesforce DX **novo e isolado** sob o diretório temporário do runner, com `sfdx-project.json` próprio e pacote fonte inicialmente vazio. O retrieve ocorre com `cwd` neste projeto isolado, usando o mesmo manifesto fechado de duas classes; a comparação com os arquivos do GitHub só é feita em memória. O script não usa `--ignore-conflicts`, não sobrescreve `force-app` e não faz `git commit` ou upload de artefatos.
+**Correção v2 (após o M3 #3):** o retrieve em formato fonte retornou status de sucesso, mas o script encontrou `0/2` classes no diretório esperado. A partir desta revisão, mantemos o projeto DX **temporário e isolado**, mas solicitamos o **formato Metadata API (ZIP)** com `--target-metadata-dir`. O script inspeciona o ZIP sem extrair, verifica apenas as duas classes explicitamente autorizadas, compara bytes somente na memória e elimina os arquivos temporários no final. Nenhum código recuperado é adicionado ao GitHub, exibido em log ou gravado em `force-app`.
 
-Se `M3_RETRIEVE_SOURCE_CONFLICT` persistir mesmo no projeto isolado, **não** liberar `--ignore-conflicts` às cegas: verificar a saída detalhada em ambiente privado. A execução `validate` ainda será testada separadamente; sua própria verificação de conflitos precisa ser analisada antes de adicionar qualquer flag de bypass.
+O formato ZIP evita depender do mapeamento de arquivos em source format e do controle de Source Tracking usado na conversão. Não habilitamos `--ignore-conflicts` e não alteramos `validate`. Se as classes não vierem no pacote, agora o diagnóstico distinguirá um ZIP ausente/inválido de componentes ausentes.
 
 Verificações recomendadas no Salesforce (sem aumentar permissões automaticamente):
 
@@ -70,14 +70,14 @@ Comando executado pela CLI no runner:
 # Executado dentro de um projeto SFDX temporario com pacote fonte vazio
 sf project retrieve start \
   --manifest <caminho-absoluto-do-manifest-revisado> \
-  --output-dir <pasta-retrieved-do-projeto-isolado> \
+  --target-metadata-dir <pasta-temporaria-mdapi> \
   --target-org devsrefeat-m3 \
   --wait 30 --json
 ```
 
 - Não modifica o repositório nem grava metadados no package directory `force-app/`.
-- Executa a CLI a partir de um **SFDX temporário** com package directory vazio, isolado do Source Tracking do checkout; o conteúdo é descartado no fim do job.
-- Verifica se recuperou as **duas classes** esperadas; publica somente uma contagem.
+- Executa a CLI a partir de um **SFDX temporário**, requisita um pacote Metadata API em ZIP e inspeciona os membros permitidos sem extrair os arquivos; o conteúdo é descartado no fim do job.
+- Verifica se o ZIP contém as **duas classes** esperadas; publica somente uma contagem. Se não existir ZIP único, gera `M3_RETRIEVE_ARCHIVE_MISSING`; ZIP inválido gera `M3_RETRIEVE_INVALID_ARCHIVE`.
 - O conteúdo recuperado permanece em diretório temporário, apagado ao final; **não é disponibilizado como artifact**, pois o repo é público.
 
 Resultado esperado: `M3_RETRIEVE_SUMMARY: Apex classes retrieved=2 expected=2`.
@@ -91,7 +91,7 @@ Executa o mesmo retrieve isolado e compara os quatro arquivos versionados:
 - `CompareSecurityCodeTest.cls`
 - `CompareSecurityCodeTest.cls-meta.xml`
 
-Compara conteúdo após normalizar quebras de linha, sem imprimir valores, fontes ou hashes.
+Compara os arquivos SFDX com os arquivos Apex correspondentes dentro do ZIP Metadata API, após normalizar quebras de linha, sem imprimir valores, fontes ou hashes. Diferenças legítimas de serialização XML poderão gerar drift e deverão ser investigadas em ambiente privado.
 
 Exemplo de resultado: `M3_COMPARE_SUMMARY: same=4 different=0 missing=0`.
 
