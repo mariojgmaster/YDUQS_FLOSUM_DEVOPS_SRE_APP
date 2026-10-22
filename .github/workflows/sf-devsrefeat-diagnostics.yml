@@ -127,12 +127,18 @@ jobs:
               echo "Tooling API reachable. Sample ApexClass records: $(jq -r '.result.totalSize' "$RUNNER_TEMP/sf-tooling.json")"
               ;;
             apex-tests)
+              # Escopo piloto: somente testes versionados neste projeto Salesforce DX.
+              # RunLocalTests executaria todas as classes locais da org inteira.
               if sf apex run test \
-                --test-level RunLocalTests \
+                --class-names ClonePipelineControllerTest \
+                --class-names CompareSecurityCodeTest \
+                --class-names GeradorSenhaInicialTest \
+                --class-names SendEmailInvocableTest \
+                --code-coverage \
                 --wait 60 \
                 --target-org devsrefeat-ci \
                 --json > "$RUNNER_TEMP/sf-test.json" 2> "$RUNNER_TEMP/sf-test.err"; then
-                echo "Apex test command completed successfully (details kept off public logs)."
+                echo "Apex test command accepted for the four repository test classes (detailed results withheld from public logs)."
               else
                 echo "::error::Apex test command failed. Check result securely with org administrator."
                 exit 1
