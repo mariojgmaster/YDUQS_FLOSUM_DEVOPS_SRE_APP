@@ -127,9 +127,27 @@ jobs:
               echo "Tooling API reachable. Sample ApexClass records: $(jq -r '.result.totalSize' "$RUNNER_TEMP/sf-tooling.json")"
               ;;
             apex-tests)
-              # Escopo piloto: somente testes versionados neste projeto Salesforce DX.
-              # RunLocalTests executaria todas as classes locais da org inteira.
-              if sf apex run test \
+              # Before execution, verify all four repository tests exist in the org.
+              # Never publish class source, per-method output or Salesforce error JSON.
+              if ! sf data query \
+                --use-tooling-api \
+                --query "SELECT Name FROM ApexClass WHERE Name IN ('ClonePipelineControllerTest','CompareSecurityCodeTest','GeradorSenhaInicialTest','SendEmailInvocableTest') LIMIT 4" \
+                --target-org devsrefeat-ci \
+                --json > "$RUNNER_TEMP/sf-test-precheck.json" 2> "$RUNNER_TEMP/sf-test-precheck.err"; then
+                echo "::error title=APEX_TEST_PREFLIGHT_ERROR::Unable to verify test class availability via Tooling API."
+                exit 1
+              fi
+              found=$(jq -r '(.result.records // []) | map(.Name) | unique | length' "$RUNNER_TEMP/sf-test-precheck.json")
+              if [[ "$found" != "4" ]]; then
+                echo "::error title=APEX_TEST_CLASSES_MISSING::Only $found of 4 expected test classes were found in DevSreFeat. Check Apex Classes in the sandbox before retrying."
+                exit 1
+              fi
+              echo "Apex test preflight: 4 of 4 expected classes located in the sandbox."
+
+              # An Apex run may return nonzero because the tests FAIL, not
+              # necessarily because invoking the test runner itself failed.
+              sf_exit=0
+              sf apex run test \
                 --class-names ClonePipelineControllerTest \
                 --class-names CompareSecurityCodeTest \
                 --class-names GeradorSenhaInicialTest \
@@ -137,10 +155,37 @@ jobs:
                 --code-coverage \
                 --wait 60 \
                 --target-org devsrefeat-ci \
-                --json > "$RUNNER_TEMP/sf-test.json" 2> "$RUNNER_TEMP/sf-test.err"; then
-                echo "Apex test command accepted for the four repository test classes (detailed results withheld from public logs)."
+                --json > "$RUNNER_TEMP/sf-test.json" 2> "$RUNNER_TEMP/sf-test.err" || sf_exit=$?
+
+              if jq -e 'type == "object"' "$RUNNER_TEMP/sf-test.json" >/dev/null 2>&1; then
+                # Whitelist only aggregate numbers and an allowed outcome.
+                read -r ran passed failed < <(jq -r '
+                  def n: if type == "number" and . >= 0 then tostring else "unknown" end;
+                  [(.result.summary.testsRan | n), (.result.summary.passing | n), (.result.summary.failing | n)] | @tsv
+                ' "$RUNNER_TEMP/sf-test.json" 2>/dev/null || echo "unknown unknown unknown")
+                outcome=$(jq -r '.result.summary.outcome // "unknown" | if .=="Passed" or .=="Failed" or .=="Pending" then . else "unknown" end' "$RUNNER_TEMP/sf-test.json" 2>/dev/null || echo "unknown")
+                echo "APEX_TEST_SUMMARY: total=$ran passed=$passed failed=$failed outcome=$outcome"
               else
-                echo "::error::Apex test command failed. Check result securely with org administrator."
+                ran="unknown"; passed="unknown"; failed="unknown"; outcome="unknown"
+                echo "APEX_TEST_SUMMARY: structured result unavailable (details withheld)"
+              fi
+
+              if [[ "$sf_exit" -eq 0 && "$outcome" != "Failed" ]]; then
+                echo "Apex CLI test command completed without error."
+              elif [[ "$failed" =~ ^[0-9]+$ && "$failed" -gt 0 ]] || [[ "$outcome" == "Failed" ]]; then
+                echo "::error title=APEX_TEST_FAILURE::One or more Apex test methods failed. Review Setup > Apex Test Execution within the sandbox for method-level details."
+                exit 1
+              elif grep -Eiq "View All Data|INSUFFICIENT_ACCESS|insufficient privileges|permission denied|not authorized" "$RUNNER_TEMP/sf-test.json" "$RUNNER_TEMP/sf-test.err"; then
+                echo "::error title=APEX_TEST_PERMISSION::Check the integration user's Apex test execution permissions. Do not grant View All Data without a security review."
+                exit 1
+              elif grep -Eiq "test class.*not found|invalid test class|no tests found|test class.*does not exist" "$RUNNER_TEMP/sf-test.json" "$RUNNER_TEMP/sf-test.err"; then
+                echo "::error title=APEX_TEST_CLASS_ERROR::One or more specified test classes could not be executed; verify they are active and deployed."
+                exit 1
+              elif grep -Eiq "timed out|timeout|socket timeout" "$RUNNER_TEMP/sf-test.json" "$RUNNER_TEMP/sf-test.err"; then
+                echo "::error title=APEX_TEST_TIMEOUT::Check Salesforce Apex Test Execution before retrying; a test run may still be executing."
+                exit 1
+              else
+                echo "::error title=APEX_TEST_UNCLASSIFIED::Salesforce returned an unsuccessful test command without an allowed diagnostic. Check Apex Test Execution in the sandbox."
                 exit 1
               fi
               ;;
@@ -157,4 +202,5 @@ jobs:
           rm -f "$RUNNER_TEMP/sf-devsrefeat.key" \
             "$RUNNER_TEMP/sf-auth.json" "$RUNNER_TEMP/sf-auth.err" \
             "$RUNNER_TEMP/sf-org.json" "$RUNNER_TEMP/sf-tooling.json" \
-            "$RUNNER_TEMP/sf-test.json" "$RUNNER_TEMP/sf-test.err"
+            "$RUNNER_TEMP/sf-test.json" "$RUNNER_TEMP/sf-test.err" \
+            "$RUNNER_TEMP/sf-test-precheck.json" "$RUNNER_TEMP/sf-test-precheck.err"
