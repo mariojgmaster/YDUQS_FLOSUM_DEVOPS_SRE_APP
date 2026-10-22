@@ -1,0 +1,53 @@
+# M3 Metadata API pilot: manual only; NO deployment persists.
+# GitHub Environment must already exist, restricted to master, with ECA/JWT secrets.
+name: Salesforce DevSreFeat - Metadata M3
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: "Metadata API operation"
+        required: true
+        type: choice
+        default: retrieve
+        options:
+          - retrieve
+          - compare
+          - validate
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sf-devsrefeat-read
+  cancel-in-progress: false
+
+jobs:
+  metadata:
+    name: Metadata API - DevSreFeat
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment: sf-devsrefeat-read
+    env:
+      SF_CLIENT_ID: ${{ secrets.SF_CLIENT_ID }}
+      SF_USERNAME: ${{ secrets.SF_USERNAME }}
+      SF_JWT_KEY: ${{ secrets.SF_JWT_KEY }}
+      SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
+      OPERATION: ${{ inputs.operation }}
+    steps:
+      - name: Checkout approved commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js for Salesforce CLI
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Salesforce CLI
+        run: npm install --global @salesforce/cli
+
+      - name: Retrieve, compare or dry-run validate
+        shell: bash
+        run: bash scripts/ci/sf-devsrefeat-m3.sh
