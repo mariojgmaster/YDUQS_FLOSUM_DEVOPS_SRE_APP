@@ -116,7 +116,7 @@ jobs:
             exit 1
           fi
 
-          read -r ready conflicts delete ignored < <(jq -r '[.result.toDeploy | length, .result.conflicts | length, .result.toDelete | length, .result.ignored | length] | @tsv' "$PRIVATE_DIR/preview.json")
+          read -r ready conflicts delete ignored < <(jq -r '[(.result.toDeploy | length), (.result.conflicts | length), (.result.toDelete | length), (.result.ignored | length)] | @tsv' "$PRIVATE_DIR/preview.json")
           echo "M4_PREVIEW_SUMMARY: toDeploy=$ready conflicts=$conflicts toDelete=$delete ignored=$ignored"
 
           if [[ "$delete" -gt 0 ]]; then
