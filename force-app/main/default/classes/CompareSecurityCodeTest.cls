@@ -6,6 +6,7 @@ private class CompareSecurityCodeTest {
         Contact testContact = new Contact(
             FirstName = 'John',
             LastName = 'Doe',
+            Email = 'contato.teste@example.com', // Destinatário exigido pelo Email Alert acionado no Flow de criação
             ChaveSeguranca__c = '12345'  // Código de segurança para o teste
         );
         insert testContact;
