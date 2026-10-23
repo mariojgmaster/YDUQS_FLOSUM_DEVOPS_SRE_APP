@@ -1,0 +1,31 @@
+# No Salesforce access, JWT secrets, deployments or production triggers.
+name: M4 Policy Checks
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/sf-universal-m4.yml'
+      - '.github/workflows/sf-m4-policy-ci.yml'
+      - 'scripts/ci/sf-general-deploy.sh'
+      - 'scripts/ci/sf-deploy-policy.py'
+      - 'config/salesforce-devops/catalog.json'
+      - 'manifest/**'
+      - 'tests/test_sf_*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check bash syntax
+        run: bash -n scripts/ci/sf-general-deploy.sh
+      - name: Check Python syntax
+        run: python3 -m py_compile scripts/ci/sf-deploy-policy.py tests/test_sf_deploy_policy.py tests/test_sf_m42_contract.py
+      - name: Test package policy and M4.2 workflow contract
+        run: python3 -m unittest discover -s tests -p 'test_sf_*.py' -v
