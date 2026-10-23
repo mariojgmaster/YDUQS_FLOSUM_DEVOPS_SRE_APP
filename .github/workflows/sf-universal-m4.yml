@@ -44,8 +44,12 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - name: Validate reviewed package policy
-        run: python3 -m unittest discover -s tests -p 'test_sf_deploy_policy.py' -v
+      - name: Validate reviewed package and M4.2 execution contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n scripts/ci/sf-general-deploy.sh
+          python3 -m unittest discover -s tests -p 'test_sf_*.py' -v
       - name: Set up Node.js for registered LWC unit tests
         if: ${{ inputs.package_id == 'clone-pipeline-lwc' }}
         uses: actions/setup-node@v4
