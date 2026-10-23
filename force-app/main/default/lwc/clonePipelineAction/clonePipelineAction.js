@@ -9,6 +9,7 @@ export default class ClonePipelineAction extends NavigationMixin(
   LightningElement
 ) {
   _recordId;
+  _previewRequestId = 0;
   isLoading = true;
   isSubmitting = false;
   sourceName;
@@ -37,7 +38,13 @@ export default class ClonePipelineAction extends NavigationMixin(
   }
 
   get isCloneDisabled() {
-    return this.isLoading || this.isSubmitting || !this.newName.trim();
+    return (
+      this.isLoading ||
+      this.isSubmitting ||
+      Boolean(this.loadError) ||
+      !this._recordId ||
+      !this.newName.trim()
+    );
   }
 
   get submitLabel() {
@@ -45,18 +52,35 @@ export default class ClonePipelineAction extends NavigationMixin(
   }
 
   async loadPreview() {
+    const requestedRecordId = this._recordId;
+    const requestId = ++this._previewRequestId;
     this.isLoading = true;
     this.loadError = undefined;
+    this.sourceName = undefined;
+    this.newName = "";
+    this.stepCount = 0;
+
     try {
-      const preview = await getPreview({ sourcePipelineId: this._recordId });
+      const preview = await getPreview({
+        sourcePipelineId: requestedRecordId
+      });
+      // A slower request for an older record must never overwrite the
+      // currently selected record's preview.
+      if (requestId !== this._previewRequestId) {
+        return;
+      }
       this.sourceName = preview.sourceName;
       this.newName = preview.suggestedName;
       this.stepCount = preview.stepCount;
       this.maxNameLength = preview.maxNameLength;
     } catch (error) {
-      this.loadError = this.normalizeError(error);
+      if (requestId === this._previewRequestId) {
+        this.loadError = this.normalizeError(error);
+      }
     } finally {
-      this.isLoading = false;
+      if (requestId === this._previewRequestId) {
+        this.isLoading = false;
+      }
     }
   }
 
