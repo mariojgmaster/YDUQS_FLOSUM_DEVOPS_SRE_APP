@@ -230,6 +230,39 @@ def mismatched_file_types(left, right, manifest):
     return sorted(result)
 
 
+def safe_apex_metadata_facts(raw):
+    """Return only allowlisted, non-sensitive ApexClass configuration values."""
+    root = ET.fromstring(raw.replace(b"\r\n", b"\n").strip())
+    namespace = "http://soap.sforce.com/2006/04/metadata"
+    if root.tag != f"{{{namespace}}}ApexClass":
+        return "unknown", "unknown"
+    version = root.findtext(f"{{{namespace}}}apiVersion") or ""
+    status = root.findtext(f"{{{namespace}}}status") or ""
+    if not re.fullmatch(r"[0-9]{1,3}\.[0-9]{1,2}", version):
+        version = "unknown"
+    if status not in ("Active", "Deleted", "Inactive"):
+        status = "unknown"
+    return version, status
+
+
+def mismatched_apex_metadata_facts(left, right, manifest):
+    """Return only reviewed ApexClass identifiers, API version and status."""
+    selected(left, manifest)
+    selected(right, manifest)
+    results = []
+    for name in manifest.get("ApexClass", []):
+        path = f"classes/{name}.cls-meta.xml"
+        if normalized(left[path], path) == normalized(right[path], path):
+            continue
+        baseline_api, baseline_status = safe_apex_metadata_facts(left[path])
+        remote_api, remote_status = safe_apex_metadata_facts(right[path])
+        results.append(
+            f"ApexClass:{name}:baselineApi={baseline_api},remoteApi={remote_api},"
+            f"baselineStatus={baseline_status},remoteStatus={remote_status}"
+        )
+    return sorted(results)
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("command", choices=["resolve", "compare"])
@@ -265,6 +298,9 @@ def main():
         print(f"SDOA_{a.label.upper()}_DIFFERING_MEMBERS: {','.join(names)}")
         kinds = mismatched_file_types(left, right, manifest)
         print(f"SDOA_{a.label.upper()}_DIFFERING_PARTS: {','.join(kinds)}")
+        facts = mismatched_apex_metadata_facts(left, right, manifest)
+        if facts:
+            print(f"SDOA_{a.label.upper()}_APEX_META_FACTS: {';'.join(facts)}")
     return 0 if same else 4
 
 if __name__ == "__main__":
