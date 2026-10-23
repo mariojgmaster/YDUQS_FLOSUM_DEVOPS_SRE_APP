@@ -61,7 +61,11 @@ verify_remote() {
   shopt -s nullglob
   local zips=("$dest"/*.zip)
   [[ "${#zips[@]}" == 1 ]] || abort SDOA_ZIP_MISSING 'Expected exactly one Metadata API ZIP.'
-  policy compare --package "$PACKAGE_ID" --left "$TEMP/baseline-mdapi" --right "${zips[0]}" --right-zip --label "$phase" > "$TEMP/compare-$phase" || abort SDOA_REMOTE_DRIFT 'Org differs from the last-known-deployed package. Blocked.'
+  if ! policy compare --package "$PACKAGE_ID" --left "$TEMP/baseline-mdapi" --right "${zips[0]}" --right-zip --label "$phase" > "$TEMP/compare-$phase"; then
+    # Emit only fixed policy markers and approved manifest-member names.
+    grep -E '^SDOA_(REMOTE|RECHECK)_(COMPARE|DIFFERING_MEMBERS):' "$TEMP/compare-$phase" || true
+    abort SDOA_REMOTE_DRIFT 'Org differs from the last-known-deployed package. Blocked.'
+  fi
   echo "SDOA_${phase^^}_BASELINE_OK: remote metadata matches pinned Git baseline."
 }
 verify_remote remote

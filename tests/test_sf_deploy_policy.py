@@ -39,6 +39,40 @@ class PolicyTests(unittest.TestCase):
         right["classes/CompareSecurityCode.cls"] = b"public class B {}\n"
         self.assertEqual(policy.compare(left, right, allowed), (False, 1))
 
+    def test_drift_diagnostics_only_identify_reviewed_members(self):
+        manifest = {"ApexClass": ["One", "Two"]}
+        left = {
+            "package.xml": b"<Package/>",
+            "classes/One.cls": b"public class One { String secret = 'private'; }",
+            "classes/One.cls-meta.xml": b"<A/>",
+            "classes/Two.cls": b"public class Two {}",
+            "classes/Two.cls-meta.xml": b"<A/>",
+        }
+        right = dict(left)
+        right["classes/One.cls"] = b"public class One { String secret = 'changed'; }"
+        changed = policy.mismatched_components(left, right, manifest)
+        self.assertEqual(changed, ["ApexClass:One"])
+        self.assertNotIn("private", ",".join(changed))
+        self.assertNotIn("changed", ",".join(changed))
+        # Verify a source-only mismatch in ApexClass metadata is identified too.
+        right["classes/One.cls"] = left["classes/One.cls"]
+        right["classes/Two.cls-meta.xml"] = b"<B/>"
+        self.assertEqual(policy.mismatched_components(left, right, manifest), ["ApexClass:Two"])
+
+    def test_lwc_drift_diagnostics_do_not_print_file_contents(self):
+        manifest = {"LightningComponentBundle": ["clonePipelineAction"]}
+        left = {
+            "package.xml": b"<Package/>",
+            "lwc/clonePipelineAction/clonePipelineAction.js-meta.xml": b"<A/>",
+            "lwc/clonePipelineAction/clonePipelineAction.js": b"original source",
+        }
+        right = dict(left)
+        right["lwc/clonePipelineAction/clonePipelineAction.js"] = b"sensitive org source"
+        self.assertEqual(
+            policy.mismatched_components(left, right, manifest),
+            ["LightningComponentBundle:clonePipelineAction"]
+        )
+
     def test_lwc_whole_bundle_and_unapproved_file(self):
         allowed = {"LightningComponentBundle":["clonePipelineAction"]}
         source = {
