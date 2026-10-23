@@ -1,0 +1,31 @@
+name: Clone Pipeline UI Tests
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/clone-pipeline-ui-ci.yml'
+      - 'force-app/main/default/lwc/clonePipelineAction/**'
+      - 'force-app/main/default/classes/ClonePipelineController.cls'
+      - 'force-app/main/default/classes/ClonePipelineControllerTest.cls'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  jest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout proposed code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Test Clone Pipeline UI
+        run: npm run test:unit -- --runInBand --runTestsByPath force-app/main/default/lwc/clonePipelineAction/__tests__/clonePipelineAction.test.js
