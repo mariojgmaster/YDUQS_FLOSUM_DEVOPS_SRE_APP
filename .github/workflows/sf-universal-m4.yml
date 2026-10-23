@@ -18,7 +18,7 @@ on:
         description: 'Registered and reviewed metadata package'
         required: true
         type: choice
-        options: [security-apex, clone-pipeline-lwc]
+        options: [security-apex, clone-pipeline-lwc, clone-pipeline-apex]
       commit_sha:
         description: 'Current master SHA (40 characters)'
         required: true
