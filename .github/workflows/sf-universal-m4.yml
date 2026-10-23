@@ -1,0 +1,99 @@
+# M4.1 universal sandbox pilot — no push/PR/schedule or implicit deploy.
+name: Salesforce DevOps - M4 Universal
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: 'plan is read-only; deploy is a REAL write after successful dry-run'
+        required: true
+        type: choice
+        options: [plan, deploy]
+      target:
+        description: 'Registered Salesforce sandbox'
+        required: true
+        type: choice
+        options: [DevSreFeat]
+      package_id:
+        description: 'Registered and reviewed metadata package'
+        required: true
+        type: choice
+        options: [security-apex, clone-pipeline-lwc]
+      commit_sha:
+        description: 'Current master SHA (40 characters)'
+        required: true
+        type: string
+      baseline_sha:
+        description: 'SHA of LAST KNOWN DEPLOYED VERSION for this package'
+        required: true
+        type: string
+      confirmation:
+        description: 'Blank for plan; for deploy: DEPLOY DevSreFeat package_id'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sf-devsrefeat-read
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' && github.actor == github.repository_owner && github.run_attempt == 1 }}
+    runs-on: ubuntu-latest
+    outputs:
+      github_environment: ${{ steps.registry.outputs.github_environment }}
+      instance_url: ${{ steps.registry.outputs.instance_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate package policy and ZIP comparator
+        run: python3 -m unittest discover -s tests -p 'test_sf_deploy_policy.py' -v
+      - name: Resolve reviewed target/package catalog
+        id: registry
+        env:
+          TARGET: ${{ inputs.target }}
+          PACKAGE_ID: ${{ inputs.package_id }}
+        run: python3 scripts/ci/sf-deploy-policy.py resolve --target "$TARGET" --package "$PACKAGE_ID" --output-file "$GITHUB_OUTPUT"
+
+  execute:
+    needs: resolve
+    if: ${{ needs.resolve.result == 'success' }}
+    name: Plan or explicitly deploy reviewed metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 140
+    # GitHub Environment derived only from reviewed registry, not from raw input.
+    environment:
+      name: ${{ needs.resolve.outputs.github_environment }}
+    env:
+      SF_CLIENT_ID: ${{ secrets.SF_CLIENT_ID }}
+      SF_USERNAME: ${{ secrets.SF_USERNAME }}
+      SF_JWT_KEY: ${{ secrets.SF_JWT_KEY }}
+      SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
+      EXPECTED_INSTANCE_URL: ${{ needs.resolve.outputs.instance_url }}
+      GITHUB_ENVIRONMENT_NAME: ${{ needs.resolve.outputs.github_environment }}
+      OPERATION: ${{ inputs.operation }}
+      TARGET: ${{ inputs.target }}
+      PACKAGE_ID: ${{ inputs.package_id }}
+      REQUESTED_SHA: ${{ inputs.commit_sha }}
+      BASELINE_SHA: ${{ inputs.baseline_sha }}
+      CONFIRMATION: ${{ inputs.confirmation }}
+    steps:
+      - name: Checkout full history of explicitly selected master revision
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Salesforce CLI runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Salesforce CLI
+        run: npm install --global @salesforce/cli
+      - name: Validate baseline and safely plan or deploy
+        shell: bash
+        run: bash scripts/ci/sf-general-deploy.sh
