@@ -33,7 +33,7 @@ public with sharing class ClonePipelineController {
   private class ClonePipelineException extends Exception {
   }
 
-  @AuraEnabled(cacheable=true)
+  @AuraEnabled
   public static Preview getPreview(Id sourcePipelineId) {
     try {
       validateSourceId(sourcePipelineId);
@@ -328,13 +328,78 @@ public with sharing class ClonePipelineController {
   }
 
   private static String buildSuggestedName(String sourceName) {
-    String baseName = String.isBlank(sourceName) ? 'Pipeline' : sourceName;
-    String suffix = ' - Cópia';
-    Integer baseLimit = MAX_NAME_LENGTH - suffix.length();
+    String baseName = String.isBlank(sourceName) ? 'Pipeline' : sourceName.trim();
+    // A clone of a clone continues the same numbering sequence.
+    Pattern copySuffix = Pattern.compile('(?i) - Cópia(?: [0-9]{1,4})?
+
+  private static AuraHandledException toHandledException(
+    Exception exceptionValue
+  ) {
+    String safeMessage = exceptionValue instanceof ClonePipelineException
+      ? exceptionValue.getMessage()
+      : 'Não foi possível clonar o Pipeline. Verifique suas permissões e os dados informados.';
+    AuraHandledException handledException = new AuraHandledException(
+      safeMessage
+    );
+    handledException.setMessage(safeMessage);
+    return handledException;
+  }
+}
+);
+    Matcher suffixMatcher = copySuffix.matcher(baseName);
+    while (suffixMatcher.find()) {
+      baseName = baseName.substring(0, suffixMatcher.start()).trim();
+      suffixMatcher = copySuffix.matcher(baseName);
+    }
+    if (String.isBlank(baseName)) {
+      baseName = 'Pipeline';
+    }
+
+    // Reserve room for " - Cópia 9999", keeping the prefix stable
+    // while numbering new generations of the same Pipeline.
+    Integer baseLimit = MAX_NAME_LENGTH - ' - Cópia 9999'.length();
     if (baseName.length() > baseLimit) {
       baseName = baseName.substring(0, baseLimit);
     }
-    return baseName + suffix;
+
+    String copyPrefix = baseName + ' - Cópia';
+    String nameFilter = baseName.replace('\\', '\\\\')
+      .replace('%', '\\%')
+      .replace('_', '\\_') + ' - Cópia%';
+    String queryText = 'SELECT Name FROM ' + PIPELINE_OBJECT +
+      ' WHERE Name LIKE :nameFilter WITH USER_MODE LIMIT 2001';
+    List<SObject> existing = Database.query(queryText);
+    if (existing.size() > 2000) {
+      throw new ClonePipelineException(
+        'Existem muitas cópias deste Pipeline. Informe um nome manualmente.'
+      );
+    }
+
+    Integer highest = 0;
+    for (SObject recordValue : existing) {
+      String existingName = (String) recordValue.get('Name');
+      if (String.isBlank(existingName) ||
+          !existingName.toLowerCase().startsWith(copyPrefix.toLowerCase())) {
+        continue;
+      }
+      String numericSuffix = existingName.substring(copyPrefix.length());
+      if (numericSuffix == '') {
+        highest = Math.max(highest, 1); // Legacy unnumbered clone.
+      } else if (Pattern.matches(' [0-9]{1,4}', numericSuffix)) {
+        highest = Math.max(
+          highest, Integer.valueOf(numericSuffix.trim())
+        );
+      }
+    }
+
+    Integer nextNumber = highest + 1;
+    if (nextNumber > 9999) {
+      throw new ClonePipelineException(
+        'Limite de numeração atingido. Informe um nome manualmente.'
+      );
+    }
+    String ordinal = String.valueOf(nextNumber).leftPad(2, '0');
+    return copyPrefix + ' ' + ordinal;
   }
 
   private static AuraHandledException toHandledException(

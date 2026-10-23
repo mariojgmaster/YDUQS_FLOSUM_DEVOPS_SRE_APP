@@ -43,9 +43,57 @@ private class ClonePipelineControllerTest {
     Test.stopTest();
 
     Assert.areEqual('Pipeline Origem', preview.sourceName);
-    Assert.areEqual('Pipeline Origem - Cópia', preview.suggestedName);
+    Assert.areEqual('Pipeline Origem - Cópia 01', preview.suggestedName);
     Assert.areEqual(2, preview.stepCount);
     Assert.areEqual(80, preview.maxNameLength);
+  }
+
+  @IsTest
+  static void incrementsAcrossExistingClonesAndCloneOfClone() {
+    insert new List<Flosum__Pipeline__c>{
+      new Flosum__Pipeline__c(Name = 'Pipeline Origem - Cópia'),
+      new Flosum__Pipeline__c(Name = 'Pipeline Origem - Cópia 01'),
+      new Flosum__Pipeline__c(Name = 'Pipeline Origem - Cópia 04')
+    };
+    Flosum__Pipeline__c copiedSource = [
+      SELECT Id FROM Flosum__Pipeline__c
+      WHERE Name = 'Pipeline Origem - Cópia 04' LIMIT 1
+    ];
+    Test.startTest();
+    ClonePipelineController.Preview preview = ClonePipelineController.getPreview(
+      copiedSource.Id
+    );
+    Test.stopTest();
+    Assert.areEqual('Pipeline Origem - Cópia 05', preview.suggestedName);
+  }
+
+  @IsTest
+  static void ignoresNamesThatOnlyShareTheCopyPrefix() {
+    insert new List<Flosum__Pipeline__c>{
+      new Flosum__Pipeline__c(Name = 'Pipeline Origem - Cópia Extra'),
+      new Flosum__Pipeline__c(Name = 'Pipeline Origem - Cópia XYZ')
+    };
+    Flosum__Pipeline__c source = [
+      SELECT Id FROM Flosum__Pipeline__c
+      WHERE Name = 'Pipeline Origem' LIMIT 1
+    ];
+    ClonePipelineController.Preview preview = ClonePipelineController.getPreview(
+      source.Id
+    );
+    Assert.areEqual('Pipeline Origem - Cópia 01', preview.suggestedName);
+  }
+
+  @IsTest
+  static void respectsEightyCharacterNameLimit() {
+    Flosum__Pipeline__c source = new Flosum__Pipeline__c(
+      Name = ''.leftPad(80, 'X')
+    );
+    insert source;
+    ClonePipelineController.Preview preview = ClonePipelineController.getPreview(
+      source.Id
+    );
+    Assert.isTrue(preview.suggestedName.length() <= 80);
+    Assert.isTrue(preview.suggestedName.endsWith(' - Cópia 01'));
   }
 
   @IsTest
