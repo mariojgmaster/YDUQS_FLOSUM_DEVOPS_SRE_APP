@@ -13,7 +13,7 @@ Success output:
 - `stepCount`: number of associated Pipeline Steps.
 - `maxNameLength`: `80`.
 - `steps`: lista de pré-visualização não mutável, ordenada pelo número do Step quando legível. Cada item contém:
-  - `number`: número do Step, quando o usuário tiver acesso ao campo; pode ser `null`.
+  - `stepNumber`: número do Step, quando o usuário tiver acesso ao campo; pode ser `null`.
   - `description`: descrição do Step, quando legível; pode ser `null`.
   - `action`: tipo do Step (`Flosum__Step__c`), quando legível; pode ser `null`.
 
