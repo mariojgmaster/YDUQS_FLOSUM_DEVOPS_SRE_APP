@@ -99,4 +99,5 @@ jobs:
         if: ${{ success() }}
         env:
           ISSUE: ${{ needs.resolve.outputs.issue_number }}
-        run: echo "SDOA_M5_PLAN_SUCCEEDED: issue=$ISSUE operation=plan real_deploy=false"
+        run: |
+          echo "SDOA_M5_PLAN_SUCCEEDED: issue=$ISSUE operation=plan real_deploy=false"
