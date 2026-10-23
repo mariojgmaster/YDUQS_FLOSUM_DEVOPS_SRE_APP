@@ -12,6 +12,12 @@ Success output:
 - `suggestedName`: source name plus ` - Cópia`, truncated if necessary to fit 80 characters.
 - `stepCount`: number of associated Pipeline Steps.
 - `maxNameLength`: `80`.
+- `steps`: lista de pré-visualização não mutável, ordenada pelo número do Step quando legível. Cada item contém:
+  - `number`: número do Step, quando o usuário tiver acesso ao campo; pode ser `null`.
+  - `description`: descrição do Step, quando legível; pode ser `null`.
+  - `action`: tipo do Step (`Flosum__Step__c`), quando legível; pode ser `null`.
+
+A consulta de `steps` usa `WITH USER_MODE`, valida `isAccessible()` campo a campo e é limitada a 100 Steps. O cliente trata `steps` ausente como compatibilidade com versões anteriores do Apex. Nenhuma configuração é modificada pela pré-visualização.
 
 Failure categories exposed safely: invalid input, inaccessible/missing source, insufficient permission, unexpected processing failure.
 

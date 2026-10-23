@@ -42,7 +42,11 @@ const PREVIEW = {
   sourceName: "Pipeline Origem",
   suggestedName: "Pipeline Origem - Cópia 01",
   stepCount: 2,
-  maxNameLength: 80
+  maxNameLength: 80,
+  steps: [
+    { number: 1, description: "Primeiro passo", action: "Deploy" },
+    { number: 2, description: "Segundo passo", action: "Validate" }
+  ]
 };
 
 const flushPromises = async () => {
@@ -80,6 +84,50 @@ describe("c-clone-pipeline-action", () => {
       "Pipeline Origem - Cópia 01"
     );
     expect(element.shadowRoot.textContent).toContain("2 Pipeline Steps");
+  });
+
+  it("renders a read-only Step preview and a character counter", async () => {
+    getPreview.mockResolvedValue(PREVIEW);
+    const element = createComponent();
+    await flushPromises();
+
+    expect(element.shadowRoot.textContent).toContain("Primeiro passo");
+    expect(element.shadowRoot.textContent).toContain("Segundo passo");
+    expect(element.shadowRoot.textContent).toContain("2 Pipeline Steps");
+    expect(element.shadowRoot.textContent).toContain(
+      `${PREVIEW.suggestedName.length}/80`
+    );
+  });
+
+  it("shows the zero-Step message without blocking cloning", async () => {
+    getPreview.mockResolvedValue({
+      ...PREVIEW,
+      stepCount: 0,
+      steps: []
+    });
+    const element = createComponent();
+    await flushPromises();
+
+    expect(element.shadowRoot.textContent).toContain(
+      "Este Pipeline não possui Steps"
+    );
+    expect(element.shadowRoot.querySelectorAll("lightning-button")[1].disabled)
+      .toBe(false);
+  });
+
+  it("supports an older Apex preview with no detailed Step list", async () => {
+    getPreview.mockResolvedValue({
+      sourceName: PREVIEW.sourceName,
+      suggestedName: PREVIEW.suggestedName,
+      stepCount: PREVIEW.stepCount,
+      maxNameLength: PREVIEW.maxNameLength
+    });
+    const element = createComponent();
+    await flushPromises();
+
+    expect(element.shadowRoot.textContent).toContain(
+      "A lista detalhada de Steps não está disponível"
+    );
   });
 
   it("disables cloning when a new record preview fails", async () => {
@@ -148,6 +196,30 @@ describe("c-clone-pipeline-action", () => {
     const buttons = element.shadowRoot.querySelectorAll("lightning-button");
     expect(buttons[1].disabled).toBe(true);
     expect(clonePipeline).not.toHaveBeenCalled();
+  });
+
+  it("clears a server error when the user edits the name", async () => {
+    getPreview.mockResolvedValue(PREVIEW);
+    clonePipeline.mockRejectedValue({
+      body: { message: "O nome do Pipeline já existe." }
+    });
+    const element = createComponent();
+    await flushPromises();
+
+    const input = element.shadowRoot.querySelector("lightning-input");
+    input.reportValidity = jest.fn().mockReturnValue(true);
+    element.shadowRoot.querySelectorAll("lightning-button")[1].click();
+    await flushPromises();
+    expect(element.shadowRoot.textContent).toContain(
+      "O nome do Pipeline já existe."
+    );
+
+    input.value = "Novo nome";
+    input.dispatchEvent(new CustomEvent("change"));
+    await flushPromises();
+    expect(element.shadowRoot.textContent).not.toContain(
+      "O nome do Pipeline já existe."
+    );
   });
 
   it("submits only once while processing", async () => {

@@ -19,6 +19,17 @@ public with sharing class ClonePipelineController {
     public Integer stepCount { get; set; }
     @AuraEnabled
     public Integer maxNameLength { get; set; }
+    @AuraEnabled
+    public List<StepPreview> steps { get; set; }
+  }
+
+  public class StepPreview {
+    @AuraEnabled
+    public Decimal number { get; set; }
+    @AuraEnabled
+    public String description { get; set; }
+    @AuraEnabled
+    public String action { get; set; }
   }
 
   public class CloneResult {
@@ -52,6 +63,7 @@ public with sharing class ClonePipelineController {
       preview.suggestedName = buildSuggestedName(sourceName);
       preview.stepCount = stepCount;
       preview.maxNameLength = MAX_NAME_LENGTH;
+      preview.steps = getStepPreviews(sourcePipelineId);
       return preview;
     } catch (Exception exceptionValue) {
       throw toHandledException(exceptionValue);
@@ -254,6 +266,58 @@ public with sharing class ClonePipelineController {
       PIPELINE_LOOKUP +
       ' = :sourcePipelineId WITH USER_MODE';
     return Database.countQuery(queryText);
+  }
+
+  // Display-only projection: never expose fields the current user cannot read.
+  // Missing optional fields are omitted without blocking an otherwise valid clone.
+  private static List<StepPreview> getStepPreviews(Id sourcePipelineId) {
+    Map<String, Schema.SObjectField> available = fieldsFor(STEP_OBJECT);
+    List<String> optionalFields = new List<String>{
+      'Flosum__Number__c',
+      'Flosum__Description__c',
+      'Flosum__Step__c'
+    };
+    List<String> readableFields = new List<String>();
+    for (String fieldName : optionalFields) {
+      if (
+        available.containsKey(fieldName) &&
+        available.get(fieldName).getDescribe().isAccessible()
+      ) {
+        readableFields.add(fieldName);
+      }
+    }
+
+    String ordering = readableFields.contains('Flosum__Number__c')
+      ? 'Flosum__Number__c NULLS LAST, CreatedDate, Id'
+      : 'CreatedDate, Id';
+    String queryText =
+      'SELECT Id' +
+      (readableFields.isEmpty() ? '' : ',' + String.join(readableFields, ',')) +
+      ' FROM ' +
+      STEP_OBJECT +
+      ' WHERE ' +
+      PIPELINE_LOOKUP +
+      ' = :sourcePipelineId WITH USER_MODE ORDER BY ' +
+      ordering +
+      ' LIMIT 101';
+    List<SObject> rows = Database.query(queryText);
+    ensureSupportedStepCount(rows.size());
+
+    List<StepPreview> result = new List<StepPreview>();
+    for (SObject row : rows) {
+      StepPreview step = new StepPreview();
+      step.number = readableFields.contains('Flosum__Number__c')
+        ? (Decimal) row.get('Flosum__Number__c')
+        : null;
+      step.description = readableFields.contains('Flosum__Description__c')
+        ? (String) row.get('Flosum__Description__c')
+        : null;
+      step.action = readableFields.contains('Flosum__Step__c')
+        ? (String) row.get('Flosum__Step__c')
+        : null;
+      result.add(step);
+    }
+    return result;
   }
 
   private static List<SObject> querySteps(
