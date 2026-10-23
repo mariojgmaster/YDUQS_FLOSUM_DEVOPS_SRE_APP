@@ -64,7 +64,10 @@ for class_name in "${TESTS[@]}"; do test_args+=(--tests "$class_name"); done
 echo "SDOA_M42_DRY_RUN_STARTING: Salesforce validation with specified Apex tests."
 dry_exit=0
 sf project deploy start --dry-run --metadata-dir "$TEMP/candidate-mdapi" "${test_args[@]}" --target-org sdoa-universal --wait 60 --json > "$TEMP/dry.json" 2> "$TEMP/dry.err" || dry_exit=$?
-[[ "$dry_exit" == 0 ]] && jq -e '.status==0 and .result.success==true and (.result.done==true or .result.status=="Succeeded") and ((.result.numberComponentErrors // 0)==0) and ((.result.numberTestErrors // 0)==0)' "$TEMP/dry.json" >/dev/null 2>&1 || abort SDOA_M42_DRY_RUN_FAILED 'Salesforce dry-run or Apex tests failed. Inspect Salesforce Deployment Status for details; no write attempted.'
+if [[ "$dry_exit" != 0 ]] || ! jq -e '.status==0 and .result.success==true and (.result.done==true or .result.status=="Succeeded") and ((.result.numberComponentErrors // 0)==0) and ((.result.numberTestErrors // 0)==0)' "$TEMP/dry.json" >/dev/null 2>&1; then
+  python3 scripts/ci/sf-deploy-safe-diagnostic.py --file "$TEMP/dry.json" --exit "$dry_exit" --phase DRY_RUN
+  abort SDOA_M42_DRY_RUN_FAILED 'Salesforce rejected dry-run, Apex tests failed, or response was not confirmed. See sanitized diagnostic and Salesforce Deployment Status; no real deployment attempted.'
+fi
 echo 'SDOA_M42_DRY_RUN_PASSED: Salesforce validation succeeded; specified Apex tests passed.'
 if [[ "$OPERATION" == plan ]]; then
   echo 'SDOA_M42_PLAN_OK: Salesforce dry-run validated this exact package. No real deployment was submitted.'
@@ -77,5 +80,8 @@ echo '::warning title=M4.2 no drift gate::This authorized deployment may overwri
 echo "SDOA_M42_REAL_DEPLOY_STARTING: authorized write to $TARGET using SHA $GITHUB_SHA."
 real_exit=0
 sf project deploy start --metadata-dir "$TEMP/candidate-mdapi" "${test_args[@]}" --target-org sdoa-universal --wait 60 --json > "$TEMP/deploy.json" 2> "$TEMP/deploy.err" || real_exit=$?
-[[ "$real_exit" == 0 ]] && jq -e '.status==0 and .result.success==true and (.result.done==true or .result.status=="Succeeded") and ((.result.numberComponentErrors // 0)==0) and ((.result.numberTestErrors // 0)==0)' "$TEMP/deploy.json" >/dev/null 2>&1 || abort SDOA_M42_DEPLOY_UNCONFIRMED 'Real deploy failed or status uncertain; verify Salesforce Deployment Status before retrying.'
+if [[ "$real_exit" != 0 ]] || ! jq -e '.status==0 and .result.success==true and (.result.done==true or .result.status=="Succeeded") and ((.result.numberComponentErrors // 0)==0) and ((.result.numberTestErrors // 0)==0)' "$TEMP/deploy.json" >/dev/null 2>&1; then
+  python3 scripts/ci/sf-deploy-safe-diagnostic.py --file "$TEMP/deploy.json" --exit "$real_exit" --phase REAL_DEPLOY
+  abort SDOA_M42_DEPLOY_UNCONFIRMED 'Real deploy failed or outcome uncertain; inspect Salesforce Deployment Status before retrying. Do not rerun this job.'
+fi
 echo 'SDOA_REAL_DEPLOY_SUCCEEDED: Salesforce confirmed persistent deployment.'

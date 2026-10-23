@@ -37,6 +37,15 @@ Não existe campo de commit SHA nem baseline SHA: o workflow fixa automaticament
 - \`SDOA_REAL_DEPLOY_SUCCEEDED\`: Salesforce confirmou escrita.
 - Em caso de erro real ou estado incerto, verificar **Setup → Deployment Status** na sandbox antes de qualquer nova tentativa.
 
+
+## Diagnóstico seguro de falha do dry-run (M4.2.1)
+
+Se aparecer `SDOA_M42_DRY_RUN_FAILED`, o workflow imprime antes `SDOA_M42_DRY_RUN_DIAG` com somente propriedades categóricas e contagens autorizadas: `cli_exit`, `cli_status`, `result_status`, `success`, `done`, `tests_run`, `test_errors`, `component_errors`, `coverage_warnings` e `failure_kind`. Isso diferencia teste Apex, cobertura, falha de metadata, dependência gerenciada, conflito e erros de CLI/JSON.
+
+**Nunca publica** respostas JSON integrais, mensagens de exceção, nomes de classes/métodos não autorizados, XML, IDs de org, namespace de pacote, chaves nem stack traces. Os arquivos sensíveis continuam somente no runner temporário e são removidos pelo trap. Em caso de `failure_kind=UNCLASSIFIED`, `json=invalid` ou contagem não disponível, confira **Setup → Deployment Status** no Salesforce; não suponha que foi erro de teste.
+
+Também há `SDOA_M42_REAL_DEPLOY_DIAG` caso a implantação autorizada apresente falha ou resultado incerto; nunca repetir um deploy sem consultar o Deployment Status.
+
 ## O que foi intencionalmente removido
 
 - Não pede nem calcula \`baseline_sha\` para bloquear execução.
