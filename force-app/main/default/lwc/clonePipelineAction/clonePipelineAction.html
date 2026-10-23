@@ -84,10 +84,7 @@
         </div>
 
         <div class="preview">
-          <lightning-accordion
-            active-section-name="steps"
-            allow-multiple-sections-open
-          >
+          <lightning-accordion active-section-name="steps">
             <lightning-accordion-section
               name="steps"
               label={previewSectionLabel}
@@ -154,13 +151,8 @@
 
     <div slot="footer" class="action-footer">
       <template lwc:if={isSubmitting}>
-        <span class="slds-grid slds-grid_vertical-align-center processing-hint" role="status">
-          <lightning-spinner
-            alternative-text="Clonando Pipeline"
-            size="small"
-            variant="brand"
-          ></lightning-spinner>
-          <span class="slds-assistive-text">Aguarde a clonagem.</span>
+        <span class="processing-hint" role="status">
+          Clonagem em andamento...
         </span>
       </template>
       <lightning-button
