@@ -171,6 +171,32 @@ def compare(a, b, manifest):
     changed = sum(normalized(a[path], path) != normalized(b[path], path) for path in aa)
     return changed == 0, changed
 
+
+def mismatched_components(left, right, manifest):
+    """Only return identifiers already disclosed by the reviewed package manifest.
+
+    No org source, field values, hashes or arbitrary file paths enter public logs.
+    """
+    selected(left, manifest)
+    selected(right, manifest)
+    paths = set(left) | set(right)
+    result = []
+    for typ, names in manifest.items():
+        for name in names:
+            if typ == "ApexClass":
+                own = {f"classes/{name}.cls", f"classes/{name}.cls-meta.xml"}
+            elif typ == "LightningComponentBundle":
+                own = {path for path in paths if path.startswith(f"lwc/{name}/")}
+            else:
+                raise PolicyError("Unsupported metadata type")
+            if any(
+                path not in left or path not in right or
+                normalized(left[path], path) != normalized(right[path], path)
+                for path in own
+            ):
+                result.append(f"{typ}:{name}")
+    return sorted(result)
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("command", choices=["resolve", "compare"])
@@ -196,8 +222,14 @@ def main():
         return 0
     if a.label not in ("candidate", "remote", "recheck"):
         raise PolicyError("Invalid compare label")
-    same, diff = compare(from_dir(a.left), from_zip(a.right) if a.right_zip else from_dir(a.right), manifest)
+    left = from_dir(a.left)
+    right = from_zip(a.right) if a.right_zip else from_dir(a.right)
+    same, diff = compare(left, right, manifest)
     print(f"SDOA_{a.label.upper()}_COMPARE: equal={str(same).lower()} differences={diff}")
+    if not same and a.label in ("remote", "recheck"):
+        # Only reviewed manifest member identifiers are emitted.
+        names = mismatched_components(left, right, manifest)
+        print(f"SDOA_{a.label.upper()}_DIFFERING_MEMBERS: {','.join(names)}")
     return 0 if same else 4
 
 if __name__ == "__main__":
