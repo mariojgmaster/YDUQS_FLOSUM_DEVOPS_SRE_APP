@@ -112,7 +112,11 @@ jobs:
           DRY="$RUNNER_TEMP/m4-devsrefeat-dryrun.json"
           REAL="$RUNNER_TEMP/m4-devsrefeat-deploy.json"
           ERR="$RUNNER_TEMP/m4-devsrefeat-cli.err"
-          cleanup() { rm -f "$KEY" "$AUTH" "$DRY" "$REAL" "$ERR"; }
+          PREVIEW="$RUNNER_TEMP/m4-devsrefeat-preview.json"
+          PREVIEW_ERR="$RUNNER_TEMP/m4-devsrefeat-preview.err"
+          COMPARE_OUT="$RUNNER_TEMP/m4-devsrefeat-compare.out"
+          COMPARE_ERR="$RUNNER_TEMP/m4-devsrefeat-compare.err"
+          cleanup() { rm -f "$KEY" "$AUTH" "$DRY" "$REAL" "$ERR" "$PREVIEW" "$PREVIEW_ERR" "$COMPARE_OUT" "$COMPARE_ERR"; }
           trap cleanup EXIT
           printf '%s' "$SF_JWT_KEY" > "$KEY"
           if ! openssl pkey -in "$KEY" -noout -passin pass: >/dev/null 2>&1; then
@@ -130,6 +134,49 @@ jobs:
             exit 1
           fi
           echo "M4_AUTH_PASSED: Salesforce JWT authentication completed."
+
+          # Fresh Metadata API ZIP retrieve + four-file comparison, using the
+          # already homologated M3 routine. The existing pilot may override
+          # source-tracking CONFLICTS only if the org is byte-equivalent to Git.
+          # If the org differs, fail closed: legitimate future updates require
+          # a separate explicit and reviewed conflict-resolution policy.
+          if ! OPERATION=compare bash scripts/ci/sf-devsrefeat-m3.sh > "$COMPARE_OUT" 2> "$COMPARE_ERR"; then
+            echo "::error title=M4_ORG_DRIFT_OR_RETRIEVE_FAILURE::Could not verify that the org metadata equals the reviewed GitHub commit. No real deployment attempted."
+            exit 1
+          fi
+          if ! grep -Fxq "M3_COMPARE_SUMMARY: same=4 different=0 missing=0" "$COMPARE_OUT"; then
+            echo "::error title=M4_METADATA_NOT_IDENTICAL::The four approved metadata files are not verified as identical. No real deployment attempted."
+            exit 1
+          fi
+          echo "M4_METADATA_IDENTICAL: four approved Apex/metadata files match the org; no real metadata drift."
+
+          # Preview immediately before dry-run. Restrict to the same manifest.
+          preview_exit=0
+          sf project deploy preview \
+            --manifest manifest/sf-devsrefeat-m3.xml \
+            --target-org devsrefeat-m4 \
+            --json > "$PREVIEW" 2> "$PREVIEW_ERR" || preview_exit=$?
+          if [[ "$preview_exit" -ne 0 ]] || ! jq -e '.status == 0 and (.result.toDeploy | type == "array") and (.result.conflicts | type == "array") and (.result.toDelete | type == "array") and (.result.ignored | type == "array")' "$PREVIEW" >/dev/null 2>&1; then
+            echo "::error title=M4_PREVIEW_UNVERIFIED::Unable to safely classify the deployment preview. No real deployment attempted."
+            exit 1
+          fi
+          read -r TO_DEPLOY CONFLICTS TO_DELETE IGNORED < <(jq -r '[(.result.toDeploy | length), (.result.conflicts | length), (.result.toDelete | length), (.result.ignored | length)] | @tsv' "$PREVIEW")
+          echo "M4_PREVIEW_SUMMARY: toDeploy=$TO_DEPLOY conflicts=$CONFLICTS toDelete=$TO_DELETE ignored=$IGNORED"
+          if (( TO_DELETE > 0 || IGNORED > 0 )); then
+            echo "::error title=M4_PREVIEW_UNSAFE::Unexpected deletion or ignored components. No real deployment attempted."
+            exit 1
+          fi
+          if (( TO_DEPLOY == 0 && CONFLICTS == 0 )); then
+            echo "M4_NOOP_ALREADY_SYNCED: no components require deployment. No real deployment attempted."
+            exit 0
+          fi
+          # The only permitted conflict override is for an identical reviewed
+          # two-class sandbox package, and only after explicit user intent.
+          VERIFIED_CONFLICT_ARGS=()
+          if (( CONFLICTS > 0 )); then
+            VERIFIED_CONFLICT_ARGS+=(--ignore-conflicts)
+            echo "M4_TRACKING_ONLY_OVERRIDE: org metadata matches Git; ignoring source-tracking conflict for the two allowlisted Apex classes only."
+          fi
 
           # Dry-run uses the SAME checked-out source, target, manifest and Apex test.
           if ! sf project deploy start \
@@ -149,6 +196,17 @@ jobs:
           fi
           echo "M4_DRY_RUN_PASSED: selected Apex metadata validated; no changes persisted."
 
+          # Recheck equality AFTER the dry-run to narrow the interval between
+          # the org read and the only possible ignore-conflicts write.
+          if (( CONFLICTS > 0 )); then
+            if ! OPERATION=compare bash scripts/ci/sf-devsrefeat-m3.sh > "$COMPARE_OUT" 2> "$COMPARE_ERR" || \
+               ! grep -Fxq "M3_COMPARE_SUMMARY: same=4 different=0 missing=0" "$COMPARE_OUT"; then
+              echo "::error title=M4_ORG_CHANGED_AFTER_VALIDATION::Org metadata changed or could not be rechecked after dry-run. No real deployment attempted."
+              exit 1
+            fi
+            echo "M4_METADATA_RECHECK_PASSED: org metadata still matches approved GitHub files."
+          fi
+
           # One last fail-closed guard immediately before the intentional write.
           [[ "$CONFIRMATION" == "DEPLOY DevSreFeat" && "${REQUESTED_SHA,,}" == "${TARGET_SHA,,}" && "$RUN_ATTEMPT" == "1" ]] || {
             echo "::error title=M4_WRITE_NOT_AUTHORIZED::Explicit deployment guards failed."
@@ -161,6 +219,7 @@ jobs:
             --test-level RunSpecifiedTests \
             --tests CompareSecurityCodeTest \
             --target-org devsrefeat-m4 \
+            "${VERIFIED_CONFLICT_ARGS[@]}" \
             --wait 60 \
             --json > "$REAL" 2> "$ERR" || deploy_exit=$?
           if [[ "$deploy_exit" -ne 0 ]]; then
