@@ -9,6 +9,7 @@ export default class ClonePipelineAction extends NavigationMixin(
   LightningElement
 ) {
   _recordId;
+  _previewRequestId = 0;
   isLoading = true;
   isSubmitting = false;
   sourceName;
@@ -52,6 +53,7 @@ export default class ClonePipelineAction extends NavigationMixin(
 
   async loadPreview() {
     const requestedRecordId = this._recordId;
+    const requestId = ++this._previewRequestId;
     this.isLoading = true;
     this.loadError = undefined;
     this.sourceName = undefined;
@@ -64,7 +66,7 @@ export default class ClonePipelineAction extends NavigationMixin(
       });
       // A slower request for an older record must never overwrite the
       // currently selected record's preview.
-      if (requestedRecordId !== this._recordId) {
+      if (requestId !== this._previewRequestId) {
         return;
       }
       this.sourceName = preview.sourceName;
@@ -72,11 +74,11 @@ export default class ClonePipelineAction extends NavigationMixin(
       this.stepCount = preview.stepCount;
       this.maxNameLength = preview.maxNameLength;
     } catch (error) {
-      if (requestedRecordId === this._recordId) {
+      if (requestId === this._previewRequestId) {
         this.loadError = this.normalizeError(error);
       }
     } finally {
-      if (requestedRecordId === this._recordId) {
+      if (requestId === this._previewRequestId) {
         this.isLoading = false;
       }
     }
