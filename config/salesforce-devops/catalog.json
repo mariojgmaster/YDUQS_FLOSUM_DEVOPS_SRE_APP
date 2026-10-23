@@ -11,14 +11,32 @@
     "security-apex": {
       "manifest": "manifest/sf-devsrefeat-m3.xml",
       "test_level": "RunSpecifiedTests",
-      "tests": ["CompareSecurityCodeTest"],
-      "allowed_types": ["ApexClass"]
+      "tests": [
+        "CompareSecurityCodeTest"
+      ],
+      "allowed_types": [
+        "ApexClass"
+      ]
     },
     "clone-pipeline-lwc": {
       "manifest": "manifest/sf-deploy-clone-pipeline-lwc.xml",
       "test_level": "RunSpecifiedTests",
-      "tests": ["ClonePipelineControllerTest"],
-      "allowed_types": ["LightningComponentBundle"]
+      "tests": [
+        "ClonePipelineControllerTest"
+      ],
+      "allowed_types": [
+        "LightningComponentBundle"
+      ]
+    },
+    "clone-pipeline-apex": {
+      "manifest": "manifest/sf-clone-pipeline-apex.xml",
+      "test_level": "RunSpecifiedTests",
+      "tests": [
+        "ClonePipelineControllerTest"
+      ],
+      "allowed_types": [
+        "ApexClass"
+      ]
     }
   }
 }
