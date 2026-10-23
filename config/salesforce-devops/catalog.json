@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "targets": {
+    "DevSreFeat": {
+      "github_environment": "sf-devsrefeat-read",
+      "instance_url": "https://yduqs--devsrefeat.sandbox.my.salesforce.com",
+      "kind": "sandbox"
+    }
+  },
+  "packages": {
+    "security-apex": {
+      "manifest": "manifest/sf-devsrefeat-m3.xml",
+      "test_level": "RunSpecifiedTests",
+      "tests": ["CompareSecurityCodeTest"],
+      "allowed_types": ["ApexClass"]
+    },
+    "clone-pipeline-lwc": {
+      "manifest": "manifest/sf-deploy-clone-pipeline-lwc.xml",
+      "test_level": "RunSpecifiedTests",
+      "tests": ["ClonePipelineControllerTest"],
+      "allowed_types": ["LightningComponentBundle"]
+    }
+  }
+}
