@@ -1,6 +1,6 @@
 # M4.1 — Salesforce DevOps Assistant: deployments reutilizáveis
 
-**Status:** implementação para revisão. O M4 piloto já homologado NÃO é alterado. Este novo workflow ainda não foi executado na Salesforce.
+**Status:** M4.1 `plan` validado na DevSreFeat para Apex sem alterações (#1), LWC sem alterações (#2) e LWC com alteração intencional (#3). O deploy real universal ainda está pendente. O M4 piloto original continua homologado e não é alterado.
 
 ## Arquitetura
 
@@ -24,9 +24,21 @@ O backend é exclusivamente o GitHub Actions + Salesforce CLI. Não requer Node.
 | Pacote | Metadata | Manifesto | Testes |
 |---|---|---|---|
 | `security-apex` | ApexClass: CompareSecurityCode, CompareSecurityCodeTest | `manifest/sf-devsrefeat-m3.xml` | CompareSecurityCodeTest |
-| `clone-pipeline-lwc` | LightningComponentBundle: clonePipelineAction | `manifest/sf-deploy-clone-pipeline-lwc.xml` | ClonePipelineControllerTest |
+| `clone-pipeline-lwc` | LightningComponentBundle: clonePipelineAction | `manifest/sf-deploy-clone-pipeline-lwc.xml` | Jest do componente (pré-acesso Salesforce) + ClonePipelineControllerTest (dry-run/deploy) |
 
-**Apex e LWC existentes** são suportados pela política. Outros tipos (Flow, PermissionSet, CustomObject, QuickAction, Flosum) exigem validação do formato, testes e extensão revisada. **Criação de metadados, exclusões e produção ainda não estão liberadas.** O pacote LWC ainda não foi homologado na sandbox; verificar dependências antes do primeiro deploy.
+**Apex e LWC existentes** são suportados pela política. Outros tipos (Flow, PermissionSet, CustomObject, QuickAction, Flosum) exigem validação do formato, testes e extensão revisada. **Criação de metadados, exclusões e produção ainda não estão liberadas.** A leitura/planejamento do pacote LWC foi homologada; o deployment real ainda não.
+
+## Gate Jest obrigatório para LWC
+
+Para `package_id=clone-pipeline-lwc`, o job `resolve` executa `npm ci --ignore-scripts --no-audit --no-fund` utilizando `package-lock.json` e, depois, a suíte `force-app/main/default/lwc/clonePipelineAction/__tests__/clonePipelineAction.test.js` (`npm run test:unit -- --runInBand --runTestsByPath ...`). O marcador `SDOA_LWC_JEST_PASSED` aparece somente se todos os testes passarem. Esse job **não utiliza a ECA ou os segredos Salesforce**.
+
+A verificação vale para ambas as operações: **plan** e **deploy**. Uma falha de Jest impede o job `execute`, e portanto o acesso Salesforce e qualquer implantação. Para `security-apex`, o gate Jest não roda; o mecanismo continua com testes Apex em dry-run/deploy.
+
+O gate Jest foi adicionado depois das execuções M4.1 #1–#3 e **ainda não foi homologado em GitHub Actions**. Após o merge desta alteração, fazer um novo `plan` do LWC antes de qualquer `deploy` real.
+
+## Interpretação do último plano LWC
+
+Na execução `M4 Universal #3`, obtivemos `SDOA_REMOTE_BASELINE_OK`, `SDOA_PREVIEW: toDeploy=0 conflicts=1 toDelete=0 ignored=0` e `SDOA_PLAN_OK`. O comando `sf project deploy preview --manifest` reflete o Source Tracking do projeto local, não necessariamente a lista de arquivos que o deploy real enviará com `--metadata-dir`. Por isso **`toDeploy=0` não anula a diferença Git × baseline que o comparador identificou**. O `plan` foi aprovado, mas **não realizou** dry-run nem deploy real. O conflito não autoriza usar `--ignore-conflicts`; o deploy universal só pode seguir pelas comparações de baseline e pelo pacote Metadata API explícito.
 
 ## Conceito de baseline
 
@@ -84,7 +96,9 @@ Como o mesmo Environment fornece capacidade de escrita, proteger `master`, `.git
 ## Situação de homologação
 
 - **M4 original:** deployment real já homologado na DevSreFeat.
-- **M4.1 novo:** código e testes locais implementados, **ainda sem execução end-to-end no GitHub Actions/Salesforce**.
+- **M4.1 `plan`:** confirmado pela DevSreFeat para Apex e LWC; com LWC alterado, `SDOA_PLAN_OK` na execução #3.
+- **M4.1 Jest gate:** introduzido neste PR, aguardando execução do workflow.
+- **M4.1 deploy real:** ainda não homologado; requer nova autorização explícita com baseline válido após teste Jest.
 - **M5 ChatOps:** posterior, preservando a exigência de solicitação inequívoca de deploy.
 
 Documentação oficial: [Salesforce CLI convert source](https://developer.salesforce.com/docs/platform/salesforce-cli-reference/guide/cli_reference_project_convert_source.html), [Salesforce CLI deploy start](https://developer.salesforce.com/docs/platform/salesforce-cli-reference/guide/cli_reference_project_deploy_start.html) e [GitHub workflow_dispatch](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow).
