@@ -330,22 +330,7 @@ public with sharing class ClonePipelineController {
   private static String buildSuggestedName(String sourceName) {
     String baseName = String.isBlank(sourceName) ? 'Pipeline' : sourceName.trim();
     // A clone of a clone continues the same numbering sequence.
-    Pattern copySuffix = Pattern.compile('(?i) - Cópia(?: [0-9]{1,4})?
-
-  private static AuraHandledException toHandledException(
-    Exception exceptionValue
-  ) {
-    String safeMessage = exceptionValue instanceof ClonePipelineException
-      ? exceptionValue.getMessage()
-      : 'Não foi possível clonar o Pipeline. Verifique suas permissões e os dados informados.';
-    AuraHandledException handledException = new AuraHandledException(
-      safeMessage
-    );
-    handledException.setMessage(safeMessage);
-    return handledException;
-  }
-}
-);
+    Pattern copySuffix = Pattern.compile('(?i) - Cópia(?: [0-9]{1,4})?$');
     Matcher suffixMatcher = copySuffix.matcher(baseName);
     while (suffixMatcher.find()) {
       baseName = baseName.substring(0, suffixMatcher.start()).trim();
