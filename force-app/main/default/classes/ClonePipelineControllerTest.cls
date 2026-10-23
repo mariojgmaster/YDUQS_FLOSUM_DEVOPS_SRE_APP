@@ -47,10 +47,10 @@ private class ClonePipelineControllerTest {
     Assert.areEqual(2, preview.stepCount);
     Assert.areEqual(80, preview.maxNameLength);
     Assert.areEqual(2, preview.steps.size());
-    Assert.areEqual(Decimal.valueOf('1'), preview.steps[0].number);
+    Assert.areEqual(Decimal.valueOf('1'), preview.steps[0].stepNumber);
     Assert.areEqual('Primeiro passo', preview.steps[0].description);
     Assert.areEqual('Deploy', preview.steps[0].action);
-    Assert.areEqual(Decimal.valueOf('2'), preview.steps[1].number);
+    Assert.areEqual(Decimal.valueOf('2'), preview.steps[1].stepNumber);
     Assert.areEqual('Segundo passo', preview.steps[1].description);
   }
 
