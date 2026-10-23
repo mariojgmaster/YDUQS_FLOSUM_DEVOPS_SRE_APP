@@ -95,6 +95,35 @@ class PolicyTests(unittest.TestCase):
             ],
         )
 
+    def test_apex_api_version_diagnostics_are_bounded(self):
+        manifest = {"ApexClass": ["ClonePipelineControllerTest"]}
+        base_xml = (b'<ApexClass xmlns="http://soap.sforce.com/2006/04/metadata">'
+                    b'<apiVersion>67.0</apiVersion><status>Active</status></ApexClass>')
+        org_xml = (b'<ApexClass xmlns="http://soap.sforce.com/2006/04/metadata">'
+                   b'<apiVersion>66.0</apiVersion><status>Active</status></ApexClass>')
+        left = {
+            "package.xml": b"<Package/>",
+            "classes/ClonePipelineControllerTest.cls": b"same source",
+            "classes/ClonePipelineControllerTest.cls-meta.xml": base_xml,
+        }
+        right = dict(left)
+        right["classes/ClonePipelineControllerTest.cls-meta.xml"] = org_xml
+        facts = policy.mismatched_apex_metadata_facts(left, right, manifest)
+        self.assertEqual(
+            facts,
+            ["ApexClass:ClonePipelineControllerTest:baselineApi=67.0,"
+             "remoteApi=66.0,baselineStatus=Active,remoteStatus=Active"]
+        )
+        self.assertEqual(policy.mismatched_apex_metadata_facts(left, left, manifest), [])
+
+    def test_apex_meta_diagnostics_never_expose_unexpected_values(self):
+        malicious = (b'<ApexClass xmlns="http://soap.sforce.com/2006/04/metadata">'
+                     b'<apiVersion>secret</apiVersion><status>private</status></ApexClass>')
+        self.assertEqual(
+            policy.safe_apex_metadata_facts(malicious),
+            ("unknown", "unknown")
+        )
+
     def test_lwc_drift_diagnostics_do_not_print_file_contents(self):
         manifest = {"LightningComponentBundle": ["clonePipelineAction"]}
         left = {
