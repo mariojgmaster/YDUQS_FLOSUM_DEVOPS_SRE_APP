@@ -1,0 +1,132 @@
+# READ-ONLY diagnostic for M4 real deployment failure. Never deploys.
+name: Salesforce DevSreFeat - Diagnostico M4
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sf-devsrefeat-read
+  cancel-in-progress: false
+
+jobs:
+  preview:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' && github.actor == github.repository_owner }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: sf-devsrefeat-read
+    env:
+      SF_CLIENT_ID: ${{ secrets.SF_CLIENT_ID }}
+      SF_USERNAME: ${{ secrets.SF_USERNAME }}
+      SF_JWT_KEY: ${{ secrets.SF_JWT_KEY }}
+      SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
+    steps:
+      - name: Checkout master for read-only diagnostics
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Verify target and package allowlist
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SF_INSTANCE_URL" == "https://yduqs--devsrefeat.sandbox.my.salesforce.com" ]] || {
+            echo "::error title=M4_DIAG_TARGET::Only the DevSreFeat sandbox is supported."
+            exit 1
+          }
+          [[ -n "$SF_CLIENT_ID" && -n "$SF_USERNAME" && -n "$SF_JWT_KEY" ]] || {
+            echo "::error title=M4_DIAG_SECRETS::Environment secrets are not configured."
+            exit 1
+          }
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          import sys
+          try:
+              root = ET.parse("manifest/sf-devsrefeat-m3.xml").getroot()
+              ns = {"m": "http://soap.sforce.com/2006/04/metadata"}
+              types = root.findall("m:types", ns)
+              expected = ["CompareSecurityCode", "CompareSecurityCodeTest"]
+              assert len(types) == 1
+              assert types[0].findtext("m:name", namespaces=ns) == "ApexClass"
+              assert [m.text for m in types[0].findall("m:members", ns)] == expected
+              assert root.findtext("m:version", namespaces=ns) == "67.0"
+              for name in expected:
+                  assert Path(f"force-app/main/default/classes/{name}.cls").is_file()
+                  assert Path(f"force-app/main/default/classes/{name}.cls-meta.xml").is_file()
+          except Exception:
+              print("::error title=M4_DIAG_SCOPE::Manifest or source is not the authorized M4 pilot scope.")
+              sys.exit(1)
+          print("M4_DIAG_SCOPE_OK: manifest limited to two approved Apex classes.")
+          PY
+
+      - name: Set up Salesforce CLI
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Salesforce CLI
+        run: npm install --global @salesforce/cli
+
+      - name: Read-only deploy preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          PRIVATE_DIR="$(mktemp -d "$RUNNER_TEMP/m4-preview.XXXXXXXX")"
+          trap 'rm -rf -- "$PRIVATE_DIR"' EXIT
+          printf '%s' "$SF_JWT_KEY" > "$PRIVATE_DIR/key.pem"
+          if ! openssl pkey -in "$PRIVATE_DIR/key.pem" -noout -passin pass: >/dev/null 2>&1; then
+            echo "::error title=M4_DIAG_KEY::Invalid unencrypted PEM key."
+            exit 1
+          fi
+
+          if ! sf org login jwt \
+            --client-id "$SF_CLIENT_ID" \
+            --username "$SF_USERNAME" \
+            --jwt-key-file "$PRIVATE_DIR/key.pem" \
+            --instance-url "$SF_INSTANCE_URL" \
+            --alias devsrefeat-m4-preview \
+            --json > "$PRIVATE_DIR/auth.json" 2> "$PRIVATE_DIR/auth.err"; then
+            echo "::error title=M4_DIAG_AUTH::JWT authentication failed. No deployment attempted."
+            exit 1
+          fi
+
+          preview_exit=0
+          sf project deploy preview \
+            --manifest manifest/sf-devsrefeat-m3.xml \
+            --target-org devsrefeat-m4-preview \
+            --json > "$PRIVATE_DIR/preview.json" 2> "$PRIVATE_DIR/preview.err" || preview_exit=$?
+
+          if [[ "$preview_exit" -ne 0 ]]; then
+            if grep -Eiq 'SourceConflict|conflict|conflicting' "$PRIVATE_DIR/preview.json" "$PRIVATE_DIR/preview.err"; then
+              echo "::error title=M4_DIAG_PREVIEW_CONFLICT::Source tracking reported a conflict. No deployment attempted."
+            elif grep -Eiq 'nothingToDeploy|no local changes to deploy' "$PRIVATE_DIR/preview.json" "$PRIVATE_DIR/preview.err"; then
+              echo "::notice title=M4_DIAG_NO_CHANGES::Salesforce CLI reported no pending local changes. No deployment attempted."
+            else
+              echo "::error title=M4_DIAG_PREVIEW_ERROR::Preview failed; raw output intentionally withheld in this public repository."
+            fi
+            exit 1
+          fi
+
+          if ! jq -e '.status == 0 and (.result | type == "object") and (.result.toDeploy | type == "array") and (.result.conflicts | type == "array") and (.result.toDelete | type == "array") and (.result.ignored | type == "array")' "$PRIVATE_DIR/preview.json" >/dev/null 2>&1; then
+            echo "::error title=M4_DIAG_UNKNOWN_SCHEMA::Preview output format was unexpected; no deployment attempted."
+            exit 1
+          fi
+
+          read -r ready conflicts delete ignored < <(jq -r '[(.result.toDeploy | length), (.result.conflicts | length), (.result.toDelete | length), (.result.ignored | length)] | @tsv' "$PRIVATE_DIR/preview.json")
+          echo "M4_PREVIEW_SUMMARY: toDeploy=$ready conflicts=$conflicts toDelete=$delete ignored=$ignored"
+
+          if [[ "$delete" -gt 0 ]]; then
+            echo "::warning title=M4_DIAG_DESTRUCTIVE::Preview includes deletion candidates. Do not perform a deployment."
+          fi
+          if [[ "$conflicts" -gt 0 ]]; then
+            echo "::warning title=M4_DIAG_SOURCE_CONFLICTS::Conflicts detected. Do not retry deployment or bypass tracking."
+          elif [[ "$ready" -eq 0 ]]; then
+            echo "::notice title=M4_DIAG_NO_CHANGES::No components to deploy according to Source Tracking."
+          else
+            echo "M4_DIAG_READY: components found for potential deployment; this diagnostic did NOT deploy."
+          fi
+          echo "M4_DIAG_READ_ONLY_COMPLETE: preview finished without changes to the org."
