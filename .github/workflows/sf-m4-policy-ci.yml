@@ -5,10 +5,12 @@ on:
   pull_request:
     paths:
       - '.github/workflows/sf-universal-m4.yml'
+      - '.github/workflows/sf-m5-chatops-plan.yml'
       - '.github/workflows/sf-m4-policy-ci.yml'
       - 'scripts/ci/sf-general-deploy.sh'
       - 'scripts/ci/sf-deploy-safe-diagnostic.py'
       - 'scripts/ci/sf-deploy-policy.py'
+      - 'scripts/ci/sf-m5-chatops-intent.py'
       - 'config/salesforce-devops/catalog.json'
       - 'manifest/**'
       - 'tests/test_sf_*'
@@ -28,6 +30,6 @@ jobs:
       - name: Check bash syntax
         run: bash -n scripts/ci/sf-general-deploy.sh
       - name: Check Python syntax
-        run: python3 -m py_compile scripts/ci/sf-deploy-policy.py scripts/ci/sf-deploy-safe-diagnostic.py tests/test_sf_deploy_policy.py tests/test_sf_m42_contract.py tests/test_sf_m42_diagnostics.py tests/test_sf_clone_pipeline_apex_integrity.py
+        run: python3 -m py_compile scripts/ci/sf-deploy-policy.py scripts/ci/sf-deploy-safe-diagnostic.py tests/test_sf_deploy_policy.py tests/test_sf_m42_contract.py tests/test_sf_m42_diagnostics.py tests/test_sf_clone_pipeline_apex_integrity.py scripts/ci/sf-m5-chatops-intent.py tests/test_sf_m5_chatops_intent.py
       - name: Test package policy and M4.2 workflow contract
         run: python3 -m unittest discover -s tests -p 'test_sf_*.py' -v
