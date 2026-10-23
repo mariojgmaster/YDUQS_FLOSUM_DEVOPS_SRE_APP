@@ -109,6 +109,25 @@ Os próximos resultados esperados para o piloto são:
 
 **A execução de um PR nunca autoriza um deployment.** Após o merge, solicitar de novo o M4 pela UI do GitHub com o SHA atualizado e a confirmação literal; não reexecutar jobs anteriores.
 
+## Hipótese de causa raiz — M4 #6 e Diagnóstico #2
+
+- `M4 #6`: `M4_AUTH_PASSED`, `M4_METADATA_IDENTICAL`, mas `M4_PREVIEW_CLI_EXIT: 2`, JSON `status=nonzero result=null`, categoria genérica. **Nenhum deployment foi iniciado**.
+- `Diagnostico M4 #2`: preview isolado com `exit=0`, `toDeploy=1 conflicts=1 toDelete=0 ignored=0`.
+- Diferença importante: o M4 executava **dois JWT logins para o mesmo usuário no mesmo runner**. O primeiro usava alias `devsrefeat-m4` e chave com ciclo de vida do job. O segundo era executado pelo script M3 `compare`, usava alias `devsrefeat-m3` e apontava para uma chave em diretório temporário **excluído assim que o M3 terminava**.
+- O registro compartilhado de autenticação da Salesforce CLI pode ser sobrescrito ou atualizado por um segundo login do mesmo usuário. Um comando seguinte pode ficar com a referência a uma chave que já não existe. É **hipótese técnica forte, mas não comprovada pelo erro bruto**, que foi sanitizado. A Salesforce documenta erros JWT `ENOENT` com chave privada ausente, e orienta que ela esteja acessível a todos os comandos que usam a organização.
+
+### Correção aplicada
+
+1. O M3 permanece autônomo para `retrieve`, `compare` e `validate`, realizando login normalmente quando chamado sozinho.
+2. **Somente** ao receber `SF_M3_REUSE_M4_AUTH=1` com operação `compare`, o M3 **não realiza novo JWT login**. Em vez disso, verifica a autorização existente com `sf org display --target-org devsrefeat-m4 --json` em arquivo privado e reutiliza o alias `devsrefeat-m4` na recuperação ZIP.
+3. O M4 define esse modo em ambas as comparações, antes e depois do dry-run. A chave JWT original permanece disponível até o encerramento do job.
+4. O workflow **Diagnostico M4** executa a mesma sequência **login → compare M3 (reutilizando sessão) → preview**, porém sem comandos de deploy e sem solicitação de SHA. É o primeiro teste recomendado após o merge.
+5. A categoria `JWT_KEY_UNAVAILABLE` passa a ser reconhecida pelo M4; não imprime caminhos privados ou respostas brutas Salesforce.
+
+**Não alteramos** o Environment GitHub, segredos, manifesto das duas classes, autorização manual de deploy, bloqueio de conflitos reais, dry-run, testes Apex nem as verificações de sucesso. Se o novo diagnóstico ainda falhar, a hipótese da segunda autenticação precisa ser reavaliada usando categorias e códigos sanitizados; **não adicionar novos bypasses**.
+
+Referência: [Salesforce — Resolve Common Authorization Errors](https://developer.salesforce.com/docs/platform/sfdx-dev/guide/sfdx-dev-troubleshoot-auth-errors.html).
+
 ## Observabilidade segura da Salesforce CLI (correção após M4 #5)
 
 O workflow de deploy passou a registrar **onde e por que falhou**, sem revelar as respostas brutas de Salesforce ou dados corporativos no GitHub público.
