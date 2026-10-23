@@ -197,6 +197,39 @@ def mismatched_components(left, right, manifest):
                 result.append(f"{typ}:{name}")
     return sorted(result)
 
+def mismatched_file_types(left, right, manifest):
+    """Return only manifest allowlisted component names + generic file categories.
+
+    Do not print retrieved code, metadata content, hashes, or file paths.
+    """
+    selected(left, manifest)
+    selected(right, manifest)
+    result = []
+    for typ, names in manifest.items():
+        for name in names:
+            if typ == "ApexClass":
+                candidates = (
+                    ("source", f"classes/{name}.cls"),
+                    ("metadata", f"classes/{name}.cls-meta.xml"),
+                )
+                for category, path in candidates:
+                    if (path not in left or path not in right or
+                            normalized(left[path], path) != normalized(right[path], path)):
+                        result.append(f"ApexClass:{name}:{category}")
+            elif typ == "LightningComponentBundle":
+                prefix = f"lwc/{name}/"
+                paths = {p for p in set(left) | set(right) if p.startswith(prefix)}
+                if any(
+                    p not in left or p not in right or
+                    normalized(left[p], p) != normalized(right[p], p)
+                    for p in paths
+                ):
+                    result.append(f"LightningComponentBundle:{name}:bundle")
+            else:
+                raise PolicyError("Unsupported metadata type")
+    return sorted(result)
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("command", choices=["resolve", "compare"])
@@ -230,6 +263,8 @@ def main():
         # Only reviewed manifest member identifiers are emitted.
         names = mismatched_components(left, right, manifest)
         print(f"SDOA_{a.label.upper()}_DIFFERING_MEMBERS: {','.join(names)}")
+        kinds = mismatched_file_types(left, right, manifest)
+        print(f"SDOA_{a.label.upper()}_DIFFERING_PARTS: {','.join(kinds)}")
     return 0 if same else 4
 
 if __name__ == "__main__":

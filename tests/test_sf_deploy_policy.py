@@ -59,6 +59,42 @@ class PolicyTests(unittest.TestCase):
         right["classes/Two.cls-meta.xml"] = b"<B/>"
         self.assertEqual(policy.mismatched_components(left, right, manifest), ["ApexClass:Two"])
 
+    def test_drift_part_classification(self):
+        manifest = {"ApexClass": ["ClonePipelineControllerTest"]}
+        base = {
+            "package.xml": b"<Package/>",
+            "classes/ClonePipelineControllerTest.cls": b"@IsTest private class A {}",
+            "classes/ClonePipelineControllerTest.cls-meta.xml": b"<A><apiVersion>67.0</apiVersion></A>",
+        }
+        self.assertEqual(policy.mismatched_file_types(base, base, manifest), [])
+        meta_changed = dict(base)
+        meta_changed["classes/ClonePipelineControllerTest.cls-meta.xml"] = (
+            b"<A><apiVersion>66.0</apiVersion></A>"
+        )
+        self.assertEqual(
+            policy.mismatched_file_types(base, meta_changed, manifest),
+            ["ApexClass:ClonePipelineControllerTest:metadata"],
+        )
+        source_changed = dict(base)
+        source_changed["classes/ClonePipelineControllerTest.cls"] = (
+            b"@IsTest private class B {}"
+        )
+        self.assertEqual(
+            policy.mismatched_file_types(base, source_changed, manifest),
+            ["ApexClass:ClonePipelineControllerTest:source"],
+        )
+        both_changed = dict(source_changed)
+        both_changed["classes/ClonePipelineControllerTest.cls-meta.xml"] = (
+            meta_changed["classes/ClonePipelineControllerTest.cls-meta.xml"]
+        )
+        self.assertEqual(
+            policy.mismatched_file_types(base, both_changed, manifest),
+            [
+                "ApexClass:ClonePipelineControllerTest:metadata",
+                "ApexClass:ClonePipelineControllerTest:source",
+            ],
+        )
+
     def test_lwc_drift_diagnostics_do_not_print_file_contents(self):
         manifest = {"LightningComponentBundle": ["clonePipelineAction"]}
         left = {
