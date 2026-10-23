@@ -100,19 +100,45 @@ jobs:
             --target-org devsrefeat-m4-preview \
             --json > "$PRIVATE_DIR/preview.json" 2> "$PRIVATE_DIR/preview.err" || preview_exit=$?
 
-          if [[ "$preview_exit" -ne 0 ]]; then
-            if grep -Eiq 'SourceConflict|conflict|conflicting' "$PRIVATE_DIR/preview.json" "$PRIVATE_DIR/preview.err"; then
-              echo "::error title=M4_DIAG_PREVIEW_CONFLICT::Source tracking reported a conflict. No deployment attempted."
-            elif grep -Eiq 'nothingToDeploy|no local changes to deploy' "$PRIVATE_DIR/preview.json" "$PRIVATE_DIR/preview.err"; then
-              echo "::notice title=M4_DIAG_NO_CHANGES::Salesforce CLI reported no pending local changes. No deployment attempted."
-            else
-              echo "::error title=M4_DIAG_PREVIEW_ERROR::Preview failed; raw output intentionally withheld in this public repository."
-            fi
+          echo "M4_DIAG_PREVIEW_CLI_EXIT: $preview_exit"
+          if ! jq -e 'type == "object"' "$PRIVATE_DIR/preview.json" >/dev/null 2>&1; then
+            echo "::error title=M4_DIAG_INVALID_JSON::Preview returned an empty, invalid or non-object JSON. No deployment attempted."
             exit 1
           fi
 
-          if ! jq -e '.status == 0 and (.result | type == "object") and (.result.toDeploy | type == "array") and (.result.conflicts | type == "array") and (.result.toDelete | type == "array") and (.result.ignored | type == "array")' "$PRIVATE_DIR/preview.json" >/dev/null 2>&1; then
-            echo "::error title=M4_DIAG_UNKNOWN_SCHEMA::Preview output format was unexpected; no deployment attempted."
+          read -r status_type result_type deploy_type conflict_type delete_type ignored_type < <(jq -r '
+            [
+              (if .status==0 then "0" elif (.status|type)=="number" then "nonzero" else "missing" end),
+              (.result | type),
+              ((if (.result|type)=="object" then .result.toDeploy else null end)|type),
+              ((if (.result|type)=="object" then .result.conflicts else null end)|type),
+              ((if (.result|type)=="object" then .result.toDelete else null end)|type),
+              ((if (.result|type)=="object" then .result.ignored else null end)|type)
+            ] | @tsv' "$PRIVATE_DIR/preview.json")
+          echo "M4_DIAG_PREVIEW_JSON_SHAPE: status=$status_type result=$result_type toDeploy=$deploy_type conflicts=$conflict_type toDelete=$delete_type ignored=$ignored_type"
+
+          if [[ "$preview_exit" -ne 0 ]]; then
+            if grep -Eiq 'SourceConflictError|error\\.Conflicts|changes in the org that conflict' "$PRIVATE_DIR/preview.json" "$PRIVATE_DIR/preview.err"; then
+              error_class="SOURCE_CONFLICT"
+            elif grep -Eiq 'nothingToDeploy|No local changes to deploy' "$PRIVATE_DIR/preview.json" "$PRIVATE_DIR/preview.err"; then
+              error_class="NOTHING_TO_DEPLOY"
+            elif grep -Eiq 'INSUFFICIENT_ACCESS|insufficient privileges|not authorized' "$PRIVATE_DIR/preview.json" "$PRIVATE_DIR/preview.err"; then
+              error_class="PERMISSION"
+            elif grep -Eiq 'ETIMEDOUT|ECONNRESET|EAI_AGAIN|REQUEST_LIMIT_EXCEEDED' "$PRIVATE_DIR/preview.json" "$PRIVATE_DIR/preview.err"; then
+              error_class="NETWORK_OR_LIMIT"
+            else
+              error_class="UNCLASSIFIED"
+            fi
+            echo "::error title=M4_DIAG_PREVIEW_CLI_ERROR::Salesforce CLI failed; category=$error_class. Raw output intentionally withheld."
+            exit 1
+          fi
+
+          if [[ "$status_type" != "0" ]]; then
+            echo "::error title=M4_DIAG_PREVIEW_STATUS_ERROR::Preview JSON returned non-success status."
+            exit 1
+          fi
+          if [[ "$result_type" != "object" || "$deploy_type" != "array" || "$conflict_type" != "array" || "$delete_type" != "array" || "$ignored_type" != "array" ]]; then
+            echo "::error title=M4_DIAG_PREVIEW_SCHEMA_MISMATCH::Unexpected JSON schema. Types logged above; no deployment attempted."
             exit 1
           fi
 

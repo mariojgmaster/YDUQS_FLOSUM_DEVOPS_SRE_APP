@@ -135,6 +135,50 @@ jobs:
           fi
           echo "M4_AUTH_PASSED: Salesforce JWT authentication completed."
 
+          # Never print Salesforce's raw JSON or stderr in this public repository.
+          # Only fixed diagnostic categories, numeric exit codes and JSON types.
+          classify_cli_error() {
+            if grep -Eiq 'SourceConflictError|ConflictsError|error\.Conflicts|changes in the org that conflict' "$@"; then
+              echo "SOURCE_CONFLICT"
+            elif grep -Eiq 'nothingToDeploy|No local changes to deploy' "$@"; then
+              echo "NOTHING_TO_DEPLOY"
+            elif grep -Eiq 'INVALID_SESSION_ID|invalid_grant|expired access token' "$@"; then
+              echo "SESSION_OR_AUTH"
+            elif grep -Eiq 'INSUFFICIENT_ACCESS|INVALID_PERMISSION|insufficient privileges|not authorized|permission denied' "$@"; then
+              echo "PERMISSION"
+            elif grep -Eiq 'ETIMEDOUT|ECONNRESET|EAI_AGAIN|ENOTFOUND|rate limit|REQUEST_LIMIT_EXCEEDED|timed out' "$@"; then
+              echo "NETWORK_OR_LIMIT"
+            elif grep -Eiq 'unknown flag|invalid option|Unexpected argument|unknown option' "$@"; then
+              echo "CLI_ARGUMENT"
+            else
+              echo "UNCLASSIFIED"
+            fi
+          }
+          report_deploy_json() {
+            local phase="$1" file="$2"
+            if ! jq -e 'type == "object"' "$file" >/dev/null 2>&1; then
+              echo "M4_${phase}_JSON: unavailable_or_invalid"
+              return
+            fi
+            jq -r --arg phase "$phase" '
+              def number_or_unknown:
+                if type=="number" and .>=0 and .<=10000000 then tostring else "unknown" end;
+              def status_category:
+                if .=="Succeeded" or .=="Failed" or .=="InProgress" or .=="Pending" or .=="Canceled" then . else "other_or_missing" end;
+              "M4_\($phase)_RESPONSE: status=" +
+                (if .status==0 then "0" elif (.status|type)=="number" then "nonzero" else "missing" end) +
+                " success=" + (if .result.success == true then "true" elif .result.success == false then "false" else "missing" end) +
+                " result_status=" + (.result.status | status_category) +
+                " component_errors=" + (.result.numberComponentErrors | number_or_unknown) +
+                " test_errors=" + (.result.numberTestErrors | number_or_unknown) +
+                " tests_completed=" + (.result.numberTestsCompleted | number_or_unknown)
+            ' "$file" 2>/dev/null || echo "M4_${phase}_JSON: unexpected_schema"
+          }
+          cli_version="$(sf --version 2>/dev/null | grep -Eo '@salesforce/cli/[0-9]+\.[0-9]+\.[0-9]+' | head -n1 || true)"
+          if [[ -n "$cli_version" ]]; then
+            echo "M4_CLI_VERSION: $cli_version"
+          fi
+
           # Fresh Metadata API ZIP retrieve + four-file comparison, using the
           # already homologated M3 routine. The existing pilot may override
           # source-tracking CONFLICTS only if the org is byte-equivalent to Git.
@@ -156,8 +200,33 @@ jobs:
             --manifest manifest/sf-devsrefeat-m3.xml \
             --target-org devsrefeat-m4 \
             --json > "$PREVIEW" 2> "$PREVIEW_ERR" || preview_exit=$?
-          if [[ "$preview_exit" -ne 0 ]] || ! jq -e '.status == 0 and (.result.toDeploy | type == "array") and (.result.conflicts | type == "array") and (.result.toDelete | type == "array") and (.result.ignored | type == "array")' "$PREVIEW" >/dev/null 2>&1; then
-            echo "::error title=M4_PREVIEW_UNVERIFIED::Unable to safely classify the deployment preview. No real deployment attempted."
+          echo "M4_PREVIEW_CLI_EXIT: $preview_exit"
+          if ! jq -e 'type == "object"' "$PREVIEW" >/dev/null 2>&1; then
+            echo "::error title=M4_PREVIEW_INVALID_JSON::CLI response was empty, invalid JSON or not an object. No real deployment attempted."
+            exit 1
+          fi
+          # Field types are safe to disclose, unlike field values, component
+          # names, request IDs, usernames or Salesforce stack traces.
+          read -r root_status result_type deploy_type conflict_type delete_type ignored_type < <(jq -r '
+            [
+              (if .status==0 then "0" elif (.status|type)=="number" then "nonzero" else "missing" end),
+              (.result | type),
+              ((if (.result | type) == "object" then .result.toDeploy else null end) | type),
+              ((if (.result | type) == "object" then .result.conflicts else null end) | type),
+              ((if (.result | type) == "object" then .result.toDelete else null end) | type),
+              ((if (.result | type) == "object" then .result.ignored else null end) | type)
+            ] | @tsv' "$PREVIEW")
+          echo "M4_PREVIEW_JSON_SHAPE: status=$root_status result=$result_type toDeploy=$deploy_type conflicts=$conflict_type toDelete=$delete_type ignored=$ignored_type"
+          if [[ "$preview_exit" -ne 0 ]]; then
+            echo "::error title=M4_PREVIEW_CLI_ERROR::CLI error category=$(classify_cli_error "$PREVIEW" "$PREVIEW_ERR"). No real deployment attempted."
+            exit 1
+          fi
+          if [[ "$root_status" != "0" ]]; then
+            echo "::error title=M4_PREVIEW_STATUS_ERROR::Salesforce CLI returned a non-success status. No real deployment attempted."
+            exit 1
+          fi
+          if [[ "$result_type" != "object" || "$deploy_type" != "array" || "$conflict_type" != "array" || "$delete_type" != "array" || "$ignored_type" != "array" ]]; then
+            echo "::error title=M4_PREVIEW_SCHEMA_MISMATCH::The structured preview fields did not match the supported CLI result schema. No real deployment attempted."
             exit 1
           fi
           read -r TO_DEPLOY CONFLICTS TO_DELETE IGNORED < <(jq -r '[(.result.toDeploy | length), (.result.conflicts | length), (.result.toDelete | length), (.result.ignored | length)] | @tsv' "$PREVIEW")
@@ -179,15 +248,19 @@ jobs:
           fi
 
           # Dry-run uses the SAME checked-out source, target, manifest and Apex test.
-          if ! sf project deploy start \
+          dry_exit=0
+          sf project deploy start \
             --dry-run \
             --manifest manifest/sf-devsrefeat-m3.xml \
             --test-level RunSpecifiedTests \
             --tests CompareSecurityCodeTest \
             --target-org devsrefeat-m4 \
             --wait 60 \
-            --json > "$DRY" 2> "$ERR"; then
-            echo "::error title=M4_DRY_RUN_FAILED::Dry-run failed. No real deploy attempted. Inspect results privately."
+            --json > "$DRY" 2> "$ERR" || dry_exit=$?
+          echo "M4_DRY_RUN_CLI_EXIT: $dry_exit"
+          report_deploy_json "DRY_RUN" "$DRY"
+          if [[ "$dry_exit" -ne 0 ]]; then
+            echo "::error title=M4_DRY_RUN_FAILED::CLI error category=$(classify_cli_error "$DRY" "$ERR"). No real deployment attempted."
             exit 1
           fi
           if ! jq -e '.status == 0 and .result.success == true and (.result.done == true or .result.status == "Succeeded")' "$DRY" >/dev/null 2>&1; then
@@ -222,8 +295,10 @@ jobs:
             "${VERIFIED_CONFLICT_ARGS[@]}" \
             --wait 60 \
             --json > "$REAL" 2> "$ERR" || deploy_exit=$?
+          echo "M4_REAL_DEPLOY_CLI_EXIT: $deploy_exit"
+          report_deploy_json "REAL_DEPLOY" "$REAL"
           if [[ "$deploy_exit" -ne 0 ]]; then
-            echo "::error title=M4_DEPLOY_REPORTED_FAILURE::Real deploy returned an error. Verify Deployment Status before any new attempt."
+            echo "::error title=M4_DEPLOY_REPORTED_FAILURE::CLI error category=$(classify_cli_error "$REAL" "$ERR"). Verify Deployment Status before retrying."
             exit 1
           fi
           if ! jq -e '.status == 0 and .result.success == true and (.result.done == true or .result.status == "Succeeded")' "$REAL" >/dev/null 2>&1; then
