@@ -40,7 +40,7 @@ jest.mock(
 
 const PREVIEW = {
   sourceName: "Pipeline Origem",
-  suggestedName: "Pipeline Origem - Cópia",
+  suggestedName: "Pipeline Origem - Cópia 01",
   stepCount: 2,
   maxNameLength: 80
 };
@@ -77,7 +77,7 @@ describe("c-clone-pipeline-action", () => {
       sourcePipelineId: "a01000000000001AAA"
     });
     expect(element.shadowRoot.querySelector("lightning-input").value).toBe(
-      "Pipeline Origem - Cópia"
+      "Pipeline Origem - Cópia 01"
     );
     expect(element.shadowRoot.textContent).toContain("2 Pipeline Steps");
   });
@@ -90,7 +90,7 @@ describe("c-clone-pipeline-action", () => {
     await flushPromises();
 
     expect(element.shadowRoot.querySelector("lightning-input").value).toBe(
-      "Pipeline Origem - Cópia"
+      "Pipeline Origem - Cópia 01"
     );
 
     element.recordId = "a01000000000003AAA";
@@ -173,7 +173,7 @@ describe("c-clone-pipeline-action", () => {
     getPreview.mockResolvedValue(PREVIEW);
     clonePipeline.mockResolvedValue({
       pipelineId: "a01000000000002AAA",
-      pipelineName: "Pipeline Origem - Cópia",
+      pipelineName: "Pipeline Origem - Cópia 01",
       stepCount: 2
     });
     const element = createComponent();
