@@ -62,7 +62,16 @@ Também há `SDOA_M42_REAL_DEPLOY_DIAG` caso a implantação autorizada apresent
 - O \`plan\` é uma validação do candidato **naquele momento**, não uma garantia de sucesso futuro; o \`deploy\` repete o dry-run antes de qualquer gravação.
 - Não usar em produção sem uma política separada com controle de drift, backup e rollback.
 
-## Próximo teste operacional
+
+## Homologação final — 23/10/2026
+
+**APROVADO (sandbox DevSreFeat).** Evidência da execução M4 Universal #16: PLAN / `clone-pipeline-apex`, `SDOA_M42_DRY_RUN_PASSED` + `SDOA_M42_PLAN_OK`. Execução M4 Universal **#18**: DEPLOY explícito no mesmo pacote e ambiente, dry-run e testes Apex aprovados e `SDOA_REAL_DEPLOY_SUCCEEDED`, commit de origem `844f6d327801770f95c5596697e25b296a5b50a7`.
+
+Aceite funcional informado pelo proprietário: clonagem inicial, clonagens sequenciais, clonagem de uma cópia e integridade dos Pipeline Steps — **4/4 cenários aprovados**. Os logs GitHub confirmam implantação persistente segundo a resposta da CLI; a documentação não presume consulta independente a Deployment Status nem detalha quantidade de métodos Apex além do que foi reportado.
+
+**Estado:** M4.2 homologado no piloto. O novo M5 ChatOps inicialmente só orquestra `plan`, sem alterar os critérios de `deploy` manual.
+
+## Histórico de homologação (concluído)
 
 1. Validar PR CI \`M4 Policy Checks\`: \`bash -n\`, \`py_compile\` e \`unittest\`.
 2. Após merge, abrir o workflow na \`master\`; realizar **plan** de \`clone-pipeline-apex\`.
