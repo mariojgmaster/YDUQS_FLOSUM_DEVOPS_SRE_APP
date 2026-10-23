@@ -37,7 +37,13 @@ export default class ClonePipelineAction extends NavigationMixin(
   }
 
   get isCloneDisabled() {
-    return this.isLoading || this.isSubmitting || !this.newName.trim();
+    return (
+      this.isLoading ||
+      this.isSubmitting ||
+      Boolean(this.loadError) ||
+      !this._recordId ||
+      !this.newName.trim()
+    );
   }
 
   get submitLabel() {
@@ -45,18 +51,34 @@ export default class ClonePipelineAction extends NavigationMixin(
   }
 
   async loadPreview() {
+    const requestedRecordId = this._recordId;
     this.isLoading = true;
     this.loadError = undefined;
+    this.sourceName = undefined;
+    this.newName = "";
+    this.stepCount = 0;
+
     try {
-      const preview = await getPreview({ sourcePipelineId: this._recordId });
+      const preview = await getPreview({
+        sourcePipelineId: requestedRecordId
+      });
+      // A slower request for an older record must never overwrite the
+      // currently selected record's preview.
+      if (requestedRecordId !== this._recordId) {
+        return;
+      }
       this.sourceName = preview.sourceName;
       this.newName = preview.suggestedName;
       this.stepCount = preview.stepCount;
       this.maxNameLength = preview.maxNameLength;
     } catch (error) {
-      this.loadError = this.normalizeError(error);
+      if (requestedRecordId === this._recordId) {
+        this.loadError = this.normalizeError(error);
+      }
     } finally {
-      this.isLoading = false;
+      if (requestedRecordId === this._recordId) {
+        this.isLoading = false;
+      }
     }
   }
 
