@@ -1,7 +1,7 @@
 <template>
   <lightning-quick-action-panel header="Clonar Pipeline">
     <template lwc:if={isLoading}>
-      <div class="slds-is-relative slds-p-vertical_x-large">
+      <div class="slds-is-relative slds-p-vertical_x-large" aria-live="polite">
         <lightning-spinner
           alternative-text="Carregando dados do Pipeline"
           size="small"
@@ -11,32 +11,158 @@
 
     <template lwc:elseif={loadError}>
       <div class="slds-notify slds-notify_alert slds-alert_error" role="alert">
+        <lightning-icon
+          class="slds-m-right_small"
+          icon-name="utility:error"
+          variant="inverse"
+          size="x-small"
+        ></lightning-icon>
         <span>{loadError}</span>
       </div>
     </template>
 
     <template lwc:else>
-      <p class="slds-m-bottom_medium">
-        Serão clonados o Pipeline <strong>{sourceName}</strong> e
-        {stepCountLabel}.
-      </p>
-      <lightning-input
-        data-name="pipeline-name"
-        label="Nome do novo Pipeline"
-        value={newName}
-        maxlength={maxNameLength}
-        required
-        disabled={isSubmitting}
-        onchange={handleNameChange}
-      ></lightning-input>
-      <template lwc:if={submitError}>
-        <div class="slds-text-color_error slds-m-top_small" role="alert">
-          {submitError}
+      <div class="clone-content">
+        <div class="intro slds-grid slds-grid_vertical-align-center">
+          <div class="intro-icon slds-m-right_medium">
+            <lightning-icon
+              icon-name="utility:copy"
+              size="medium"
+              alternative-text="Clonagem"
+            ></lightning-icon>
+          </div>
+          <div>
+            <p class="intro-heading">Criar uma cópia deste Pipeline</p>
+            <p class="intro-description">
+              Uma nova versão de <strong>{sourceName}</strong> será criada com
+              todos os seus Pipeline Steps.
+            </p>
+          </div>
         </div>
-      </template>
+
+        <section class="copy-summary" aria-label="Resumo da clonagem">
+          <div class="slds-grid slds-grid_vertical-align-center">
+            <lightning-icon
+              class="summary-info-icon slds-m-right_small"
+              icon-name="utility:info"
+              alternative-text="Informação"
+              size="small"
+            ></lightning-icon>
+            <strong class="summary-title">Serão clonados:</strong>
+          </div>
+          <ul class="summary-items">
+            <li>
+              <lightning-icon icon-name="utility:copy" size="x-small"></lightning-icon>
+              <span>1 Pipeline</span>
+            </li>
+            <li>
+              <lightning-icon icon-name="utility:rows" size="x-small"></lightning-icon>
+              <span>{stepCountLabel}</span>
+            </li>
+            <li>
+              <lightning-icon icon-name="utility:settings" size="x-small"></lightning-icon>
+              <span>Configurações e ordem dos Steps</span>
+            </li>
+          </ul>
+        </section>
+
+        <div class="name-field">
+          <lightning-input
+            data-name="pipeline-name"
+            type="text"
+            label="Nome do novo Pipeline"
+            value={newName}
+            maxlength={maxNameLength}
+            required
+            disabled={isSubmitting}
+            onchange={handleNameChange}
+          ></lightning-input>
+          <div class="name-hint slds-grid slds-grid_align-spread">
+            <span>Nome sugerido automaticamente. Você pode editar.</span>
+            <span class="character-count">{nameCounter}</span>
+          </div>
+        </div>
+
+        <div class="preview">
+          <lightning-accordion
+            active-section-name="steps"
+            allow-multiple-sections-open
+          >
+            <lightning-accordion-section
+              name="steps"
+              label={previewSectionLabel}
+            >
+              <div class="preview-body">
+                <div class="preview-heading slds-grid slds-grid_vertical-align-center">
+                  <lightning-icon
+                    icon-name="standard:flow"
+                    size="small"
+                    alternative-text="Pipeline"
+                    class="slds-m-right_small"
+                  ></lightning-icon>
+                  <strong>{sourceName}</strong>
+                  <span class="count-chip">{stepCountLabel}</span>
+                </div>
+                <template lwc:if={hasStepDetails}>
+                  <ol class="steps-list">
+                    <template for:each={stepItems} for:item="step">
+                      <li key={step.key} class="step-row">
+                        <span class="step-number">{step.number}</span>
+                        <lightning-icon
+                          class="step-symbol"
+                          icon-name="utility:diamond"
+                          size="x-small"
+                          alternative-text="Step"
+                        ></lightning-icon>
+                        <span class="step-description">{step.description}</span>
+                        <template lwc:if={step.action}>
+                          <span class="step-action">{step.action}</span>
+                        </template>
+                      </li>
+                    </template>
+                  </ol>
+                </template>
+                <template lwc:elseif={hasNoSteps}>
+                  <p class="preview-empty">
+                    Este Pipeline não possui Steps. Somente o Pipeline será clonado.
+                  </p>
+                </template>
+                <template lwc:else>
+                  <p class="preview-empty">
+                    A lista detalhada de Steps não está disponível nesta versão.
+                    A quantidade será preservada na clonagem.
+                  </p>
+                </template>
+              </div>
+            </lightning-accordion-section>
+          </lightning-accordion>
+        </div>
+
+        <template lwc:if={submitError}>
+          <div class="slds-notify slds-notify_alert slds-alert_error submit-alert" role="alert">
+            <lightning-icon
+              icon-name="utility:error"
+              variant="inverse"
+              size="x-small"
+              class="slds-m-right_small"
+            ></lightning-icon>
+            <span>{submitError}</span>
+          </div>
+        </template>
+      </div>
     </template>
 
-    <div slot="footer">
+    <div slot="footer" class="action-footer">
+      <template lwc:if={isSubmitting}>
+        <span class="slds-grid slds-grid_vertical-align-center processing-hint" role="status">
+          <lightning-spinner
+            alternative-text="Clonando Pipeline"
+            size="small"
+            variant="brand"
+          ></lightning-spinner>
+          <span class="slds-assistive-text">Aguarde a clonagem.</span>
+        </span>
+      </template>
       <lightning-button
         label="Cancelar"
         disabled={isSubmitting}
@@ -45,6 +171,7 @@
       <lightning-button
         class="slds-m-left_x-small"
         variant="brand"
+        icon-name="utility:copy"
         label={submitLabel}
         disabled={isCloneDisabled}
         onclick={handleClone}
