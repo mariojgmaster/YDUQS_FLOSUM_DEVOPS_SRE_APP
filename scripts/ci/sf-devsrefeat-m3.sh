@@ -44,21 +44,36 @@ cleanup() {
   rm -rf -- "$TEMP_DIR"
 }
 trap cleanup EXIT
-printf '%s' "$SF_JWT_KEY" > "$TEMP_DIR/jwt.key"
-if ! openssl pkey -in "$TEMP_DIR/jwt.key" -noout -passin pass: >/dev/null 2>&1; then
-  abort "M3_INVALID_KEY" "GitHub Environment SF_JWT_KEY must be a valid unencrypted PEM private key."
+# Reuse M4's already-authorized Salesforce session when called from M4.
+# A second JWT login for the same user with a disposable key can replace the
+# shared CLI auth record, leaving the next command with a deleted key path.
+TARGET_ORG_ALIAS="devsrefeat-m3"
+if [[ "${SF_M3_REUSE_M4_AUTH:-0}" == "1" ]]; then
+  [[ "$OPERATION" == "compare" ]] || abort "M3_REUSE_OPERATION_DENIED" "M4 auth reuse is limited to compare."
+  TARGET_ORG_ALIAS="devsrefeat-m4"
+  if ! sf org display --target-org "$TARGET_ORG_ALIAS" --json > "$TEMP_DIR/display.json" 2> "$TEMP_DIR/display.err"; then
+    abort "M3_EXISTING_AUTH_UNAVAILABLE" "The parent M4 Salesforce session could not be resolved."
+  fi
+  jq -e '.status == 0' "$TEMP_DIR/display.json" >/dev/null 2>&1 ||
+    abort "M3_EXISTING_AUTH_INVALID" "The parent M4 Salesforce session was not successful."
+  echo "M3_AUTH_REUSED: parent M4 JWT session used without a second login."
+elif [[ "${SF_M3_REUSE_M4_AUTH:-0}" == "0" ]]; then
+  printf '%s' "$SF_JWT_KEY" > "$TEMP_DIR/jwt.key"
+  openssl pkey -in "$TEMP_DIR/jwt.key" -noout -passin pass: >/dev/null 2>&1 ||
+    abort "M3_INVALID_KEY" "A valid unencrypted PEM key is required."
+  if ! sf org login jwt \
+    --client-id "$SF_CLIENT_ID" \
+    --username "$SF_USERNAME" \
+    --jwt-key-file "$TEMP_DIR/jwt.key" \
+    --instance-url "$SF_INSTANCE_URL" \
+    --alias "$TARGET_ORG_ALIAS" \
+    --json > "$TEMP_DIR/login.json" 2> "$TEMP_DIR/login.err"; then
+    abort "M3_AUTH_FAILED" "JWT login failed; consult Salesforce Login History privately."
+  fi
+  echo "JWT authorization succeeded for the configured sandbox (details withheld)."
+else
+  abort "M3_REUSE_FLAG_INVALID" "Unrecognized session mode."
 fi
-
-if ! sf org login jwt \
-  --client-id "$SF_CLIENT_ID" \
-  --username "$SF_USERNAME" \
-  --jwt-key-file "$TEMP_DIR/jwt.key" \
-  --instance-url "$SF_INSTANCE_URL" \
-  --alias devsrefeat-m3 \
-  --json > "$TEMP_DIR/login.json" 2> "$TEMP_DIR/login.err"; then
-  abort "M3_AUTH_FAILED" "JWT login failed; review ECA, integration user, GitHub Secrets and Salesforce Login History."
-fi
-echo "JWT authorization succeeded for the configured sandbox (details withheld)."
 
 # Classify only known CLI/Salesforce errors. Never publish raw metadata
 # responses, usernames, org IDs, sources or full stack traces in this PUBLIC repo.
@@ -106,7 +121,7 @@ JSON
     sf project retrieve start \
       --manifest "$GITHUB_WORKSPACE/$MANIFEST" \
       --target-metadata-dir "$MDAPI_DIR" \
-      --target-org devsrefeat-m3 \
+      --target-org "$TARGET_ORG_ALIAS" \
       --wait 30 \
       --json
   ) > "$TEMP_DIR/retrieve.json" 2> "$TEMP_DIR/retrieve.err" || retrieve_exit=$?
@@ -198,7 +213,7 @@ else
     --manifest "$MANIFEST" \
     --test-level RunSpecifiedTests \
     --tests CompareSecurityCodeTest \
-    --target-org devsrefeat-m3 \
+    --target-org "$TARGET_ORG_ALIAS" \
     --wait 40 \
     --json > "$TEMP_DIR/validate.json" 2> "$TEMP_DIR/validate.err" || exit_code=$?
 
