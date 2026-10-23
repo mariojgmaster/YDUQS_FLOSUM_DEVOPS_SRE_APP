@@ -82,6 +82,59 @@ describe("c-clone-pipeline-action", () => {
     expect(element.shadowRoot.textContent).toContain("2 Pipeline Steps");
   });
 
+  it("disables cloning when a new record preview fails", async () => {
+    getPreview.mockResolvedValueOnce(PREVIEW).mockRejectedValueOnce({
+      body: { message: "Não foi possível carregar o Pipeline." }
+    });
+    const element = createComponent();
+    await flushPromises();
+
+    expect(element.shadowRoot.querySelector("lightning-input").value).toBe(
+      "Pipeline Origem - Cópia"
+    );
+
+    element.recordId = "a01000000000003AAA";
+    await flushPromises();
+
+    expect(element.shadowRoot.textContent).toContain(
+      "Não foi possível carregar o Pipeline."
+    );
+    expect(
+      element.shadowRoot.querySelectorAll("lightning-button")[1].disabled
+    ).toBe(true);
+    expect(clonePipeline).not.toHaveBeenCalled();
+  });
+
+  it("ignores a late preview for a previous record", async () => {
+    let resolvePreviousPreview;
+    getPreview
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolvePreviousPreview = resolve;
+          })
+      )
+      .mockResolvedValueOnce({
+        ...PREVIEW,
+        sourceName: "Pipeline Atual",
+        suggestedName: "Pipeline Atual - Cópia",
+        stepCount: 1
+      });
+
+    const element = createComponent();
+    element.recordId = "a01000000000003AAA";
+    await flushPromises();
+
+    resolvePreviousPreview(PREVIEW);
+    await flushPromises();
+
+    expect(getPreview).toHaveBeenCalledTimes(2);
+    expect(element.shadowRoot.querySelector("lightning-input").value).toBe(
+      "Pipeline Atual - Cópia"
+    );
+    expect(element.shadowRoot.textContent).toContain("1 Pipeline Step");
+  });
+
   it("does not submit a blank name", async () => {
     getPreview.mockResolvedValue(PREVIEW);
     const element = createComponent();
