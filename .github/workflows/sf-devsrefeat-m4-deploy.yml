@@ -196,6 +196,17 @@ jobs:
           fi
           echo "M4_DRY_RUN_PASSED: selected Apex metadata validated; no changes persisted."
 
+          # Recheck equality AFTER the dry-run to narrow the interval between
+          # the org read and the only possible ignore-conflicts write.
+          if (( CONFLICTS > 0 )); then
+            if ! OPERATION=compare bash scripts/ci/sf-devsrefeat-m3.sh > "$COMPARE_OUT" 2> "$COMPARE_ERR" || \
+               ! grep -Fxq "M3_COMPARE_SUMMARY: same=4 different=0 missing=0" "$COMPARE_OUT"; then
+              echo "::error title=M4_ORG_CHANGED_AFTER_VALIDATION::Org metadata changed or could not be rechecked after dry-run. No real deployment attempted."
+              exit 1
+            fi
+            echo "M4_METADATA_RECHECK_PASSED: org metadata still matches approved GitHub files."
+          fi
+
           # One last fail-closed guard immediately before the intentional write.
           [[ "$CONFIRMATION" == "DEPLOY DevSreFeat" && "${REQUESTED_SHA,,}" == "${TARGET_SHA,,}" && "$RUN_ATTEMPT" == "1" ]] || {
             echo "::error title=M4_WRITE_NOT_AUTHORIZED::Explicit deployment guards failed."
