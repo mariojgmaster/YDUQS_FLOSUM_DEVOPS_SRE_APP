@@ -47,7 +47,18 @@ O primeiro pacote autorizado contém **exatamente**:
 - `ApexClass:CompareSecurityCode`
 - `ApexClass:CompareSecurityCodeTest`
 
-O manifesto reutiliza `manifest/sf-devsrefeat-m3.xml`. O M4 **não executa deployments destrutivos**, não usa `--ignore-conflicts`, `--ignore-errors`, `--ignore-warnings` ou opção para pular testes.
+O manifesto reutiliza `manifest/sf-devsrefeat-m3.xml`. O M4 **não executa deployments destrutivos** nem utiliza `--ignore-errors`, `--ignore-warnings` ou opção para pular testes. Após o diagnóstico **M4 Preview #1 (`toDeploy=1 conflicts=1 toDelete=0 ignored=0`)**, acrescentamos uma exceção cuidadosamente limitada de Source Tracking para o piloto:
+
+- O workflow executa o **`compare` M3 homologado no mesmo job**, recuperando via Metadata API ZIP as duas classes aprovadas e conferindo **quatro arquivos idênticos** ao commit da `master`. Qualquer diferença real ou falha de recuperação interrompe a operação.
+- Executa `sf project deploy preview` com o manifesto fechado. Qualquer exclusão (`toDelete>0`) ou componente ignorado bloqueia o deploy.
+- Se nenhum item estiver pendente nem em conflito, informa **`M4_NOOP_ALREADY_SYNCED`** e termina sem executar deploy real. Isso não equivale à homologação de um deploy real.
+- **Somente quando há conflito de tracking e identidade 4/4 comprovada com a sandbox**, o comando real recebe `--ignore-conflicts`, restrito ao manifesto explícito de duas classes. A validação `--dry-run` e os testes Apex continuam obrigatórios.
+- Se ocorrerem modificações reais na organização ou no GitHub, este piloto **falha fechado**. Futuras implantações que intencionalmente mudem o código exigirão um processo próprio de análise de diferença e autorização de sobrescrita, não poderão utilizar automaticamente esta exceção.
+- Repositório público: resposta bruta Salesforce, conteúdo do ZIP, hashes e segredos não são impressos nem armazenados como artifacts.
+
+Essa exceção **não é um bypass genérico**. Na documentação da Salesforce, `--ignore-conflicts` pode sobrescrever código remoto; por isso ele só é aceito para um pacote que já demonstrou igualdade exata entre Git e org no mesmo job.
+
+Referência oficial: https://developer.salesforce.com/docs/platform/sfdx-dev/guide/sfdx-dev-source-tracking-resolve-conflicts.html
 
 ## Pré-requisitos (mesmo Environment, sem segredos novos)
 
@@ -80,11 +91,31 @@ sf project deploy start --dry-run \
 
 **Somente se aprovado**, ele executa o mesmo comando **sem `--dry-run`**.
 
+## Diagnóstico comprovado (M4 Preview #1)
+
+Após dois deployments reais com retorno de erro, o diagnóstico somente leitura informou:
+```text
+M4_PREVIEW_SUMMARY: toDeploy=1 conflicts=1 toDelete=0 ignored=0
+```
+
+Isso evidencia **um conflito de Source Tracking**, mas não prova diferença no conteúdo das classes. A última comparação M3 aprovada mostrou `same=4 different=0 missing=0`; o workflow M4 agora refaz essa comparação no instante da solicitação, sem confiar em um resultado antigo.
+
+Os próximos resultados esperados para o piloto são:
+- `M4_METADATA_IDENTICAL`: arquivos da org e do GitHub comprovadamente iguais;
+- `M4_TRACKING_ONLY_OVERRIDE`: habilitação condicionada de `--ignore-conflicts` para o pacote restrito;
+- `M4_DRY_RUN_PASSED`: testes validados;
+- `M4_REAL_DEPLOY_SUCCEEDED`: **somente** se Salesforce confirmar a gravação persistente.
+
+**A execução de um PR nunca autoriza um deployment.** Após o merge, solicitar de novo o M4 pela UI do GitHub com o SHA atualizado e a confirmação literal; não reexecutar jobs anteriores.
+
 ## Interpretar resultados
 
 | Código | Significado |
 |---|---|
 | `M4_INTENT_VERIFIED` | Identidade, branch, commit SHA, destino e componentes foram conferidos |
+| `M4_METADATA_IDENTICAL` | GitHub e sandbox possuem os mesmos quatro arquivos autorizados (compare M3) |
+| `M4_TRACKING_ONLY_OVERRIDE` | Conflito de tracking ignorado somente após igualdade 4/4 e preview sem exclusões |
+| `M4_NOOP_ALREADY_SYNCED` | Nenhum deployment realizado porque não há itens pendentes |
 | `M4_DRY_RUN_PASSED` | Validação e testes foram aprovados, sem alteração persistente |
 | `M4_REAL_DEPLOY_STARTING` | O workflow iniciou uma operação de escrita na sandbox |
 | `M4_REAL_DEPLOY_SUCCEEDED` | Salesforce confirmou o deployment persistente |
