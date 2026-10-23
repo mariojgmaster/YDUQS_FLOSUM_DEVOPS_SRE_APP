@@ -125,11 +125,42 @@ def from_zip(path):
     except BadZipFile as e:
         raise PolicyError("Invalid Metadata API archive") from e
 
+def canonical_apex_class_core(root):
+    """Canonicalize *only* the reviewed two-field ApexClass metadata schema.
+
+    XML formatting, order and surrounding whitespace in known scalar fields
+    are not metadata drift. Extra/unknown fields and attributes are not
+    silently discarded: the caller falls back to strict XML comparison.
+    """
+    ns = "{http://soap.sforce.com/2006/04/metadata}"
+    if (root.tag != f"{ns}ApexClass" or root.attrib or
+            len(root) != 2 or (root.text or "").strip()):
+        return None
+    values = {}
+    for child in root:
+        if (child.tag not in (f"{ns}apiVersion", f"{ns}status") or
+                child.tag in values or child.attrib or len(child) or
+                (child.tail or "").strip()):
+            return None
+        values[child.tag] = (child.text or "").strip()
+    if set(values) != {f"{ns}apiVersion", f"{ns}status"}:
+        return None
+    version, status = values[f"{ns}apiVersion"], values[f"{ns}status"]
+    if (not re.fullmatch(r"[0-9]{1,3}\.[0-9]{1,2}", version) or
+            status not in ("Active", "Inactive", "Deleted")):
+        return None
+    return f"ApexClass|apiVersion={version}|status={status}".encode("ascii")
+
+
 def normalized(data, path):
     raw = data.replace(b"\r\n", b"\n").rstrip(b"\n")
     if path.endswith(".xml"):
         try:
             root = ET.fromstring(raw)
+            if path.endswith(".cls-meta.xml"):
+                canonical = canonical_apex_class_core(root)
+                if canonical is not None:
+                    return canonical
             def trim(el):
                 if len(el) and el.text is not None and not el.text.strip():
                     el.text = None
@@ -263,6 +294,24 @@ def mismatched_apex_metadata_facts(left, right, manifest):
     return sorted(results)
 
 
+def differing_apex_metadata_shapes(left, right, manifest):
+    """Report only core-only/extended XML shape, never source or field values."""
+    selected(left, manifest)
+    selected(right, manifest)
+    rows = []
+    for name in manifest.get("ApexClass", []):
+        path = f"classes/{name}.cls-meta.xml"
+        if normalized(left[path], path) == normalized(right[path], path):
+            continue
+        left_core = canonical_apex_class_core(ET.fromstring(left[path]))
+        right_core = canonical_apex_class_core(ET.fromstring(right[path]))
+        rows.append(
+            f"ApexClass:{name}:baselineCoreOnly={str(left_core is not None).lower()},"
+            f"remoteCoreOnly={str(right_core is not None).lower()}"
+        )
+    return sorted(rows)
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("command", choices=["resolve", "compare"])
@@ -301,6 +350,8 @@ def main():
         facts = mismatched_apex_metadata_facts(left, right, manifest)
         if facts:
             print(f"SDOA_{a.label.upper()}_APEX_META_FACTS: {';'.join(facts)}")
+            shapes = differing_apex_metadata_shapes(left, right, manifest)
+            print(f"SDOA_{a.label.upper()}_APEX_META_SHAPES: {';'.join(shapes)}")
     return 0 if same else 4
 
 if __name__ == "__main__":

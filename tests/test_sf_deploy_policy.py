@@ -116,6 +116,51 @@ class PolicyTests(unittest.TestCase):
         )
         self.assertEqual(policy.mismatched_apex_metadata_facts(left, left, manifest), [])
 
+    def test_core_apex_xml_equivalence_and_fail_closed(self):
+        ns = "http://soap.sforce.com/2006/04/metadata"
+        def xml(version="67.0", status="Active", extra="", attrs="", reverse=False):
+            fields = (
+                f"<apiVersion>{version}</apiVersion><status>{status}</status>"
+            )
+            if reverse:
+                fields = (
+                    f"<status> {status} </status><apiVersion> {version} </apiVersion>"
+                )
+            return f'<ApexClass xmlns="{ns}"{attrs}>{fields}{extra}</ApexClass>'.encode()
+
+        manifest = {"ApexClass": ["ClonePipelineControllerTest"]}
+        filename = "classes/ClonePipelineControllerTest.cls-meta.xml"
+        left = {
+            "package.xml": b"<Package/>",
+            "classes/ClonePipelineControllerTest.cls": b"same Apex code",
+            filename: xml(),
+        }
+        # Formatting and child order do not change two-field metadata semantics.
+        same = dict(left, **{filename: xml(reverse=True)})
+        self.assertEqual(policy.compare(left, same, manifest), (True, 0))
+        self.assertEqual(policy.differing_apex_metadata_shapes(left, same, manifest), [])
+        # Different version/status, extra children, attributes and duplicate
+        # elements must NEVER be treated as identical.
+        cases = [
+            xml(version="66.0"), xml(status="Inactive"),
+            xml(extra="<packageVersions/>"), xml(attrs=' extra="1"'),
+            xml(extra="<status>Active</status>"),
+        ]
+        for remote_metadata in cases:
+            with self.subTest(remote_metadata=remote_metadata):
+                remote = dict(left, **{filename: remote_metadata})
+                self.assertEqual(policy.compare(left, remote, manifest), (False, 1))
+                self.assertEqual(
+                    policy.mismatched_file_types(left, remote, manifest),
+                    ["ApexClass:ClonePipelineControllerTest:metadata"]
+                )
+        extra = dict(left, **{filename: xml(extra="<packageVersions/>")})
+        self.assertEqual(
+            policy.differing_apex_metadata_shapes(left, extra, manifest),
+            ["ApexClass:ClonePipelineControllerTest:"
+             "baselineCoreOnly=true,remoteCoreOnly=false"]
+        )
+
     def test_apex_meta_diagnostics_never_expose_unexpected_values(self):
         malicious = (b'<ApexClass xmlns="http://soap.sforce.com/2006/04/metadata">'
                      b'<apiVersion>secret</apiVersion><status>private</status></ApexClass>')
