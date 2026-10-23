@@ -99,6 +99,56 @@ describe("c-clone-pipeline-action", () => {
     );
   });
 
+  it("allows closing and reopening the preview accordion", async () => {
+    getPreview.mockResolvedValue(PREVIEW);
+    const element = createComponent();
+    await flushPromises();
+
+    const accordion = element.shadowRoot.querySelector("lightning-accordion");
+    expect(accordion.allowMultipleSectionsOpen).toBe(true);
+    expect(accordion.activeSectionName).toEqual(["steps"]);
+
+    // Collapsing the only section must keep it closed after other UI changes.
+    accordion.dispatchEvent(
+      new CustomEvent("sectiontoggle", { detail: { openSections: [] } })
+    );
+    await flushPromises();
+    expect(accordion.activeSectionName).toEqual([]);
+
+    const input = element.shadowRoot.querySelector("lightning-input");
+    input.value = "Pipeline atualizado";
+    input.dispatchEvent(new CustomEvent("change"));
+    await flushPromises();
+    expect(accordion.activeSectionName).toEqual([]);
+
+    accordion.dispatchEvent(
+      new CustomEvent("sectiontoggle", {
+        detail: { openSections: ["steps"] }
+      })
+    );
+    await flushPromises();
+    expect(accordion.activeSectionName).toEqual(["steps"]);
+  });
+
+  it("resets the preview accordion to expanded for a new Pipeline", async () => {
+    getPreview.mockResolvedValue(PREVIEW);
+    const element = createComponent();
+    await flushPromises();
+
+    const accordion = element.shadowRoot.querySelector("lightning-accordion");
+    accordion.dispatchEvent(
+      new CustomEvent("sectiontoggle", { detail: { openSections: [] } })
+    );
+    await flushPromises();
+    expect(accordion.activeSectionName).toEqual([]);
+
+    element.recordId = "a01000000000003AAA";
+    await flushPromises();
+    expect(
+      element.shadowRoot.querySelector("lightning-accordion").activeSectionName
+    ).toEqual(["steps"]);
+  });
+
   it("shows the zero-Step message without blocking cloning", async () => {
     getPreview.mockResolvedValue({
       ...PREVIEW,
