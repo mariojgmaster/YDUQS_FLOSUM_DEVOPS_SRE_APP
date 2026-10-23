@@ -1,11 +1,11 @@
-# M4.1 universal sandbox pilot — no push/PR/schedule or implicit deploy.
+# M4.2 — sandbox only. No baseline/preview gate; validate on Salesforce before any write.
 name: Salesforce DevOps - M4 Universal
 
 on:
   workflow_dispatch:
     inputs:
       operation:
-        description: 'plan is read-only; deploy is a REAL write after successful dry-run'
+        description: 'plan = Salesforce dry-run + Apex tests, no write; deploy = real write after dry-run'
         required: true
         type: choice
         options: [plan, deploy]
@@ -19,16 +19,8 @@ on:
         required: true
         type: choice
         options: [security-apex, clone-pipeline-lwc, clone-pipeline-apex]
-      commit_sha:
-        description: 'Current master SHA (40 characters)'
-        required: true
-        type: string
-      baseline_sha:
-        description: 'SHA of LAST KNOWN DEPLOYED VERSION for this package'
-        required: true
-        type: string
       confirmation:
-        description: 'Blank for plan; for deploy: DEPLOY DevSreFeat package_id'
+        description: 'Blank for plan; for deploy type exactly: DEPLOY DevSreFeat package_id'
         required: false
         default: ''
         type: string
@@ -50,8 +42,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.sha }}
           persist-credentials: false
-      - name: Validate package policy and ZIP comparator
+      - name: Validate reviewed package policy
         run: python3 -m unittest discover -s tests -p 'test_sf_deploy_policy.py' -v
       - name: Set up Node.js for registered LWC unit tests
         if: ${{ inputs.package_id == 'clone-pipeline-lwc' }}
@@ -79,10 +72,10 @@ jobs:
   execute:
     needs: resolve
     if: ${{ needs.resolve.result == 'success' }}
-    name: Plan or explicitly deploy reviewed metadata
+    name: Validate in Salesforce and optionally deploy
     runs-on: ubuntu-latest
     timeout-minutes: 140
-    # GitHub Environment derived only from reviewed registry, not from raw input.
+    # Always reuse the existing reviewed GitHub Environment (ECA/JWT secrets).
     environment:
       name: ${{ needs.resolve.outputs.github_environment }}
     env:
@@ -95,14 +88,12 @@ jobs:
       OPERATION: ${{ inputs.operation }}
       TARGET: ${{ inputs.target }}
       PACKAGE_ID: ${{ inputs.package_id }}
-      REQUESTED_SHA: ${{ inputs.commit_sha }}
-      BASELINE_SHA: ${{ inputs.baseline_sha }}
       CONFIRMATION: ${{ inputs.confirmation }}
     steps:
-      - name: Checkout full history of explicitly selected master revision
+      - name: Checkout exact workflow revision (immutable SHA)
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          ref: ${{ github.sha }}
           persist-credentials: false
       - name: Set up Salesforce CLI runtime
         uses: actions/setup-node@v4
@@ -110,6 +101,6 @@ jobs:
           node-version: '22'
       - name: Install Salesforce CLI
         run: npm install --global @salesforce/cli
-      - name: Validate baseline and safely plan or deploy
+      - name: Validate on Salesforce and optionally deploy
         shell: bash
         run: bash scripts/ci/sf-general-deploy.sh
