@@ -34,7 +34,7 @@ class ClonePipelineApexIntegrityTests(unittest.TestCase):
 
     def test_preview_avoids_reserved_apex_number_identifier(self):
         # Apex reserves "number": protect the DTO and its consumers against regression.
-        self.assertNotRegex(SRC, r"\\b(?:Decimal|Integer)\\s+number\\s*\\{")
+        self.assertNotRegex(SRC, r"\b(?:Decimal|Integer)\s+number\s*\{")
         self.assertIn("public Decimal stepNumber { get; set; }", SRC)
         self.assertIn("step.stepNumber = readableFields.contains", SRC)
         apex_tests = (
