@@ -25,7 +25,7 @@ public with sharing class ClonePipelineController {
 
   public class StepPreview {
     @AuraEnabled
-    public Decimal number { get; set; }
+    public Decimal stepNumber { get; set; }
     @AuraEnabled
     public String description { get; set; }
     @AuraEnabled
@@ -306,7 +306,7 @@ public with sharing class ClonePipelineController {
     List<StepPreview> result = new List<StepPreview>();
     for (SObject row : rows) {
       StepPreview step = new StepPreview();
-      step.number = readableFields.contains('Flosum__Number__c')
+      step.stepNumber = readableFields.contains('Flosum__Number__c')
         ? (Decimal) row.get('Flosum__Number__c')
         : null;
       step.description = readableFields.contains('Flosum__Description__c')
