@@ -17,7 +17,7 @@ A plataforma de ChatGPT só executará as ações que o **GitHub connector efeti
 
 - "No repositório owner/repo, encontre o último M4 Universal, mostre o SHA, pacote, operação e status."
 - "Revise a falha dessa Action, sem publicar tokens ou logs brutos."
-- "Compare o baseline declarado com o SHA atual, valide catálogo e proponha um `plan`."
+- "Valide a seleção do pacote e do ambiente; prepare um `plan` Salesforce-native M4.2 sem baseline manual."
 - "Crie um PR só com a correção Apex/LWC pedida e os testes relacionados."
 - "Prepare o formulário de deploy do package_id para o alvo informado, mas **não dispare** sem ferramenta e intenção inequívoca."
 
@@ -30,7 +30,7 @@ O plugin deve sempre identificar o repositório, o ambiente, a operação, o pac
 | Descobrir repositórios, PRs, Actions, jobs e diagnósticos | Suportado via GitHub conectado | Ferramenta disponível e permissões |
 | Abrir PR com código/testes para revisão | Suportado via GitHub conectado | Pedido explícito do usuário |
 | Analisar Tooling API, Apex tests e Metadata API | Indireto, pelos workflows/logs existentes | Não declarar acesso Salesforce direto |
-| Preparar `plan` | Suportado | Alvo/pacote e SHA/baseline comprovados |
+| Preparar `plan` | Suportado | Alvo/pacote registrados; SHA da master fixado automaticamente pelo workflow M4.2 |
 | Iniciar `workflow_dispatch` pelo ChatGPT | **Pendente** | Exige conector GitHub que exponha dispatch, ou integração equivalente auditada |
 | Executar deploy real direto do chat | **Pendente** | Além da ferramenta, contrato forte de autorização e proteção M4 |
 | Flosum Deploys por API | **Pendente** | Verificar capacidades, APIs e permissões Flosum antes de implementar |
@@ -40,8 +40,8 @@ O plugin deve sempre identificar o repositório, o ambiente, a operação, o pac
 
 - Nenhum segredo ECA, JWT private key, refresh token ou token Salesforce no chat, em GitHub Issue/PR ou log público.
 - **Somente o GitHub Environment já cadastrado por organização**; não criar um Environment por ação.
-- Deploys reais só após solicitação explícita e verificável com alvo + pacote + SHA imutável + baseline implantado comprovado + dry-run/testes + recheck.
-- Nunca usar `--ignore-conflicts` de forma genérica, `--force`, `--ignore-errors` ou `--ignore-warnings` para superar divergências não aprovadas.
+- Deploys reais na sandbox DevSreFeat somente com alvo + pacote registrados, SHA Git automaticamente fixado, confirmação literal e dry-run/testes Salesforce. A política M4.2 **não** compara drift remoto; pode sobrescrever edições feitas diretamente na org.
+- Não usar `--ignore-conflicts`, `--force`, `--ignore-errors` ou `--ignore-warnings` para forçar deployments; o risco de sobrescrita de metadata é uma limitação explícita do M4.2.
 - Nunca repetir automaticamente deployment de resultado incerto ou usar "Re-run jobs" para efetivar novo write.
 - Alterações de código ficam em PRs; nenhum merge/deploy automático implícito.
 - "Success" no GitHub sem `SDOA_REAL_DEPLOY_SUCCEEDED` pode ser apenas `plan`; confirmar Salesforce Deployment Status quando o resultado real importar.
@@ -50,9 +50,9 @@ O plugin deve sempre identificar o repositório, o ambiente, a operação, o pac
 
 **M5.1:** usar o plugin em conversas reais para status e diagnóstico de Actions de diferentes repositórios, testando resolução correta de projeto/ambiente.
 
-**M5.2:** quando houver `workflow_dispatch` disponível por um conector autorizado, disparar inicialmente **somente** `plan`, preservando as validações e audit trail GitHub.
+**M5.2:** quando houver `workflow_dispatch` disponível por um conector autorizado, disparar inicialmente **somente** `plan` com M4.2 (dry-run Salesforce, testes e audit trail GitHub).
 
-**M5.3:** liberar pedidos `deploy` para sandbox mediante intenção textual inequívoca, SHA e baseline revisados; reusar M4.1 sem criação de uma rota paralela insegura.
+**M5.3:** liberar pedidos `deploy` para sandbox mediante confirmação literal inequívoca de alvo/pacote e revisão Git fixada pelo M4.2; não criar uma rota paralela insegura.
 
 **M5.4:** expandir seleção de ambientes, comparação entre orgs e Flosum após especificação, testes e autorização técnica.
 
@@ -62,7 +62,7 @@ Repo: `mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP`.
 
 Target: `DevSreFeat`, GitHub Environment único `sf-devsrefeat-read`.
 
-Workflow: `.github/workflows/sf-universal-m4.yml`.
+Workflow: `.github/workflows/sf-universal-m4.yml` (M4.2), documentação operacional: `docs/salesforce-devops-assistant/M4-2-SALESFORCE-NATIVE.md`.
 
 Pacotes aprovados: ler o catálogo da `master` atual, **nunca presumir que um PR pendente já foi mesclado**.
 
