@@ -32,6 +32,20 @@ class ClonePipelineApexIntegrityTests(unittest.TestCase):
         self.assertIn("return copyPrefix + ' ' + ordinal;", segment)
         self.assertIn("  }\n\n", segment[-15:])
 
+    def test_preview_avoids_reserved_apex_number_identifier(self):
+        # Apex reserves "number": protect the DTO and its consumers against regression.
+        self.assertNotRegex(SRC, r"\b(?:Decimal|Integer)\s+number\s*\{")
+        self.assertIn("public Decimal stepNumber { get; set; }", SRC)
+        self.assertIn("step.stepNumber = readableFields.contains", SRC)
+        apex_tests = (
+            ROOT / "force-app/main/default/classes/ClonePipelineControllerTest.cls"
+        ).read_text(encoding="utf-8")
+        lwc = (
+            ROOT / "force-app/main/default/lwc/clonePipelineAction/clonePipelineAction.js"
+        ).read_text(encoding="utf-8")
+        self.assertIn("preview.steps[0].stepNumber", apex_tests)
+        self.assertIn("step.stepNumber == null", lwc)
+
     def test_apex_body_has_balanced_blocks_after_removing_string_literals(self):
         # Lightweight structural sanity check only; Salesforce validates Apex syntax.
         clean = re.sub(r"'(?:\\.|[^'\\])*'", "''", SRC)

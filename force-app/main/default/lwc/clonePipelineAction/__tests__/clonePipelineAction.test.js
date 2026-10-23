@@ -44,8 +44,8 @@ const PREVIEW = {
   stepCount: 2,
   maxNameLength: 80,
   steps: [
-    { number: 1, description: "Primeiro passo", action: "Deploy" },
-    { number: 2, description: "Segundo passo", action: "Validate" }
+    { stepNumber: 1, description: "Primeiro passo", action: "Deploy" },
+    { stepNumber: 2, description: "Segundo passo", action: "Validate" }
   ]
 };
 
