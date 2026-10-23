@@ -7,7 +7,14 @@ abort() { echo "::error title=$1::$2"; exit 1; }
 
 : "${OPERATION:?}" "${TARGET:?}" "${PACKAGE_ID:?}"
 [[ "$OPERATION" == plan || "$OPERATION" == deploy ]] || abort SDOA_OPERATION_DENIED 'Only plan/deploy supported.'
-[[ "$GITHUB_EVENT_NAME" == workflow_dispatch && "$GITHUB_REF" == refs/heads/master ]] || abort SDOA_TRIGGER_DENIED 'Manual master dispatch required.'
+# Two audited entrypoints: manual M4.2 plan/deploy or owner-authored M5 Issue PLAN.
+# M5 can NEVER deploy. The event payload is verified again in this privileged job.
+if [[ "$GITHUB_EVENT_NAME" == issues ]]; then
+  [[ "$GITHUB_REF" == refs/heads/master && "$OPERATION" == plan && -z "${CONFIRMATION:-}" ]] || abort SDOA_M5_PLAN_ONLY 'Issue ChatOps is restricted to plan on master.'
+  python3 scripts/ci/sf-m5-chatops-intent.py --event "$GITHUB_EVENT_PATH" --owner "$GITHUB_REPOSITORY_OWNER" --repository "$GITHUB_REPOSITORY" --target "$TARGET" --package "$PACKAGE_ID" || abort SDOA_M5_INTENT_DENIED 'Issue intent could not be verified.'
+else
+  [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && "$GITHUB_REF" == refs/heads/master ]] || abort SDOA_TRIGGER_DENIED 'Manual master dispatch required.'
+fi
 [[ "$GITHUB_ACTOR" == "$GITHUB_REPOSITORY_OWNER" ]] || abort SDOA_ACTOR_DENIED 'Only repository owner may initiate this pilot.'
 [[ "$GITHUB_RUN_ATTEMPT" == 1 ]] || abort SDOA_RERUN_DENIED 'Never re-run a deployment workflow.'
 [[ "$GITHUB_SHA" =~ ^[[:xdigit:]]{40}$ && "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]] || abort SDOA_SHA_MISMATCH 'Selected master revision does not match checked-out commit.'
