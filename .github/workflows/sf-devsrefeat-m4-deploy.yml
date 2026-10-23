@@ -142,6 +142,8 @@ jobs:
               echo "SOURCE_CONFLICT"
             elif grep -Eiq 'nothingToDeploy|No local changes to deploy' "$@"; then
               echo "NOTHING_TO_DEPLOY"
+            elif grep -Eiq 'JwtGrantError|ENOENT.*(jwt|pem|\\.key)|no such file or directory.*(jwt|pem|\\.key)' "$@"; then
+              echo "JWT_KEY_UNAVAILABLE"
             elif grep -Eiq 'INVALID_SESSION_ID|invalid_grant|expired access token' "$@"; then
               echo "SESSION_OR_AUTH"
             elif grep -Eiq 'INSUFFICIENT_ACCESS|INVALID_PERMISSION|insufficient privileges|not authorized|permission denied' "$@"; then
@@ -184,7 +186,7 @@ jobs:
           # source-tracking CONFLICTS only if the org is byte-equivalent to Git.
           # If the org differs, fail closed: legitimate future updates require
           # a separate explicit and reviewed conflict-resolution policy.
-          if ! OPERATION=compare bash scripts/ci/sf-devsrefeat-m3.sh > "$COMPARE_OUT" 2> "$COMPARE_ERR"; then
+          if ! SF_M3_REUSE_M4_AUTH=1 OPERATION=compare bash scripts/ci/sf-devsrefeat-m3.sh > "$COMPARE_OUT" 2> "$COMPARE_ERR"; then
             echo "::error title=M4_ORG_DRIFT_OR_RETRIEVE_FAILURE::Could not verify that the org metadata equals the reviewed GitHub commit. No real deployment attempted."
             exit 1
           fi
@@ -193,6 +195,7 @@ jobs:
             exit 1
           fi
           echo "M4_METADATA_IDENTICAL: four approved Apex/metadata files match the org; no real metadata drift."
+          echo "M4_SINGLE_JWT_SESSION: comparison reused the parent M4 session; no second JWT login."
 
           # Preview immediately before dry-run. Restrict to the same manifest.
           preview_exit=0
@@ -272,7 +275,7 @@ jobs:
           # Recheck equality AFTER the dry-run to narrow the interval between
           # the org read and the only possible ignore-conflicts write.
           if (( CONFLICTS > 0 )); then
-            if ! OPERATION=compare bash scripts/ci/sf-devsrefeat-m3.sh > "$COMPARE_OUT" 2> "$COMPARE_ERR" || \
+            if ! SF_M3_REUSE_M4_AUTH=1 OPERATION=compare bash scripts/ci/sf-devsrefeat-m3.sh > "$COMPARE_OUT" 2> "$COMPARE_ERR" || \
                ! grep -Fxq "M3_COMPARE_SUMMARY: same=4 different=0 missing=0" "$COMPARE_OUT"; then
               echo "::error title=M4_ORG_CHANGED_AFTER_VALIDATION::Org metadata changed or could not be rechecked after dry-run. No real deployment attempted."
               exit 1

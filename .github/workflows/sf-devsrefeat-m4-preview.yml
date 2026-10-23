@@ -88,16 +88,30 @@ jobs:
             --username "$SF_USERNAME" \
             --jwt-key-file "$PRIVATE_DIR/key.pem" \
             --instance-url "$SF_INSTANCE_URL" \
-            --alias devsrefeat-m4-preview \
+            --alias devsrefeat-m4 \
             --json > "$PRIVATE_DIR/auth.json" 2> "$PRIVATE_DIR/auth.err"; then
             echo "::error title=M4_DIAG_AUTH::JWT authentication failed. No deployment attempted."
             exit 1
           fi
 
+          # Recreate the SAME sequence as the real M4 pipeline: compare
+          # with an existing JWT session, then preview. No writes to Salesforce.
+          compare_out="$PRIVATE_DIR/compare.out"
+          compare_err="$PRIVATE_DIR/compare.err"
+          if ! SF_M3_REUSE_M4_AUTH=1 OPERATION=compare bash scripts/ci/sf-devsrefeat-m3.sh > "$compare_out" 2> "$compare_err"; then
+            echo "::error title=M4_DIAG_COMPARE_FAILED::Metadata comparison or session reuse failed; no deploy attempted."
+            exit 1
+          fi
+          if ! grep -Fxq "M3_COMPARE_SUMMARY: same=4 different=0 missing=0" "$compare_out"; then
+            echo "::error title=M4_DIAG_METADATA_NOT_IDENTICAL::Metadata equality was not established. No deploy attempted."
+            exit 1
+          fi
+          echo "M4_DIAG_JWT_REUSE_PASSED: metadata compare succeeded without a second login."
+
           preview_exit=0
           sf project deploy preview \
             --manifest manifest/sf-devsrefeat-m3.xml \
-            --target-org devsrefeat-m4-preview \
+            --target-org devsrefeat-m4 \
             --json > "$PRIVATE_DIR/preview.json" 2> "$PRIVATE_DIR/preview.err" || preview_exit=$?
 
           echo "M4_DIAG_PREVIEW_CLI_EXIT: $preview_exit"
