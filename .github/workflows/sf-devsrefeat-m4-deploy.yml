@@ -138,7 +138,7 @@ jobs:
           # Never print Salesforce's raw JSON or stderr in this public repository.
           # Only fixed diagnostic categories, numeric exit codes and JSON types.
           classify_cli_error() {
-            if grep -Eiq 'SourceConflictError|ConflictsError|error\\.Conflicts|changes in the org that conflict' "$@"; then
+            if grep -Eiq 'SourceConflictError|ConflictsError|error\.Conflicts|changes in the org that conflict' "$@"; then
               echo "SOURCE_CONFLICT"
             elif grep -Eiq 'nothingToDeploy|No local changes to deploy' "$@"; then
               echo "NOTHING_TO_DEPLOY"
@@ -165,7 +165,7 @@ jobs:
                 if type=="number" and .>=0 and .<=10000000 then tostring else "unknown" end;
               def status_category:
                 if .=="Succeeded" or .=="Failed" or .=="InProgress" or .=="Pending" or .=="Canceled" then . else "other_or_missing" end;
-              "M4_\\($phase)_RESPONSE: status=" +
+              "M4_\($phase)_RESPONSE: status=" +
                 (if .status==0 then "0" elif (.status|type)=="number" then "nonzero" else "missing" end) +
                 " success=" + (if .result.success == true then "true" elif .result.success == false then "false" else "missing" end) +
                 " result_status=" + (.result.status | status_category) +
@@ -174,7 +174,7 @@ jobs:
                 " tests_completed=" + (.result.numberTestsCompleted | number_or_unknown)
             ' "$file" 2>/dev/null || echo "M4_${phase}_JSON: unexpected_schema"
           }
-          cli_version="$(sf --version 2>/dev/null | grep -Eo '@salesforce/cli/[0-9]+\\.[0-9]+\\.[0-9]+' | head -n1 || true)"
+          cli_version="$(sf --version 2>/dev/null | grep -Eo '@salesforce/cli/[0-9]+\.[0-9]+\.[0-9]+' | head -n1 || true)"
           if [[ -n "$cli_version" ]]; then
             echo "M4_CLI_VERSION: $cli_version"
           fi
@@ -211,10 +211,10 @@ jobs:
             [
               (if .status==0 then "0" elif (.status|type)=="number" then "nonzero" else "missing" end),
               (.result | type),
-              (.result.toDeploy | type),
-              (.result.conflicts | type),
-              (.result.toDelete | type),
-              (.result.ignored | type)
+              ((if (.result | type) == "object" then .result.toDeploy else null end) | type),
+              ((if (.result | type) == "object" then .result.conflicts else null end) | type),
+              ((if (.result | type) == "object" then .result.toDelete else null end) | type),
+              ((if (.result | type) == "object" then .result.ignored else null end) | type)
             ] | @tsv' "$PREVIEW")
           echo "M4_PREVIEW_JSON_SHAPE: status=$root_status result=$result_type toDeploy=$deploy_type conflicts=$conflict_type toDelete=$delete_type ignored=$ignored_type"
           if [[ "$preview_exit" -ne 0 ]]; then
