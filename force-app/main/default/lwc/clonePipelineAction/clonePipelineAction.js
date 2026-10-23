@@ -16,6 +16,7 @@ export default class ClonePipelineAction extends NavigationMixin(
   newName = "";
   stepCount = 0;
   steps = [];
+  openPreviewSections = ["steps"];
   maxNameLength = 80;
   loadError;
   submitError;
@@ -91,6 +92,7 @@ export default class ClonePipelineAction extends NavigationMixin(
     this.newName = "";
     this.stepCount = 0;
     this.steps = [];
+    this.openPreviewSections = ["steps"];
 
     try {
       const preview = await getPreview({
@@ -114,6 +116,19 @@ export default class ClonePipelineAction extends NavigationMixin(
       if (requestId === this._previewRequestId) {
         this.isLoading = false;
       }
+    }
+  }
+
+  handlePreviewSectionToggle(event) {
+    const openSections = event.detail.openSections;
+    const nextSections = Array.isArray(openSections)
+      ? openSections.filter((name) => name === "steps")
+      : [];
+    if (
+      nextSections.length !== this.openPreviewSections.length ||
+      nextSections.some((name, index) => name !== this.openPreviewSections[index])
+    ) {
+      this.openPreviewSections = nextSections;
     }
   }
 
