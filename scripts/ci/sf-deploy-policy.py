@@ -312,6 +312,68 @@ def differing_apex_metadata_shapes(left, right, manifest):
     return sorted(rows)
 
 
+def safe_apex_xml_shape(raw):
+    """Bounded schema-only diagnostics. Never return XML text or element values."""
+    root = ET.fromstring(raw.replace(b"\r\n", b"\n").strip())
+    ns = "{http://soap.sforce.com/2006/04/metadata}"
+    flags = []
+    if root.tag != f"{ns}ApexClass":
+        flags.append("nonstandardRoot")
+    if root.attrib:
+        flags.append("rootAttributes")
+    if (root.text or "").strip():
+        flags.append("rootText")
+    core_counts = {"apiVersion": 0, "status": 0}
+    packages = 0
+    other_fields = 0
+    attrs = False
+    nested_core = False
+    tail_text = False
+    for child in root:
+        if child.tag in (f"{ns}apiVersion", f"{ns}status"):
+            core_counts[child.tag[len(ns):]] += 1
+            if len(child):
+                nested_core = True
+        elif child.tag == f"{ns}packageVersions":
+            packages += 1
+        else:
+            other_fields += 1
+        attrs = attrs or bool(child.attrib)
+        tail_text = tail_text or bool((child.tail or "").strip())
+    if packages:
+        # Safe counts only; never output managed-package namespaces or versions.
+        flags.append(f"packageVersionsCount={min(packages, 100)}")
+    if other_fields:
+        flags.append(f"otherChildCount={min(other_fields, 100)}")
+    if core_counts != {"apiVersion": 1, "status": 1}:
+        flags.append("missingOrDuplicateCore")
+    if attrs:
+        flags.append("childAttributes")
+    if nested_core:
+        flags.append("nestedCore")
+    if tail_text:
+        flags.append("trailingText")
+    if canonical_apex_class_core(root) is None and not flags:
+        flags.append("nonCanonicalCore")
+    return ",".join(flags) if flags else "coreOnly"
+
+
+def differing_apex_metadata_structure(left, right, manifest):
+    """Expose only approved member identifiers and bounded XML shape categories."""
+    selected(left, manifest)
+    selected(right, manifest)
+    parts = []
+    for name in manifest.get("ApexClass", []):
+        path = f"classes/{name}.cls-meta.xml"
+        if normalized(left[path], path) == normalized(right[path], path):
+            continue
+        parts.append(
+            f"ApexClass:{name}:baseline={safe_apex_xml_shape(left[path])},"
+            f"remote={safe_apex_xml_shape(right[path])}"
+        )
+    return sorted(parts)
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("command", choices=["resolve", "compare"])
@@ -352,6 +414,8 @@ def main():
             print(f"SDOA_{a.label.upper()}_APEX_META_FACTS: {';'.join(facts)}")
             shapes = differing_apex_metadata_shapes(left, right, manifest)
             print(f"SDOA_{a.label.upper()}_APEX_META_SHAPES: {';'.join(shapes)}")
+            structure = differing_apex_metadata_structure(left, right, manifest)
+            print(f"SDOA_{a.label.upper()}_APEX_META_STRUCTURE: {';'.join(structure)}")
     return 0 if same else 4
 
 if __name__ == "__main__":

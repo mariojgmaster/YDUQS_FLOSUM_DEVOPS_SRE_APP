@@ -116,6 +116,57 @@ class PolicyTests(unittest.TestCase):
         )
         self.assertEqual(policy.mismatched_apex_metadata_facts(left, left, manifest), [])
 
+    def test_apex_xml_shape_diagnostics_hide_values(self):
+        ns = "http://soap.sforce.com/2006/04/metadata"
+        name = "ClonePipelineControllerTest"
+        path = f"classes/{name}.cls-meta.xml"
+        base = (f'<ApexClass xmlns="{ns}">'
+                '<apiVersion>67.0</apiVersion><status>Active</status>'
+                '</ApexClass>').encode()
+        remote = (f'<ApexClass xmlns="{ns}">'
+                  '<apiVersion>67.0</apiVersion>'
+                  '<packageVersions><namespace>secretValue</namespace>'
+                  '<majorNumber>99</majorNumber></packageVersions>'
+                  '<status>Active</status></ApexClass>').encode()
+        self.assertEqual(policy.safe_apex_xml_shape(base), "coreOnly")
+        self.assertEqual(
+            policy.safe_apex_xml_shape(remote), "packageVersionsCount=1"
+        )
+        left = {"package.xml": b"<Package/>",
+                f"classes/{name}.cls": b"same code", path: base}
+        right = dict(left, **{path: remote})
+        report = policy.differing_apex_metadata_structure(
+            left, right, {"ApexClass": [name]}
+        )
+        self.assertEqual(
+            report, [f"ApexClass:{name}:baseline=coreOnly,"
+                     "remote=packageVersionsCount=1"]
+        )
+        self.assertNotIn("secretValue", ",".join(report))
+        self.assertNotIn("99", ",".join(report))
+        self.assertEqual(policy.compare(left, right, {"ApexClass": [name]}),
+                         (False, 1))
+
+    def test_apex_xml_shape_unknown_and_duplicate_fields_block(self):
+        ns = "http://soap.sforce.com/2006/04/metadata"
+        core = (f'<ApexClass xmlns="{ns}"><apiVersion>67.0</apiVersion>'
+                '<status>Active</status>')
+        categories = [
+            (core + '<unknownTag>private</unknownTag></ApexClass>',
+             "otherChildCount=1"),
+            (core + '<apiVersion>67.0</apiVersion></ApexClass>',
+             "missingOrDuplicateCore"),
+            (f'<ApexClass xmlns="{ns}" secret="private">'
+             '<apiVersion>67.0</apiVersion><status>Active</status></ApexClass>',
+             "rootAttributes"),
+            (core + '<packageVersions/><packageVersions/></ApexClass>',
+             "packageVersionsCount=2"),
+        ]
+        for body, expected in categories:
+            with self.subTest(expected=expected):
+                self.assertEqual(policy.safe_apex_xml_shape(body.encode()),
+                                 expected)
+
     def test_core_apex_xml_equivalence_and_fail_closed(self):
         ns = "http://soap.sforce.com/2006/04/metadata"
         def xml(version="67.0", status="Active", extra="", attrs="", reverse=False):
