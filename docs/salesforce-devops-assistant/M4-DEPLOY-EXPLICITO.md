@@ -109,6 +109,32 @@ Os próximos resultados esperados para o piloto são:
 
 **A execução de um PR nunca autoriza um deployment.** Após o merge, solicitar de novo o M4 pela UI do GitHub com o SHA atualizado e a confirmação literal; não reexecutar jobs anteriores.
 
+## Observabilidade segura da Salesforce CLI (correção após M4 #5)
+
+O workflow de deploy passou a registrar **onde e por que falhou**, sem revelar as respostas brutas de Salesforce ou dados corporativos no GitHub público.
+
+O incidente `M4 #5` passou por JWT e `compare` com os quatro arquivos iguais, mas parou com o antigo `M4_PREVIEW_UNVERIFIED`. A condição anterior misturava falha do comando CLI e erro na interpretação do JSON, por isso **a causa raiz da execução #5 ainda não é comprovável** com os logs anteriores.
+
+Novos diagnósticos do workflow `Deploy Explicito M4`:
+- `M4_CLI_VERSION`: versão instalada da Salesforce CLI.
+- `M4_PREVIEW_CLI_EXIT`: código de saída numérico do `sf project deploy preview`.
+- `M4_PREVIEW_JSON_SHAPE`: apenas `status` (categoria) e **tipos** dos campos `result`, `toDeploy`, `conflicts`, `toDelete` e `ignored`. Não imprime valores de objetos.
+- `M4_PREVIEW_CLI_ERROR`: falha do comando, acompanhada exclusivamente de categoria predefinida (`SOURCE_CONFLICT`, `NOTHING_TO_DEPLOY`, `PERMISSION`, `SESSION_OR_AUTH`, `NETWORK_OR_LIMIT`, `CLI_ARGUMENT` ou `UNCLASSIFIED`).
+- `M4_PREVIEW_INVALID_JSON`: nenhuma resposta JSON válida/estrutura raiz inesperada.
+- `M4_PREVIEW_STATUS_ERROR`: formato reconhecido mas status não é sucesso.
+- `M4_PREVIEW_SCHEMA_MISMATCH`: campos ausentes ou com tipos incompatíveis.
+- `M4_PREVIEW_SUMMARY`: somente contagens `toDeploy`, `conflicts`, `toDelete`, `ignored`, **apenas depois** de validar o formato.
+- `M4_DRY_RUN_CLI_EXIT` / `M4_DRY_RUN_RESPONSE`: código de saída, estado permitido e contagens de erros/testes da validação.
+- `M4_REAL_DEPLOY_CLI_EXIT` / `M4_REAL_DEPLOY_RESPONSE`: mesma informação, referente ao deployment efetivo, inclusive nas falhas.
+
+O workflow `Salesforce DevSreFeat - Diagnostico M4` (somente leitura) também foi atualizado para registrar `M4_DIAG_PREVIEW_CLI_EXIT`, `M4_DIAG_PREVIEW_JSON_SHAPE` e categorias de falha, sem deploy e sem exigir SHA.
+
+**Política de segurança:** todos os diagnósticos são gerados a partir de uma allowlist de campos e categorias. Nunca imprimir valores de `message`, `stack`, `data`, `instanceUrl`, `username`, `accessToken`, classes Apex ou hashes. Não habilitar `--verbose`, `set -x` nem `cat` de respostas Salesforce no workflow público.
+
+**Política de decisão:** respostas inesperadas ou incompletas continuam bloqueando a operação. A melhora é de observabilidade, **não de permissão**. Depois do merge, execute **primeiro o workflow somente leitura `Diagnostico M4`**; evite reexecutar o M4 real até entendermos o retorno da CLI.
+
+Referências: [Salesforce CLI — Deploy Preview](https://developer.salesforce.com/docs/platform/salesforce-cli-reference/guide/cli_reference_project_deploy_preview.html) e [implementação PreviewResult](https://github.com/salesforcecli/plugin-deploy-retrieve/blob/main/src/utils/previewOutput.ts).
+
 ## Interpretar resultados
 
 | Código | Significado |
