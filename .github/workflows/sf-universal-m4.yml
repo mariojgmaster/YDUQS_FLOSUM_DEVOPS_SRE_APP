@@ -53,6 +53,22 @@ jobs:
           persist-credentials: false
       - name: Validate package policy and ZIP comparator
         run: python3 -m unittest discover -s tests -p 'test_sf_deploy_policy.py' -v
+      - name: Set up Node.js for registered LWC unit tests
+        if: ${{ inputs.package_id == 'clone-pipeline-lwc' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install pinned LWC test dependencies
+        if: ${{ inputs.package_id == 'clone-pipeline-lwc' }}
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Run clonePipelineAction Jest gate before Salesforce access
+        if: ${{ inputs.package_id == 'clone-pipeline-lwc' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run test:unit -- --runInBand --runTestsByPath force-app/main/default/lwc/clonePipelineAction/__tests__/clonePipelineAction.test.js
+          echo "SDOA_LWC_JEST_PASSED: LWC regression tests passed before Salesforce access."
       - name: Resolve reviewed target/package catalog
         id: registry
         env:
