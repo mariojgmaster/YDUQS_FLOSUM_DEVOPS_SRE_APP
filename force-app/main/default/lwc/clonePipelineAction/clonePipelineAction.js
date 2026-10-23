@@ -57,7 +57,7 @@ export default class ClonePipelineAction extends NavigationMixin(
   get stepItems() {
     return this.steps.map((step, index) => ({
       key: `step-${index}`,
-      number: step.number == null ? index + 1 : step.number,
+      number: step.stepNumber == null ? index + 1 : step.stepNumber,
       description:
         (typeof step.description === "string" && step.description.trim()) ||
         (typeof step.action === "string" && step.action.trim()) ||
