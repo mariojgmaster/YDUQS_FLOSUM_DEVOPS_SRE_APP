@@ -1,69 +1,77 @@
-# M5 — Salesforce DevOps Assistant (ChatOps), v0.1.0
+# M5 — Salesforce DevOps Assistant / GitHub ChatOps
 
-**Estado:** plugin privado criado; operações de leitura e preparação assistida via conector GitHub. **Não há chamada nativa de workflow_dispatch exposta no conector GitHub atual.** M5 ainda não executa deployments diretamente por uma frase no ChatGPT.
+## Situação
+
+- **M4.2 — homologado (23/10/2026)**. PLAN #16: \`SDOA_M42_DRY_RUN_PASSED\` e \`SDOA_M42_PLAN_OK\`. DEPLOY #18: \`SDOA_REAL_DEPLOY_SUCCEEDED\` para \`DevSreFeat\`, pacote \`clone-pipeline-apex\`, SHA \`844f6d327801770f95c5596697e25b296a5b50a7\`. Aceite funcional confirmado pelo proprietário: clonagem inicial, numeração sequencial, clonagem de cópia e integridade dos Pipeline Steps. Contagens específicas de métodos Apex e verificação independente do Deployment Status não fazem parte da evidência apresentada neste documento.
+- **M5.1 — ChatOps de consulta**: plugin usa GitHub conectado para examinar repositórios, PRs, testes, Actions e logs sanitizados. Sempre consultar a execução mais recente, nunca presumir status do histórico.
+- **M5.2 — implementação para PLAN**: novo workflow \`.github/workflows/sf-m5-chatops-plan.yml\`, acionado pela abertura de **Issue de intenção exata do proprietário**, executa o mesmo \`scripts/ci/sf-general-deploy.sh\` do M4.2 com \`OPERATION=plan\`. Não é \`workflow_dispatch\` nativo do conector. Até o primeiro teste end-to-end, o acionamento Issue → GitHub Actions deve ser tratado como **a validar**, não homologado.
+- **M5.3 — deploy solicitado pelo chat**: ainda **não implementado**; deploy real permanece exclusivamente pelo formulário manual M4.2, com \`confirmation\` literal. Não usar Issue para deploy.
 
 Plugin privado: https://chatgpt.com/plugins/plugins_6adae31dc0188191a7d6c1c1c1b347d0
 
-## Objetivo e arquitetura
+## Arquitetura (sem backend e sem MCP)
 
-GitHub-first, sem backend Node.js próprio, OpenBao, VPS adicional ou Salesforce Hosted MCP. ECA/JWT permanecem exclusivamente em GitHub Environments (um por organização Salesforce). O plugin usa duas skills privadas:
+ChatGPT + GitHub connector → \`create_issue\` no repositório escolhido → evento \`issues.opened\` → workflow M5 PLAN → validador rígido (repositório + owner + título + corpo + evento) → allowlist catálogo/manifesto → ambiente GitHub existente + ECA/JWT → dry-run Salesforce + RunSpecifiedTests → logs sanitizados que o plugin pode consultar no GitHub.
 
-1. `setup` — cadastra/valida o contexto dos repositórios e ambientes, examina os manifests e configurações já aprovados e orienta o setup ECA/JWT sem pedir credenciais.
-2. `salesforce-chatops` — diagnostica Actions, inspeções de código/PRs, status de deploy, Tooling API e Metadata API **a partir de evidências no GitHub**, e prepara intenções verificáveis para `plan` e `deploy`.
+**Não cria credenciais no chat, PAT, tokens adicionais, outro Environment ou servidor**. O GitHub Actions continua hospedando as operações Salesforce. Uma Issue é um *evento explícito e auditável* e não equivale a um GitHub \`workflow_dispatch\`. A conexão GitHub deve expor a ação de criação de Issue para que o plugin possa disparar. Se a conta conectada aparecer como bot e não como dono, o job é rejeitado sem acessar a Salesforce; nesse caso deve-se usar o M4.2 manual.
 
-A plataforma de ChatGPT só executará as ações que o **GitHub connector efetivamente expuser**. A versão 0.1.0 não simula um `workflow_dispatch`, não usa comentários em Issues como ponte oculta para deploy e não cria tokens adicionais.
+## Contrato mínimo do comando para PLAN
 
-## Conversas suportadas na primeira versão
+Pedido no ChatGPT: **"Crie um PLAN ChatOps para o repositório mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP, pacote clone-pipeline-apex e sandbox DevSreFeat."**
 
-- "No repositório owner/repo, encontre o último M4 Universal, mostre o SHA, pacote, operação e status."
-- "Revise a falha dessa Action, sem publicar tokens ou logs brutos."
-- "Valide a seleção do pacote e do ambiente; prepare um `plan` Salesforce-native M4.2 sem baseline manual."
-- "Crie um PR só com a correção Apex/LWC pedida e os testes relacionados."
-- "Prepare o formulário de deploy do package_id para o alvo informado, mas **não dispare** sem ferramenta e intenção inequívoca."
+O plugin verifica a identidade exata do repositório, a existência do M5 no branch padrão, o catálogo, e cria **uma única Issue** pelo conector GitHub:
 
-O plugin deve sempre identificar o repositório, o ambiente, a operação, o pacote, a origem da evidência e se houve ou não escrita.
+Título exato:
 
-## Contrato de execução
+\`\`\`text
+SDOA PLAN DevSreFeat clone-pipeline-apex
+\`\`\`
 
-| Operação | v0.1.0 | Condição |
-| --- | --- | --- |
-| Descobrir repositórios, PRs, Actions, jobs e diagnósticos | Suportado via GitHub conectado | Ferramenta disponível e permissões |
-| Abrir PR com código/testes para revisão | Suportado via GitHub conectado | Pedido explícito do usuário |
-| Analisar Tooling API, Apex tests e Metadata API | Indireto, pelos workflows/logs existentes | Não declarar acesso Salesforce direto |
-| Preparar `plan` | Suportado | Alvo/pacote registrados; SHA da master fixado automaticamente pelo workflow M4.2 |
-| Iniciar `workflow_dispatch` pelo ChatGPT | **Pendente** | Exige conector GitHub que exponha dispatch, ou integração equivalente auditada |
-| Executar deploy real direto do chat | **Pendente** | Além da ferramenta, contrato forte de autorização e proteção M4 |
-| Flosum Deploys por API | **Pendente** | Verificar capacidades, APIs e permissões Flosum antes de implementar |
-| Produção e exclusões de metadata | **Fora do escopo inicial** | Governança e rollout próprios |
+Corpo exato (sem Markdown, espaços extras, comentários, links ou comandos):
 
-## Política irrevogável do piloto
+\`\`\`text
+SDOA-CHATOPS/1
+operation=plan
+target=DevSreFeat
+package_id=clone-pipeline-apex
+\`\`\`
 
-- Nenhum segredo ECA, JWT private key, refresh token ou token Salesforce no chat, em GitHub Issue/PR ou log público.
-- **Somente o GitHub Environment já cadastrado por organização**; não criar um Environment por ação.
-- Deploys reais na sandbox DevSreFeat somente com alvo + pacote registrados, SHA Git automaticamente fixado, confirmação literal e dry-run/testes Salesforce. A política M4.2 **não** compara drift remoto; pode sobrescrever edições feitas diretamente na org.
-- Não usar `--ignore-conflicts`, `--force`, `--ignore-errors` ou `--ignore-warnings` para forçar deployments; o risco de sobrescrita de metadata é uma limitação explícita do M4.2.
-- Nunca repetir automaticamente deployment de resultado incerto ou usar "Re-run jobs" para efetivar novo write.
-- Alterações de código ficam em PRs; nenhum merge/deploy automático implícito.
-- "Success" no GitHub sem `SDOA_REAL_DEPLOY_SUCCEEDED` pode ser apenas `plan`; confirmar Salesforce Deployment Status quando o resultado real importar.
+O \`workflow\` só processa \`issues.opened\` no \`master\` e na primeira tentativa do runner. Os campos do corpo são analisados como strings enumeradas, **nunca como shell**; seleção efetiva depende do catálogo registrado (\`config/salesforce-devops/catalog.json\`) e do manifesto revisado. A Issue deve ser aberta e enviada pela conta proprietária \`mariojgmaster\`. \`issue_comment\`, \`issue.edited\`, \`reopened\`, PRs e autor não autorizado não executam nada. O código mestre do workflow é fixado em \`github.sha\`.
 
-## Próximas entregas do M5
+Depois de criar a Issue, plugin lê \`Actions → Salesforce DevOps - M5 ChatOps PLAN\` e relata estado **in progress / sucesso / falha** por evidências. Marcadores:
 
-**M5.1:** usar o plugin em conversas reais para status e diagnóstico de Actions de diferentes repositórios, testando resolução correta de projeto/ambiente.
+- \`SDOA_M5_PLAN_INTENT_VERIFIED\` — comando aceito. Não implica auth ou sucesso Salesforce.
+- \`SDOA_M42_AUTH_OK\` — autenticação ECA/JWT da sandbox concluída.
+- \`SDOA_M42_DRY_RUN_PASSED\` — Salesforce validou o pacote e os testes selecionados.
+- \`SDOA_M42_PLAN_OK\`, \`SDOA_M5_PLAN_SUCCEEDED\` — nenhum deploy real enviado nesta execução.
+- \`SDOA_M42_DRY_RUN_DIAG\` — falha categorizada, sem erros brutos.
 
-**M5.2:** quando houver `workflow_dispatch` disponível por um conector autorizado, disparar inicialmente **somente** `plan` com M4.2 (dry-run Salesforce, testes e audit trail GitHub).
+## Segurança / governança
 
-**M5.3:** liberar pedidos `deploy` para sandbox mediante confirmação literal inequívoca de alvo/pacote e revisão Git fixada pelo M4.2; não criar uma rota paralela insegura.
+- **É impossível escolher \`deploy\` no evento M5 de Issue**: o validador, o workflow e a verificação dentro do executor rejeitam \`deploy\`. Escrita pelo chat só será considerada em um milestone futuro com autorização e revisão específicas.
+- Sem fallback oculto ou posterior retry via Issue/comment; rejeitar operações malformadas e duplicadas. Cada Issue criada é uma nova tentativa de \`plan\`; nunca criar automaticamente em loop.
+- SHA da master fixado automaticamente; nunca usar informação antiga da memória como status atual.
+- Somente sandbox \`DevSreFeat\` e pacotes enumerados e registrados; produção fora de escopo.
+- Mesmo GitHub Environment \`sf-devsrefeat-read\` (nome legado) e secrets ECA/JWT guardados no GitHub; nenhum token nos logs ou na Issue.
+- \`plan\` da Salesforce é um dry-run, não necessariamente uma operação absolutamente sem efeitos externos de automação, limites ou consumo de API; porém **não persiste metadata de deploy**.
+- A política M4.2 intencionalmente **não compara drift remoto**. O fluxo manual de deploy pode sobrescrever alterações org-side, e continua explicitamente confirmado.
+- Não publicar logs brutos, metadata recuperada, stacks, JWT, private key, IDs sensíveis nem credenciais.
 
-**M5.4:** expandir seleção de ambientes, comparação entre orgs e Flosum após especificação, testes e autorização técnica.
+## Checklist de aceite M5.2
 
-## Projeto de referência
+1. PR de implementação passou testes Python, sintaxe Bash e revisão de diffs, sem credenciais Salesforce.
+2. Merge na \`master\` aprovado; verificar que o workflow M5 aparece em Actions.
+3. Criar uma Issue exata de \`plan\` via plugin/conector GitHub.
+4. Confirmar \`SDOA_M5_PLAN_INTENT_VERIFIED\`, \`SDOA_M42_DRY_RUN_PASSED\`, \`SDOA_M42_PLAN_OK\` e \`SDOA_M5_PLAN_SUCCEEDED\`. Não há deploy.
+5. Checar falha segura para Issue sem autorização / schema inválido sem usar Salesforce. Teste end-to-end precisa de evidência própria.
+6. Exercitar status em ChatGPT: latest run, latest success e latest real deploy distinguíveis.
+7. Caso o conector não consiga criar a Issue como \`mariojgmaster\`, não relaxar a autorização. Manter M4.2 manual até solução autorizada.
 
-Repo: `mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP`.
+## Roadmap
 
-Target: `DevSreFeat`, GitHub Environment único `sf-devsrefeat-read`.
+- M5.1: status/diagnóstico em qualquer repo acessível, usando GitHub conectado, com fatos atuais e sanitização.
+- M5.2: PLAN por Issue explícita e auditável, executor Salesforce existente; ainda requer homologação operacional.
+- M5.3: avaliação de um dispatch nativo em conector autorizado para deploy, mantendo confirmação explícita; **nunca** fazer deploy via Issue.
+- M5.4: múltiplos sandboxes, produção, Tooling API e Flosum, com catálogo, permissões e políticas próprios por repositório/ambiente.
 
-Workflow: `.github/workflows/sf-universal-m4.yml` (M4.2), documentação operacional: `docs/salesforce-devops-assistant/M4-2-SALESFORCE-NATIVE.md`.
-
-Pacotes aprovados: ler o catálogo da `master` atual, **nunca presumir que um PR pendente já foi mesclado**.
-
-Comandos e URLs: sempre consultar fontes atuais no GitHub; não reaproveitar SHA de execuções anteriores para um novo deployment.
+Projeto piloto: \`mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP\` / \`DevSreFeat\`. Para outro repo, instalar os workflows + catálogo + testes na sua master e autorizar expressamente o target e pacote; **não** pressupor que esse repositório controla todos os outros.
