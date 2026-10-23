@@ -84,7 +84,11 @@
         </div>
 
         <div class="preview">
-          <lightning-accordion active-section-name="steps">
+          <lightning-accordion
+            active-section-name={openPreviewSections}
+            allow-multiple-sections-open
+            onsectiontoggle={handlePreviewSectionToggle}
+          >
             <lightning-accordion-section
               name="steps"
               label={previewSectionLabel}
