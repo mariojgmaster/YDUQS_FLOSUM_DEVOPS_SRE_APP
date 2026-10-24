@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "kit": "sdoa-salesforce-metadata-four-ops",
+  "version": "1.0.0",
+  "status": "candidate",
+  "operations": [
+    "retrieve",
+    "compare",
+    "validate",
+    "deploy"
+  ],
+  "target_branch": "master",
+  "compatible_metadata_types": [
+    "ApexClass",
+    "LightningComponentBundle"
+  ],
+  "required_project_files": [
+    "sfdx-project.json",
+    "config/salesforce-devops/catalog.json"
+  ],
+  "files": [
+    {
+      "source": "templates/salesforce-devops-kit/v1/files/.github/workflows/sf-m5-chatops-plan.yml",
+      "destination": ".github/workflows/sf-m5-chatops-plan.yml",
+      "git_blob_sha": "29562ad50d905052bf7cff528c9d43235506e379"
+    },
+    {
+      "source": "templates/salesforce-devops-kit/v1/files/.github/workflows/sf-kit-policy-ci.yml",
+      "destination": ".github/workflows/sf-kit-policy-ci.yml",
+      "git_blob_sha": "6048a7c28148313badc5abd6a23a24e48f73f1cd"
+    },
+    {
+      "source": "templates/salesforce-devops-kit/v1/files/scripts/ci/sf-deploy-policy.py",
+      "destination": "scripts/ci/sf-deploy-policy.py",
+      "git_blob_sha": "b979c49995448bfc8ec7ca390a08caf4784ffd50"
+    },
+    {
+      "source": "templates/salesforce-devops-kit/v1/files/scripts/ci/sf-deploy-safe-diagnostic.py",
+      "destination": "scripts/ci/sf-deploy-safe-diagnostic.py",
+      "git_blob_sha": "d2a4f2d82190e7b47740028f764eeef52b7ef7cb"
+    },
+    {
+      "source": "templates/salesforce-devops-kit/v1/files/scripts/ci/sf-m5-chatops-intent.py",
+      "destination": "scripts/ci/sf-m5-chatops-intent.py",
+      "git_blob_sha": "201a2c548cb02fe1b8ca4393d4e2c116ccada27c"
+    },
+    {
+      "source": "templates/salesforce-devops-kit/v1/files/scripts/ci/sf-general-deploy.sh",
+      "destination": "scripts/ci/sf-general-deploy.sh",
+      "git_blob_sha": "7c75de8ded479d9aa0cd23b4041936e543490d2e"
+    },
+    {
+      "source": "templates/salesforce-devops-kit/v1/files/scripts/ci/sf-kit-read.sh",
+      "destination": "scripts/ci/sf-kit-read.sh",
+      "git_blob_sha": "23ee4450c8b36279132033d1bcc228fccc2dfcf3"
+    },
+    {
+      "source": "templates/salesforce-devops-kit/v1/files/scripts/ci/sf-kit-read-report.py",
+      "destination": "scripts/ci/sf-kit-read-report.py",
+      "git_blob_sha": "fd90368ced8625832c1719fdf43078bfb9495144"
+    },
+    {
+      "source": "templates/salesforce-devops-kit/v1/files/tests/test_sf_kit_contract.py",
+      "destination": "tests/test_sf_kit_contract.py",
+      "git_blob_sha": "270dc778f74304dfc1eb8b8e353c625e191b6ea3"
+    }
+  ]
+}
