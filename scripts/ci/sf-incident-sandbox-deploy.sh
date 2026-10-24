@@ -53,57 +53,11 @@ if [[ "$preview_exit" != "0" ]] || ! jq -e \
    (.result.ignored|type)=="array"' "$tmp_dir/preview.json" >/dev/null 2>&1; then
   fail INCIDENT_PREVIEW_FAILED "Preview Salesforce nao confirmou estrutura/estado sem conflitos."
 fi
-# jq's comma/pipe precedence requires each length expression to be grouped.
-# Capture the exit code before parsing the counters (process substitution hides it).
+# Each jq expression is parenthesized inside the versioned jq filter.
+# Check jq exit explicitly rather than process substitution (which hides failure).
 preview_summary="$(jq -erf scripts/ci/incident-preview-counts.jq "$tmp_dir/preview.json")" ||
-  fail INCIDENT_PREVIEW_PARSE_FAILED "Preview JSON nao foi possivel interpretar com seguranca."
-IFS=
-echo "INFO: INCIDENT_PREVIEW_SUMMARY to_deploy=$deploy_count conflicts=$conflict_count to_delete=$delete_count ignored=$ignored_count"
-[[ "$conflict_count" == "0" && "$delete_count" == "0" && "$ignored_count" == "0" ]] ||
-  fail INCIDENT_PREVIEW_UNSAFE "Conflito, exclusao ou componente ignorado. Nenhuma escrita tentada."
-
-# Mandatory new dry-run in the SAME workflow, same checkout/org/tests.
-dry_exit=0
-sf project deploy start --dry-run --manifest "$manifest" \
-  --test-level RunSpecifiedTests --tests "$test_class" \
-  --target-org "$target_alias" --wait 60 --json \
-  >"$tmp_dir/dry.json" 2>"$tmp_dir/dry.err" || dry_exit=$?
-python3 scripts/ci/sf-deploy-safe-diagnostic.py --file "$tmp_dir/dry.json" --exit "$dry_exit" --phase DRY_RUN
-if [[ "$dry_exit" != "0" ]] || ! jq -e \
-  '.status == 0 and .result.success == true and
-   (.result.done == true or .result.status == "Succeeded") and
-   (.result.numberComponentErrors // 0) == 0 and
-   (.result.numberTestErrors // 0) == 0 and
-   (.result.numberTestsCompleted // -1) >= 5' "$tmp_dir/dry.json" >/dev/null 2>&1; then
-  python3 scripts/ci/sf-incident-component-diagnostics.py --file "$tmp_dir/dry.json"
-  python3 scripts/ci/sf-incident-apex-test-diagnostics.py --file "$tmp_dir/dry.json"
-  fail INCIDENT_DRY_RUN_FAILED "Nao houve validacao completa e testes Apex suficientes; nao implantado."
-fi
-echo "PASS: INCIDENT_SAME_RUN_DRY_RUN_AND_APEX_TESTS"
-
-# Final authorization gate; no deploy based on a prior run.
-[[ "${CONFIRMATION:-}" == "DEPLOY DevSreFeat" && "${REQUESTED_SHA,,}" == "${EXPECTED_SHA,,}" && "${EXPECTED_ATTEMPT:-}" == "1" ]] ||
-  fail INCIDENT_FINAL_AUTH_DENIED "Confirmacao/SHA/attempt nao autorizados."
-echo "INFO: INCIDENT_REAL_DEPLOY_STARTING target=DevSreFeat"
-real_exit=0
-sf project deploy start --manifest "$manifest" \
-  --test-level RunSpecifiedTests --tests "$test_class" \
-  --target-org "$target_alias" --wait 60 --json \
-  >"$tmp_dir/real.json" 2>"$tmp_dir/real.err" || real_exit=$?
-python3 scripts/ci/sf-deploy-safe-diagnostic.py --file "$tmp_dir/real.json" --exit "$real_exit" --phase REAL_DEPLOY
-
-if [[ "$real_exit" != "0" ]] || ! jq -e \
-  '.status == 0 and .result.success == true and
-   (.result.done == true or .result.status == "Succeeded") and
-   (.result.numberComponentErrors // 0) == 0 and
-   (.result.numberTestErrors // 0) == 0 and
-   (.result.numberTestsCompleted // -1) >= 5' "$tmp_dir/real.json" >/dev/null 2>&1; then
-  fail INCIDENT_REAL_DEPLOY_UNCONFIRMED "Falha ou estado ambiguo: verifique Deployment Status; NAO repita automaticamente."
-fi
-echo "PASS: INCIDENT_REAL_DEPLOY_CONFIRMED"
-echo "INFO: INCIDENT_PERMISSIONSET_MEMBERSHIP_PENDING"
-echo "INFO: INCIDENT_APP_MANAGER_AND_UI_HOMOLOGATION_PENDING"
-\t' read -r deploy_count conflict_count delete_count ignored_count <<< "$preview_summary"
+  fail INCIDENT_PREVIEW_PARSE_FAILED "JSON de preview nao pode ser interpretado com seguranca."
+read -r deploy_count conflict_count delete_count ignored_count <<< "$preview_summary"
 for amount in "$deploy_count" "$conflict_count" "$delete_count" "$ignored_count"; do
   [[ "$amount" =~ ^[0-9]+$ ]] || fail INCIDENT_PREVIEW_PARSE_FAILED "Contagem de preview invalida."
 done

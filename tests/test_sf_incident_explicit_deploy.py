@@ -61,7 +61,7 @@ class IncidentDeploySafety(unittest.TestCase):
             input=json.dumps(preview), text=True, capture_output=True, check=False
         )
         self.assertEqual(proc.returncode, 0, proc.stderr)
-        self.assertEqual(proc.stdout.strip(), "2\\t0\\t0\\t0")
+        self.assertEqual(proc.stdout.strip(), "2\t0\t0\t0")
 
     def test_preview_parser_nonzero_categories_and_empty_preview(self):
         inp = {
@@ -77,7 +77,7 @@ class IncidentDeploySafety(unittest.TestCase):
             input=json.dumps(inp), text=True, capture_output=True, check=False
         )
         self.assertEqual(proc.returncode, 0, proc.stderr)
-        self.assertEqual(proc.stdout.strip(), "0\\t1\\t2\\t1")
+        self.assertEqual(proc.stdout.strip(), "0\t1\t2\t1")
         self.assertIn('[[ "$conflict_count" == "0" && "$delete_count" == "0" && "$ignored_count" == "0" ]]', S)
 
     def test_credential_safety_and_fail_closed(self):
