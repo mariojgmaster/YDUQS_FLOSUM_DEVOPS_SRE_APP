@@ -26,3 +26,8 @@ Sem criar outro workflow, a operação `flosum-schema-inventory` foi adicionada 
 ## Restrições
 
 Fonte incompleta ou desconhecida → **Não mensurável**. Não criar custom object paralelo sem decisão de domínio; não modificar Flosum nem PROD.
+## Corrigir cancelamento por concorrência na primeira execução
+
+A [Issue #89](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/issues/89) disparou o run [#40130022909](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/actions/runs/40130022909), que terminou `cancelled` sem iniciar job. A hipótese técnica é colisão na fila compartilhada com os workflows `M5 ChatOps` e `Incident Validation`, também disparados pelo evento de Issue. O diagnóstico **somente leitura** passa a usar grupo de concorrência distinto `sf-devsrefeat-read-diagnostics` e `queue: max`, sem tocar nas filas de escrita/Metadata API.
+
+Nova Issue e novo run devem comprovar a hipótese; a execução cancelada **não representa** inventário nem consulta Salesforce.

@@ -22,9 +22,12 @@ on:
 permissions:
   contents: read
 
+# Read-only diagnostics must not collide with other Issue-triggered workflows.
+# A shared group evicted the pending diagnostic run (#40130022909).
 concurrency:
-  group: sf-devsrefeat-read
+  group: sf-devsrefeat-read-diagnostics
   cancel-in-progress: false
+  queue: max
 
 jobs:
   diagnose:
