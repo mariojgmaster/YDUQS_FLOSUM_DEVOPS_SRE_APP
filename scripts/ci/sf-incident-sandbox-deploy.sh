@@ -46,7 +46,7 @@ preview_exit=0
 sf project deploy preview --manifest "$manifest" --target-org "$target_alias" --json \
   >"$tmp_dir/preview.json" 2>"$tmp_dir/preview.err" || preview_exit=$?
 if [[ "$preview_exit" != "0" ]] || ! jq -e \
-  '.status == 0 and (.result|type)=="object" and
+  '(.status == 0 or .status == "0" or (has("status") | not)) and (.result|type)=="object" and
    (.result.toDeploy|type)=="array" and
    (.result.conflicts|type)=="array" and
    (.result.toDelete|type)=="array" and
