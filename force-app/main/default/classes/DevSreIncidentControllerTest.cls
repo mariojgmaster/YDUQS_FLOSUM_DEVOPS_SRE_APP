@@ -2,6 +2,28 @@
 private class DevSreIncidentControllerTest {
   @TestSetup
   static void createRecords() {
+    // Apex API 67 defaults DML/SOQL to USER_MODE. The integration user's FLS
+    // is not a fixture precondition. This temporary assignment exists only
+    // inside the isolated test transaction, never on the real org.
+    // runAs isolates setup-object DML (PermissionSetAssignment) from fixtures.
+    System.runAs(new User(Id = UserInfo.getUserId())) {
+      PermissionSet operatorAccess = [
+        SELECT Id FROM PermissionSet
+        WHERE Name = 'DevSreIncident_Operator'
+        WITH SYSTEM_MODE
+        LIMIT 1
+      ];
+      Database.insert(
+        new PermissionSetAssignment(
+          AssigneeId = UserInfo.getUserId(),
+          PermissionSetId = operatorAccess.Id
+        ),
+        AccessLevel.SYSTEM_MODE
+      );
+    }
+
+    // Fixture creation is explicitly system-mode; application methods
+    // STILL use WITH USER_MODE and are exercised using the operator grant.
     List<DevSre_Incident__c> incidents = new List<DevSre_Incident__c>{
       new DevSre_Incident__c(
         Title__c = 'Erro de serviço Alpha',
@@ -18,8 +40,8 @@ private class DevSreIncidentControllerTest {
         Source__c = 'Manual'
       )
     };
-    insert incidents;
-    insert new List<DevSre_RecoveryAction__c>{
+    Database.insert(incidents, AccessLevel.SYSTEM_MODE);
+    Database.insert(new List<DevSre_RecoveryAction__c>{
       new DevSre_RecoveryAction__c(
         Incident__c = incidents[0].Id,
         ActionType__c = 'Mitigation',
@@ -30,7 +52,7 @@ private class DevSreIncidentControllerTest {
         ActionType__c = 'Rollback',
         Status__c = 'Running'
       )
-    };
+    }, AccessLevel.SYSTEM_MODE);
   }
 
   @IsTest
@@ -46,7 +68,7 @@ private class DevSreIncidentControllerTest {
     Assert.areEqual(1, found.incidents.size());
     Assert.areEqual('Erro de serviço Alpha', found.incidents[0].title);
     Assert.areEqual('Manual', [
-      SELECT Source__c FROM DevSre_Incident__c WHERE Id = :found.incidents[0].id
+      SELECT Source__c FROM DevSre_Incident__c WHERE Id = :found.incidents[0].id WITH SYSTEM_MODE
     ].Source__c);
     Assert.areEqual('Pending', found.incidents[0].causeReviewStatus);
   }
@@ -54,10 +76,10 @@ private class DevSreIncidentControllerTest {
   @IsTest
   static void listsOnlySelectedIncidentsActions() {
     DevSre_Incident__c first = [
-      SELECT Id FROM DevSre_Incident__c WHERE Title__c = 'Erro de serviço Alpha' LIMIT 1
+      SELECT Id FROM DevSre_Incident__c WHERE Title__c = 'Erro de serviço Alpha' WITH SYSTEM_MODE LIMIT 1
     ];
     DevSre_Incident__c second = [
-      SELECT Id FROM DevSre_Incident__c WHERE Title__c = 'Instabilidade Beta' LIMIT 1
+      SELECT Id FROM DevSre_Incident__c WHERE Title__c = 'Instabilidade Beta' WITH SYSTEM_MODE LIMIT 1
     ];
     Test.startTest();
     DevSreIncidentController.RecoveryPage firstActions =
@@ -89,12 +111,12 @@ private class DevSreIncidentControllerTest {
   @IsTest
   static void validatesRestorationTimeline() {
     DevSre_Incident__c first = [
-      SELECT Id FROM DevSre_Incident__c WHERE Title__c = 'Erro de serviço Alpha' LIMIT 1
+      SELECT Id FROM DevSre_Incident__c WHERE Title__c = 'Erro de serviço Alpha' WITH SYSTEM_MODE LIMIT 1
     ];
     first.Status__c = 'Restored';
     first.ImpactStartedAt__c = System.now();
     first.RestoredAt__c = first.ImpactStartedAt__c.addMinutes(-5);
-    Database.SaveResult invalid = Database.update(first, false);
+    Database.SaveResult invalid = Database.update(first, false, AccessLevel.SYSTEM_MODE);
     Assert.isFalse(invalid.isSuccess(), 'Não aceitar restauração anterior ao impacto');
   }
   @IsTest
@@ -103,12 +125,12 @@ private class DevSreIncidentControllerTest {
       SELECT Id, CauseType__c, CauseReviewStatus__c
       FROM DevSre_Incident__c
       WHERE Title__c = 'Erro de serviço Alpha'
-      LIMIT 1
+      WITH SYSTEM_MODE LIMIT 1
     ];
     incident.CauseType__c = 'DeploymentRelated';
     incident.CauseReviewStatus__c = 'Confirmed';
     incident.CauseJustification__c = 'Sem comprovacao de vinculo real do Flosum';
-    Database.SaveResult result = Database.update(incident, false);
+    Database.SaveResult result = Database.update(incident, false, AccessLevel.SYSTEM_MODE);
     Assert.isFalse(result.isSuccess(), 'Nao confirmar deployment sem evidencias verificadas.');
   }
 }
