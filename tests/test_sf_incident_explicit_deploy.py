@@ -1,6 +1,9 @@
 """Static controls for real deploy workflow, never runs Salesforce."""
 from pathlib import Path
 import unittest
+import json
+import subprocess
+import shutil
 
 R = Path(__file__).resolve().parents[1]
 W = (R / ".github/workflows/sf-devsrefeat-incidents-deploy.yml").read_text("utf-8")
@@ -36,6 +39,46 @@ class IncidentDeploySafety(unittest.TestCase):
         for forbidden in ("--ignore-conflicts", "sf project deploy quick", "destructiveChanges",
                           "manifest/sf-devsrefeat-m3.xml", "https://login.salesforce.com", "--target-org production"):
             self.assertNotIn(forbidden,S)
+
+
+    def test_preview_parser_counts_from_same_jq_file_as_deploy(self):
+        self.assertIn('jq -erf scripts/ci/incident-preview-counts.jq', S)
+        self.assertIn('INCIDENT_PREVIEW_PARSE_FAILED', S)
+        self.assertIn('preview_summary="$(jq', S)
+        self.assertNotIn('read -r deploy_count conflict_count delete_count ignored_count < <(jq', S)
+        self.assertIsNotNone(shutil.which("jq"), "jq is needed to test exact production filter")
+        preview = {
+            "status": 0,
+            "result": {
+                "toDeploy": [{"name": "safe1"}, {"name": "safe2"}],
+                "conflicts": [],
+                "toDelete": [],
+                "ignored": []
+            }
+        }
+        proc = subprocess.run(
+            ["jq", "-erf", str(R / "scripts/ci/incident-preview-counts.jq")],
+            input=json.dumps(preview), text=True, capture_output=True, check=False
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(proc.stdout.strip(), "2\\t0\\t0\\t0")
+
+    def test_preview_parser_nonzero_categories_and_empty_preview(self):
+        inp = {
+            "result": {
+                "toDeploy": [],
+                "conflicts": [{}],
+                "toDelete": [{}, {}],
+                "ignored": [{}]
+            }
+        }
+        proc = subprocess.run(
+            ["jq", "-erf", str(R / "scripts/ci/incident-preview-counts.jq")],
+            input=json.dumps(inp), text=True, capture_output=True, check=False
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(proc.stdout.strip(), "0\\t1\\t2\\t1")
+        self.assertIn('[[ "$conflict_count" == "0" && "$delete_count" == "0" && "$ignored_count" == "0" ]]', S)
 
     def test_credential_safety_and_fail_closed(self):
         for x in ('chmod 600', 'trap ', 'INCIDENT_REAL_DEPLOY_UNCONFIRMED',
