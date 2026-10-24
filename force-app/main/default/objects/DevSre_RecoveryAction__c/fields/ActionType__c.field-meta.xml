@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>ActionType__c</fullName>
+    <label>Tipo de ação</label>
+    <trackHistory>true</trackHistory>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Rollback</fullName>
+                <default>false</default>
+                <label>Rollback</label>
+            </value>
+            <value>
+                <fullName>Hotfix</fullName>
+                <default>false</default>
+                <label>Hotfix</label>
+            </value>
+            <value>
+                <fullName>FixForward</fullName>
+                <default>false</default>
+                <label>Fix forward</label>
+            </value>
+            <value>
+                <fullName>Mitigation</fullName>
+                <default>false</default>
+                <label>Mitigação</label>
+            </value>
+            <value>
+                <fullName>Other</fullName>
+                <default>false</default>
+                <label>Outra</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Incident__c</fullName>
+    <label>Incidente</label>
+    <type>Lookup</type>
+    <referenceTo>DevSre_Incident__c</referenceTo>
+    <relationshipLabel>Ações de Recuperação</relationshipLabel>
+    <relationshipName>RecoveryActions</relationshipName>
+    <deleteConstraint>Restrict</deleteConstraint>
+</CustomField>

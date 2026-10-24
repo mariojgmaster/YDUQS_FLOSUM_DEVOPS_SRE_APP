@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>CauseType__c</fullName>
+    <label>Tipo da causa</label>
+    <trackHistory>true</trackHistory>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Unconfirmed</fullName>
+                <default>true</default>
+                <label>Não confirmada</label>
+            </value>
+            <value>
+                <fullName>DeploymentRelated</fullName>
+                <default>false</default>
+                <label>Relacionada a deployment</label>
+            </value>
+            <value>
+                <fullName>Other</fullName>
+                <default>false</default>
+                <label>Outra</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>
