@@ -29,7 +29,7 @@ def check_preview(data):
         names=[]
         for item in group:
             assert isinstance(item,dict)
-            name=next((item[k] for k in ("name","fullName","member","componentName")
+            name=next((item[k] for k in ("name","fullName","member","componentName","apiName")
                        if isinstance(item.get(k),str) and item[k] in ALLOWED),None)
             assert name is not None and name not in names
             names.append(name)
@@ -49,6 +49,7 @@ def norm(s):
     return s.replace("\r\n","\n").strip()
 
 def stage(tabs,klass,candidate,preview):
+    print("INFO: INCIDENT_MDAPI_STAGE_BEGIN",flush=True)
     check_preview(json.loads(Path(preview).read_text(encoding="utf-8")))
     print("INFO: INCIDENT_MDAPI_STAGE_PREVIEW_OK",flush=True)
     source=Path("force-app/main/default/classes/DevSreIncidentControllerTest.cls").read_text(encoding="utf-8-sig")
