@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+  <types>
+    <members>DevSre_Incident__c</members>
+    <members>DevSre_RecoveryAction__c</members>
+    <name>CustomObject</name>
+  </types>
+  <types>
+    <members>DevSreIncidentController</members>
+    <members>DevSreIncidentControllerTest</members>
+    <name>ApexClass</name>
+  </types>
+  <types>
+    <members>devSreIncidentIntake</members>
+    <name>LightningComponentBundle</name>
+  </types>
+  <types>
+    <members>DevSreIncident_Reader</members>
+    <members>DevSreIncident_Operator</members>
+    <name>PermissionSet</name>
+  </types>
+  <types>
+    <members>DevSre_Incident_Intake</members>
+    <name>CustomTab</name>
+  </types>
+  <version>67.0</version>
+</Package>

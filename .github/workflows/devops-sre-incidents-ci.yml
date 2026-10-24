@@ -1,0 +1,40 @@
+name: DevOps SRE Incident Intake CI
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/devops-sre-incidents-ci.yml'
+      - 'force-app/main/default/lwc/devSreIncidentIntake/**'
+      - 'force-app/main/default/classes/DevSreIncidentController*'
+      - 'force-app/main/default/objects/DevSre_Incident__c/**'
+      - 'force-app/main/default/objects/DevSre_RecoveryAction__c/**'
+      - 'force-app/main/default/permissionsets/DevSreIncident_*'
+      - 'force-app/main/default/tabs/DevSre_Incident_Intake.tab-meta.xml'
+      - 'manifest/sf-devops-sre-incident-intake.xml'
+      - 'scripts/ci/verify-incident-metadata.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lwc:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validar XML e guardrails de segurança
+        run: python3 scripts/ci/verify-incident-metadata.py
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: ESLint Incident Intake
+        run: npx eslint force-app/main/default/lwc/devSreIncidentIntake/devSreIncidentIntake.js
+      - name: Jest Incident Intake
+        run: npm run test:unit -- -- --runInBand --runTestsByPath force-app/main/default/lwc/devSreIncidentIntake/__tests__/devSreIncidentIntake.test.js

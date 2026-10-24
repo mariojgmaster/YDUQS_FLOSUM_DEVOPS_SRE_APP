@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Severity__c</fullName>
+    <label>Severidade</label>
+    <trackHistory>true</trackHistory>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>SEV1</fullName>
+                <default>false</default>
+                <label>SEV1</label>
+            </value>
+            <value>
+                <fullName>SEV2</fullName>
+                <default>false</default>
+                <label>SEV2</label>
+            </value>
+            <value>
+                <fullName>SEV3</fullName>
+                <default>false</default>
+                <label>SEV3</label>
+            </value>
+            <value>
+                <fullName>SEV4</fullName>
+                <default>false</default>
+                <label>SEV4</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

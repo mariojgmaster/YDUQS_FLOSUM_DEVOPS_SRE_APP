@@ -1,0 +1,168 @@
+<template>
+  <div class="slds-p-around_medium">
+    <header class="slds-page-header slds-m-bottom_medium">
+      <div class="slds-page-header__row">
+        <div class="slds-page-header__col-title">
+          <div class="slds-media">
+            <div class="slds-media__figure">
+              <lightning-icon icon-name="standard:case" alternative-text="Incidentes"></lightning-icon>
+            </div>
+            <div class="slds-media__body">
+              <p class="slds-text-title_caps">DevOps &amp; SRE Analytics · Operacional</p>
+              <h1 class="slds-page-header__title">Incidents &amp; Rollbacks</h1>
+              <p class="slds-text-body_small slds-m-top_x-small">
+                Registro manual e auditável. Nenhum indicador DORA é calculado a partir desta tela.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="slds-page-header__col-actions">
+          <lightning-button label="Atualizar" icon-name="utility:refresh" onclick={handleRefresh} disabled={isLoading}></lightning-button>
+          <lightning-button class="slds-m-left_x-small" label="Novo incidente" variant="brand" icon-name="utility:add" onclick={toggleIncidentForm}></lightning-button>
+        </div>
+      </div>
+    </header>
+
+    <div class="slds-notify slds-notify_alert slds-alert_warning slds-m-bottom_medium" role="status">
+      <span>DORA: não mensurável até reconciliação dos deployments de produção e revisão da causalidade. Incidente não equivale a falha de mudança.</span>
+    </div>
+
+    <template lwc:if={isIncidentFormOpen}>
+      <lightning-card title="Registrar incidente" icon-name="standard:case" class="slds-m-bottom_medium">
+        <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+          <p class="slds-text-body_small slds-m-bottom_medium">
+            Registre fatos conhecidos; não preencha horários estimados ou relacione deployments sem evidência.
+          </p>
+          <lightning-record-edit-form object-api-name="DevSre_Incident__c" onsuccess={handleIncidentCreated}>
+            <lightning-messages></lightning-messages>
+            <lightning-input-field field-name="Title__c" required></lightning-input-field>
+            <lightning-input-field field-name="ServiceKey__c" required></lightning-input-field>
+            <lightning-input-field field-name="Severity__c"></lightning-input-field>
+            <lightning-input-field field-name="Status__c" value="Open"></lightning-input-field>
+            <lightning-input-field field-name="EnvironmentClass__c" value="Production"></lightning-input-field>
+            <lightning-input-field field-name="DetectedAt__c"></lightning-input-field>
+            <lightning-input-field field-name="ImpactStartedAt__c"></lightning-input-field>
+            <lightning-input-field field-name="RestoredAt__c"></lightning-input-field>
+            <lightning-input-field field-name="ClosedAt__c"></lightning-input-field>
+            <lightning-input-field field-name="Description__c"></lightning-input-field>
+            <div class="slds-grid slds-grid_align-end slds-m-top_medium slds-gutters_x-small">
+              <div class="slds-col slds-grow-none">
+                <lightning-button label="Cancelar" onclick={toggleIncidentForm}></lightning-button>
+              </div>
+              <div class="slds-col slds-grow-none">
+                <lightning-button label="Salvar incidente" variant="brand" type="submit"></lightning-button>
+              </div>
+            </div>
+          </lightning-record-edit-form>
+        </div>
+      </lightning-card>
+    </template>
+
+    <div class="incident-layout">
+      <section class="incident-panel" aria-label="Lista de incidentes">
+        <lightning-card title="Ocorrências" icon-name="standard:case">
+          <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+            <div class="slds-grid slds-grid_vertical-align-end slds-gutters_x-small">
+              <div class="slds-col">
+                <lightning-input type="search" label="Pesquisar número ou título" maxlength="80" value={searchTerm} onchange={handleSearchChange}></lightning-input>
+              </div>
+              <div class="slds-col slds-grow-none">
+                <lightning-button variant="brand" label="Pesquisar" onclick={handleSearch} disabled={searchDisabled}></lightning-button>
+              </div>
+            </div>
+            <p class="slds-text-body_small slds-text-color_weak slds-m-vertical_small">{listDescription}</p>
+            <template lwc:if={incidentsHasMore}>
+              <div class="slds-notify slds-notify_alert slds-alert_warning slds-m-bottom_small" role="status">
+                Há mais de 50 incidentes. Refine a pesquisa para localizar outras ocorrências.
+              </div>
+            </template>
+            <template lwc:if={errorMessage}>
+              <div class="slds-notify slds-notify_alert slds-alert_error" role="alert">{errorMessage}</div>
+            </template>
+            <template lwc:if={isLoading}>
+              <div class="loading-zone slds-is-relative">
+                <lightning-spinner size="small" alternative-text="Carregando incidentes"></lightning-spinner>
+              </div>
+            </template>
+            <template lwc:elseif={hasIncidents}>
+              <lightning-datatable data-name="incidents" key-field="id" data={incidents} columns={incidentColumns} onrowaction={handleIncidentAction} hide-checkbox-column></lightning-datatable>
+            </template>
+            <template lwc:elseif={errorMessage}>
+              <p class="slds-p-vertical_medium">Verifique as permissões e atualize a consulta.</p>
+            </template>
+            <template lwc:else>
+              <p class="slds-text-align_center slds-p-vertical_large" role="status">Nenhum incidente encontrado.</p>
+            </template>
+          </div>
+        </lightning-card>
+      </section>
+
+      <section class="incident-panel" aria-label="Ações de recuperação">
+        <lightning-card title="Ações de Recuperação" icon-name="standard:task">
+          <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+            <template lwc:if={hasSelected}>
+              <div class="slds-grid slds-grid_vertical-align-center slds-grid_align-spread slds-m-bottom_small">
+                <div>
+                  <p class="slds-text-title_bold">{selectedNumber}</p>
+                  <p class="slds-text-body_small slds-text-color_weak">Rollback é uma ação registrada, não um comando de deploy.</p>
+                </div>
+                <lightning-button label="Abrir incidente" onclick={handleOpenSelected}></lightning-button>
+              </div>
+              <div class="slds-m-bottom_small">
+                <lightning-button variant="brand-outline" label="Adicionar ação" onclick={toggleActionForm}></lightning-button>
+              </div>
+              <template lwc:if={isActionFormOpen}>
+                <div class="action-form slds-m-bottom_medium">
+                  <lightning-record-edit-form object-api-name="DevSre_RecoveryAction__c" onsuccess={handleActionCreated}>
+                    <lightning-messages></lightning-messages>
+                    <lightning-input-field field-name="Incident__c" value={selectedId} required></lightning-input-field>
+                    <lightning-input-field field-name="ActionType__c" required></lightning-input-field>
+                    <lightning-input-field field-name="Status__c" value="Planned"></lightning-input-field>
+                    <lightning-input-field field-name="StartedAt__c"></lightning-input-field>
+                    <lightning-input-field field-name="CompletedAt__c"></lightning-input-field>
+                    <lightning-input-field field-name="EvidenceNotes__c"></lightning-input-field>
+                    <div class="slds-grid slds-grid_align-end slds-m-top_medium slds-gutters_x-small">
+                      <div class="slds-col slds-grow-none">
+                        <lightning-button label="Cancelar" onclick={toggleActionForm}></lightning-button>
+                      </div>
+                      <div class="slds-col slds-grow-none">
+                        <lightning-button label="Registrar ação" type="submit" variant="brand"></lightning-button>
+                      </div>
+                    </div>
+                  </lightning-record-edit-form>
+                </div>
+              </template>
+              <template lwc:if={actionsHasMore}>
+                <div class="slds-notify slds-notify_alert slds-alert_warning" role="status">
+                  Mais de 100 ações. Consulte o registro para investigação adicional.
+                </div>
+              </template>
+              <template lwc:if={actionsError}>
+                <div class="slds-notify slds-notify_alert slds-alert_error" role="alert">{actionsError}</div>
+              </template>
+              <template lwc:if={isLoadingActions}>
+                <div class="loading-zone slds-is-relative">
+                  <lightning-spinner size="small" alternative-text="Carregando ações"></lightning-spinner>
+                </div>
+              </template>
+              <template lwc:elseif={hasActions}>
+                <lightning-datatable data-name="actions" key-field="id" data={actions} columns={recoveryColumns} hide-checkbox-column></lightning-datatable>
+              </template>
+              <template lwc:elseif={actionsError}>
+                <p class="slds-p-vertical_medium">Não foi possível consultar as ações deste incidente.</p>
+              </template>
+              <template lwc:else>
+                <p class="slds-p-vertical_large slds-text-align_center" role="status">Nenhuma ação registrada para este incidente.</p>
+              </template>
+            </template>
+            <template lwc:else>
+              <p class="slds-p-vertical_large slds-text-align_center">
+                Selecione “Ver ações” no menu de um incidente para consultar seu histórico.
+              </p>
+            </template>
+          </div>
+        </lightning-card>
+      </section>
+    </div>
+  </div>
+</template>

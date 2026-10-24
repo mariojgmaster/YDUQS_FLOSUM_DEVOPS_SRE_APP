@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <active>true</active>
+    <errorConditionFormula>AND(OR(ISPICKVAL(Status__c, 'Restored'), ISPICKVAL(Status__c, 'Closed')), ISBLANK(RestoredAt__c))</errorConditionFormula>
+    <errorMessage>Informe a data e hora de restauração antes de marcar o incidente como restaurado ou encerrado.</errorMessage>
+</ValidationRule>

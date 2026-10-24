@@ -1,13 +1,13 @@
 # SPEC-003 — Registro de Incidentes e Recuperações, com governança de evidência
 
 - **Data:** 2026-10-23
-- **Status:** proposta técnica para revisão (decisão de domínio confirmada)
+- **Status:** registro manual DevOps/SRE aprovado pelo responsável; primeiro incremento em implementação, ainda não homologado
 - **Relacionamentos:** `docs/devops-sre-analytics/adr/ADR-001-incidentes-e-confiabilidade-dora.md`; [PR #34](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/pull/34) implementa o Pipeline Monitor em trabalho independente.
 - **Objetivo:** estabelecer um registro Salesforce próprio de incidentes e respostas operacionais para habilitar futuras métricas DORA confiáveis sem falsificar a origem dos eventos.
 
 ## Contexto
 
-Não existe hoje uma tabela de incidentes. O aplicativo precisa criar o registro próprio em Salesforce. A informação do Flosum sobre execuções e deployments em produção será integrada apenas após inventário de objetos e carimbos temporais. Este incremento NÃO implementa cálculo DORA nem deploy/rollback via Flosum.
+Não existe hoje uma tabela de incidentes. O aplicativo precisa criar o registro próprio em Salesforce. **Decisão do responsável em 23/10/2026: cadastro inicial manual pela equipe DevOps/SRE, com revisão da relação entre incidente e deployment antes de seu uso em DORA.** A informação do Flosum sobre execuções e deployments em produção será integrada apenas após inventário de objetos e carimbos temporais. Este incremento NÃO implementa cálculo DORA nem deploy/rollback via Flosum.
 
 ## US1 — Registrar ocorrência operacional (P1)
 
@@ -72,6 +72,16 @@ Como revisor COE, quero atestar a completude das fontes por serviço/período, p
 - Executar rollback, hotfix ou deploy a partir da aba.
 - Importar histórico sem evidências verificáveis.
 - Integrar sistemas ITSM externos não confirmados.
+
+## Escopo do incremento funcional atual (MVP-01)
+
+- Criar `DevSre_Incident__c` e `DevSre_RecoveryAction__c` e suas validações de dados temporais, sem criar vínculos de deployment ainda.
+- Operadores DevOps/SRE: formulário manual com Lightning Data Service, consultas em Apex `WITH USER_MODE`, auditoria padrão e Field History Tracking para campos selecionados.
+- Operadores **não podem editar campos de causalidade** por FLS; registros novos iniciam `CauseType=Unconfirmed` e `CauseReviewStatus=Pending`.
+- Permissões: Permission Sets `DevSreIncident_Reader` e `DevSreIncident_Operator`, OWD Private; compartilhamento entre operadores/revisores requer decisão posterior.
+- `ServiceKey__c` é texto **provisório**, sem autoridade como catálogo de serviços para DORA.
+- Revisão causal por responsável distinto, vínculos com deployments e certificação continuam **bloqueados** pelo inventário de Flosum e desenho de papel revisor.
+- Pacote específico sob `manifest/sf-devops-sre-incident-intake.xml`; nenhum deploy sem autorização posterior.
 
 ## DoD
 
