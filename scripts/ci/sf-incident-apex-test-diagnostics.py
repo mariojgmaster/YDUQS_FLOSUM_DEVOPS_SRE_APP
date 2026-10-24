@@ -75,7 +75,7 @@ SAFE_EXCEPTION_TYPES = {
 }
 def safe_exception_type(kind, message):
     sample = (kind if isinstance(kind, str) else "") + " " + (message if isinstance(message, str) else "")
-    found = re.search(r"(?:System[.])?([A-Za-z]+Exception)\\b", sample[:3500])
+    found = re.search(r"(?:System[.])?([A-Za-z]+Exception)\b", sample[:3500])
     if not found:
         return "UNKNOWN"
     return SAFE_EXCEPTION_TYPES.get(found.group(1), "OTHER")
