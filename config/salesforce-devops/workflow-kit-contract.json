@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "contract": "salesforce-devops-assistant-operations/v1",
+  "operations": {
+    "retrieve": {
+      "intent": "read metadata from registered target and manifest",
+      "implementation": "legacy-limited",
+      "current_workflow": ".github/workflows/sf-devsrefeat-metadata.yml",
+      "portable_template_ready": false,
+      "requires_deploy_confirmation": false
+    },
+    "compare": {
+      "intent": "compare Git versus Salesforce or two registered environments",
+      "implementation": "legacy-limited",
+      "current_workflow": ".github/workflows/sf-devsrefeat-metadata.yml",
+      "portable_template_ready": false,
+      "requires_deploy_confirmation": false
+    },
+    "validate": {
+      "intent": "Salesforce dry-run with Apex tests",
+      "implementation": "homologated-pilot",
+      "current_workflow": ".github/workflows/sf-m5-chatops-plan.yml",
+      "legacy_operation": "plan",
+      "portable_template_ready": false,
+      "requires_deploy_confirmation": false
+    },
+    "deploy": {
+      "intent": "approved Salesforce persistent deployment after dry-run",
+      "implementation": "homologated-manual-chatops-unverified",
+      "current_workflow": ".github/workflows/sf-m5-chatops-plan.yml",
+      "portable_template_ready": false,
+      "requires_deploy_confirmation": true
+    }
+  },
+  "installation": {
+    "allowed_from_pinned_reviewed_templates": true,
+    "dynamic_workflow_generation": false,
+    "copy_from_app_specific_workflows": false,
+    "overwrite_existing_workflows": false,
+    "installer_complete": false,
+    "require_branch_pull_request_and_ci": true,
+    "secrets_via_github_environment_only": true,
+    "authorized_target_registration_required": true
+  },
+  "result_policy": {
+    "public_repository": "sanitized-detailed-only",
+    "private_repository": "full-raw-artifact-only-after-explicit-security-approval",
+    "raw_public_artifact": false,
+    "expose_git_action_url": true,
+    "never_claim_integral_access_without_artifact_read": true
+  }
+}

@@ -1,54 +1,60 @@
-# Catálogo de workflows aprovados — Salesforce DevOps/SRE
+# Salesforce DevOps Assistant — catálogo padrão de operações (contrato v1)
 
-> Política operacional M5: o ChatOps **não cria arquivos de workflows**. Somente utiliza os entrypoints já versionados e revisados neste repositório. É proibido gerar YAML para atender a uma solicitação operacional, registrar triggers alternativos, contornar gates ou improvisar jobs dinâmicos. Evoluções estruturais de workflows existentes exigem solicitação de desenvolvimento específica, PR, revisão e CI.
+> **Domínio do plugin: Salesforce Metadata API/CLI, não o negócio da aplicação.**
+> A instalação padronizada cobre exclusivamente **Retrieve, Compare, Validate (dry-run) e Deploy**. Outras Actions presentes no repositório podem pertencer à aplicação; não integram o kit nem devem ser copiadas para outros projetos.
 
-## Fonte de verdade e contexto
+## Quatro capacidades canônicas
 
-- Repo: `mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP`.
-- Branch de operação: `master` no SHA exato e atual.
-- Salesforce: sandbox cadastrada `DevSreFeat` e os pacotes revisados no `config/salesforce-devops/catalog.json`.
-- Credenciais: **GitHub Environment existente** `sf-devsrefeat-read`, nunca expostas no ChatGPT ou nas Issues.
-- O repositório é **público**: nenhum JSON bruto da Salesforce, segredo, ID pessoal ou stack trace confidencial nos logs/artefatos.
-- "Executável pelo ChatOps" depende das ações realmente presentes no conector; `workflow_dispatch` **não está exposto** como invocação direta. Não inventar atalhos.
-
-## Operações prioritárias para uso diário
-
-| Pedido operacional | Workflow existente | Disparo efetivo | O que entrega |
+| Nome / intenção | Semântica | Saída exigida | Situação REAL no piloto |
 |---|---|---|---|
-| PLAN / dry-run de pacote cadastrado | `.github/workflows/sf-m5-chatops-plan.yml` | Issue estrita `SDOA PLAN` criada pelo proprietário | Dry-run + testes Apex e artefato diagnóstico seguro; **nenhuma escrita** |
-| DEPLOY real expressamente solicitado, de pacote cadastrado | Mesmo `sf-m5-chatops-plan.yml` | Issue estrita `SDOA DEPLOY`, com confirmação e SHA da master | Dry-run + testes + deploy, somente sandbox. Não repetir deploy automaticamente |
-| PLAN ou DEPLOY manual de contingência | `.github/workflows/sf-universal-m4.yml` | `workflow_dispatch` manual na UI GitHub | Mesmas validações de Salesforce com confirmação de deploy |
-| Diagnóstico de conexão, Tooling Apex e execução de testes | `.github/workflows/sf-devsrefeat-diagnostics.yml` | `workflow_dispatch` manual | `connection-check`, `tooling-apex-summary`, `apex-tests` |
-| Consultar/validar metadados M3 | `.github/workflows/sf-devsrefeat-metadata.yml` | `workflow_dispatch` manual | `retrieve`, `compare`, `validate`, sem deploy real |
-| Validação de Incidentes da DevSreFeat | `.github/workflows/sf-devsrefeat-incidents-validate.yml` | Issue `SDOA VALIDATE DevSreFeat incident-intake` pelo owner; ou `workflow_dispatch` manual | Dry-run de Incidentes e verificações específicas |
-| Deploy real de Incidentes | `.github/workflows/sf-devsrefeat-incidents-deploy.yml` | **Somente** `workflow_dispatch` manual, owner, SHA e confirmação | Dry-run, proteções de master e deploy real do pacote Incidentes |
+| `retrieve` | Recuperar metadata de ambiente e pacote cadastrados sem alterar Git ou org | Identidade da operação, inventário, sucesso/falhas, resultado integral via canal permitido | Existe **M3 legado**, limitado a duas ApexClass; ainda NÃO é genérico |
+| `compare` | Comparar metadata remoto recuperado com fonte Git (ou dois ambientes previamente cadastrados) sem alterar nenhum lado | Relatório por componente/arquivo de igual/diferente/ausente, detalhes e evidência em artefato | Existe **M3 legado**, limitado a duas classes, com resumo; ainda NÃO é genérico |
+| `validate` | Converter o pacote Git autorizado e enviar `sf project deploy start --dry-run` + testes definidos no catálogo | Resultado completo da validação, testes, cobertura, erros, deployment ID/status conforme disponibilidade | **Homologado** em DevSreFeat no M4.2/M5 (`plan`) |
+| `deploy` | Pedido explícito de escrita no target cadastrado: primeiro dry-run + testes, depois deploy do mesmo pacote/SHA | Validação, ID/status da implantação real, componentes e testes, resultado confirmado ou incerto | **Homologado via M4.2 manual**; modo ChatOps implementado, ainda requer aceite de deploy real |
 
-## CI automático pronto
+Em todos os casos, os inputs operacionais são `repository`, `target`, `package_id` e, quando aplicável, `source_target`/revisão Git. A edição manual do SHA não deve ser exigida quando o workflow puder fixá-lo pelo GitHub. O pacote vem do catálogo e manifesto revisados: não aceitar manifestos arbitrários redigidos na Issue.
 
-| Finalidade | Workflow |
+Para o piloto, `validate` corresponde ao antigo `plan` **sem escrita**. Conservar o nome legado nos workflows ativos até migração testada.
+
+## Workflows operacionais existentes (não confundir com aplicação)
+
+| Arquivo presente na master | Uso correto |
 |---|---|
-| Testes Jest da funcionalidade Clonar Pipeline | `.github/workflows/clone-pipeline-ui-ci.yml` |
-| Testes de políticas e contratos M4/M5 | `.github/workflows/sf-m4-policy-ci.yml` |
-| Testes, lint e guardrails dos Incidentes | `.github/workflows/devops-sre-incidents-ci.yml` |
-| Testes de Pipeline Monitor | `.github/workflows/devops-sre-pipeline-monitor-ci.yml` |
+| `.github/workflows/sf-m5-chatops-plan.yml` | ChatOps **validate/plan** e **deploy** por Issue rigidamente autorizada; não faz retrieve/compare atualmente |
+| `.github/workflows/sf-universal-m4.yml` | Alternativa de `workflow_dispatch` manual para `plan`/`deploy` |
+| `.github/workflows/sf-devsrefeat-metadata.yml` | M3 de `retrieve`, `compare` e `validate` **somente do antigo escopo Apex fixo**; não copiar como kit universal |
+| `.github/workflows/sf-m4-policy-ci.yml` | Testes de política, não operação sobre Salesforce |
 
-Estes workflows de CI são disparados pelos eventos/escopos que já definem; o plugin **consulta** os resultados, distingue falhas, propõe correções em código por PR autorizado e nunca instala outro pipeline CI automaticamente.
+Os workflows de **Incident Intake / Incidentes / Pipeline Monitor / Clone Pipeline UI** são **específicos da aplicação**. Não usá-los como operações genéricas, não instalá-los em outros repositórios em nome do Salesforce DevOps Assistant e não interpretar "Incident" como incidente de implantação. Também não escolher os M4 preview/deploy legados para novos projetos.
 
-## Workflows de piloto/legado: não escolher por padrão
+## Política de criação de workflows — CORRIGIDA
 
-- `.github/workflows/sf-devsrefeat-m4-preview.yml`
-- `.github/workflows/sf-devsrefeat-m4-deploy.yml`
+**O assistente PODE instalar workflows padronizados faltantes em qualquer repositório que o usuário tenha autorizado.**
 
-Eles permanecem versionados apenas para compatibilidade/auditoria até decisão explícita sobre retirada. Para tarefas novas, preferir M5 ou M4 Universal conforme operação e capacidade do conector.
+A distinção obrigatória:
 
-## Política do assistente (comportamento obrigatório)
+1. **Instalação permitida:** selecionar uma versão **já aprovada** do kit canônico de quatro operações; ler o template fonte de revisão Git imutável; verificar conteúdo/hash e compatibilidade, copiar arquivos **sem inventar novos comandos ou triggers** para uma branch do repositório escolhido; registrar configurações específicas de target, ambiente GitHub, catálogo e manifestos; executar validações e abrir PR; mesclar quando CI/aprovações aplicáveis permitirem. Não copiar chaves, secrets nem URLs sensíveis para código.
+2. **Operação normal:** quando já instalado, **executar/reutilizar** o workflow aprovado, sem modificar YAML. Solicitações de dry-run, deploy, comparação e diagnóstico não são autorização para projetar Actions inéditas.
+3. **Ausência de template aprovado:** NÃO fabricar um novo workflow como improviso. Informar que a operação está pendente no kit, e propor o desenvolvimento/revisão de um template canônico em PR separado.
+4. **Conflito ou workflow existente:** não sobrescrever um YAML diferente. Analisar e abrir PR de migração, preservando controles de execução, branch protection e rollback.
+5. **Repositórios distintos:** nenhuma configuração do piloto DevSreFeat (organização, URL, usuário, pacotes ou testes específicos) deve ser presumida em novo projeto. A instalação precisa de permissões GitHub e uma ECA/JWT autorizada por **ambiente**; comparação entre duas orgs requer ambas cadastradas, em modo read-only.
+6. **Deploy:** autorização explícita e inequívoca para alvo/pacote/revisão, confirmação literal, novo dry-run e testes. Não repetir deploy automaticamente. GitHub Environment e política podem impor aprovações adicionais, que jamais devem ser burladas.
 
-1. **Descobrir e selecionar:** interpretar solicitação, conferir master e os arquivos reais; escolher um workflow **existente** adequado ao escopo.
-2. **Não gerar workflows:** não criar/editar `.github/workflows/*.yml` como parte de PLAN, diagnóstico, correção, retry, deploy ou consulta. Não converter pedido em configuração nova de GitHub Actions. Mudanças estruturais só em projeto de desenvolvimento separado e expressamente autorizado.
-3. **Executar via canal suportado:** criar Issue estrita para o M5 (ou validar Incidentes) somente quando solicitada; para workflows `workflow_dispatch`, orientar preenchimento manual **se o conector não oferecer dispatch**. Jamais usar Issues genéricas/comentários para burlar esse limite.
-4. **Investigar sem disfarçar resultados:** consultar execução real, jobs, logs e artefatos seguros. Indicar status, Apex tests, componentes, falhas e se houve escrita. Nunca inferir deploy a partir de Action verde.
-5. **Retry controlado:** PLAN tem no máximo duas novas tentativas fundamentadas se o usuário delegou investigação. DEPLOY não é repetido automaticamente, e a autorização anterior não se estende a outro pacote, destino ou commit.
-6. **Segurança:** permitir somente pacote/ambiente revisado e usuário proprietário; dry-run e testes precedem escrita; não vazar dados da Salesforce no GitHub público.
-7. **Evolução futura:** quando uma capacidade não for coberta pelo catálogo, explicar a lacuna e propor **melhoria em workflow existente** como mudança de desenvolvimento separada, em vez de gerar YAML sob demanda.
+**Status de distribuição:** antes de copiar para terceiros, ainda precisa ser concluída e testada uma implementação **realmente genérica** de `retrieve`/`compare` e de parametrização dos targets. Os arquivos de M3 atuais não constituem templates portáveis. O plugin não deve afirmar que já instalou esse kit completo.
 
-Este catálogo descreve o que já existe; não modifica nem autoriza novos gatilhos. Sempre comparar contra os arquivos atuais da master antes de executar.
+## Retorno integral: contrato e privacidade
+
+- Cada execução deve conservar no runner as respostas Salesforce CLI/Metadata API relevantes em formato estruturado, inclusive lista de componentes, testes, classes/métodos, erros, warnings, cobertura, status e IDs de deployment quando a API os retornar.
+- **Repositório privado + política de acesso explicitamente aprovada:** pode ser oferecido **artefato integral protegido**, com retenção curta, acesso `Actions: read`, auditoria, classificação e revisão de segredos/PII. O ChatGPT precisa ter conexão/autorização real para ler o artefato. Não pressupor acesso apenas por ele existir.
+- **Repositório público (caso piloto):** somente **artefato sanitizado**; não publicar JSON bruto, stack trace, Apex/metadata recuperado, identificadores privados, segredos ou dados de negócio. Um relatório completo *em ocorrências* não é equivalente a conteúdo bruto integral. Artefatos públicos podem ser obtidos por pessoas com acesso de leitura ao repositório.
+- Quando o pedido exigir literalmente todo o payload e não houver canal privado autorizado, informar a restrição **antes** de executar. Não camuflar truncamento nem prometer análise de payload que o conector não consegue recuperar.
+- Padrão dos resultados: `operation`, `repo_sha`, `target`, `package_id`, `request_id` quando houver, `status`, `success`, `components`, `tests`, `warnings`, `errors`, `artifact_ref`, `executed_real_deploy`, `raw_result_available`. O schema é um contrato de implementação, não afirmação de campos já existentes.
+
+## Próxima entrega de engenharia (necessária antes da instalação universal)
+
+- Parametrizar `retrieve` por pacote/target do catálogo, sem alterar `force-app`, sem gravar metadata bruto no Git público.
+- Parametrizar `compare` (Git↔org e org↔org com dois targets cadastrados), com semântica explícita e comparação não destrutiva, inclusive metadados XML relevantes.
+- Consolidar `validate`/`deploy` M4.2/M5 sem regressões na segurança; expor os quatro nomes de operação ao ChatOps sem scripts/Issues ad hoc.
+- Publicar **templates imutáveis** mais testes de instalação idempotente, schema do catálogo, CI, documentação ECA/GitHub e rollback. Só marcar `installable: true` após CI e homologação operacional.
+
+Sempre consultar a master e não usar este documento como prova de estado em tempo real de uma execução.
