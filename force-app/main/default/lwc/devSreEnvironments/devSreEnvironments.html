@@ -1,0 +1,159 @@
+<template>
+  <lightning-card
+    title="Configuração de ambientes"
+    icon-name="standard:settings"
+  >
+    <div class="slds-p-around_medium">
+      <p>
+        Classifique organizações Flosum por vigência. Nomes de Branch ou
+        organização não definem o ambiente automaticamente.
+      </p>
+      <div class="filters slds-m-top_medium">
+        <lightning-input
+          name="organizationSearch"
+          type="search"
+          label="Pesquisar organização"
+          value={organizationSearch}
+          maxlength="80"
+          onchange={handleChange}
+        ></lightning-input>
+        <lightning-button
+          label="Buscar organizações"
+          onclick={handleSearchOrganizations}
+          disabled={busy}
+        ></lightning-button>
+        <lightning-combobox
+          name="organizationFilter"
+          label="Filtrar vigências"
+          value={organizationFilter}
+          options={filterOptions}
+          onchange={handleChange}
+        ></lightning-combobox>
+        <lightning-button
+          label="Consultar / atualizar"
+          onclick={handleRefresh}
+          disabled={busy}
+        ></lightning-button>
+      </div>
+      <template lwc:if={organizationsHaveMore}
+        ><p role="status">
+          Mais de 50 organizações. Refine a pesquisa.
+        </p></template
+      >
+      <template lwc:if={error}
+        ><div
+          class="slds-notify slds-notify_alert slds-alert_error slds-m-top_small"
+          role="alert"
+        >
+          {error}
+        </div></template
+      >
+      <template lwc:if={notice}
+        ><p role="status" class="slds-m-top_small">{notice}</p></template
+      >
+      <template lwc:if={busy}
+        ><div class="loading">
+          <lightning-spinner
+            size="small"
+            alternative-text="Atualizando ambientes"
+          ></lightning-spinner></div
+      ></template>
+      <template lwc:elseif={hasRows}
+        ><lightning-datatable
+          class="slds-m-top_medium"
+          key-field="id"
+          data={rows}
+          columns={columns}
+          onrowaction={handleRowAction}
+          hide-checkbox-column
+        ></lightning-datatable
+      ></template>
+      <template lwc:else
+        ><p class="slds-m-top_medium" role="status">
+          Nenhuma vigência acessível para este filtro.
+        </p></template
+      >
+      <template lwc:if={canManage}>
+        <section
+          class="slds-box slds-m-top_large"
+          aria-label="Editar configuração de ambiente"
+        >
+          <h2 class="slds-text-heading_small">{formTitle}</h2>
+          <p class="slds-m-vertical_small">
+            O início é inclusivo e o fim exclusivo. Datas são apresentadas no
+            seu fuso. Alterações históricas exigem revalidação dos períodos
+            afetados.
+          </p>
+          <div class="filters">
+            <lightning-combobox
+              data-form
+              name="organizationId"
+              label="Organização"
+              value={organizationId}
+              options={organizations}
+              required
+              disabled={editing}
+              onchange={handleChange}
+            ></lightning-combobox>
+            <lightning-combobox
+              data-form
+              name="environmentClass"
+              label="Ambiente"
+              value={environmentClass}
+              options={environmentOptions}
+              required
+              disabled={editing}
+              onchange={handleChange}
+            ></lightning-combobox>
+            <lightning-input
+              data-form
+              name="validFrom"
+              type="datetime"
+              label="Início da vigência"
+              value={validFrom}
+              required
+              disabled={editing}
+              onchange={handleChange}
+            ></lightning-input>
+            <lightning-input
+              data-form
+              name="validTo"
+              type="datetime"
+              label="Fim da vigência (opcional)"
+              value={validTo}
+              onchange={handleChange}
+            ></lightning-input>
+          </div>
+          <lightning-textarea
+            data-form
+            name="reason"
+            label="Justificativa"
+            maxlength="255"
+            value={reason}
+            required
+            onchange={handleChange}
+          ></lightning-textarea>
+          <div class="slds-m-top_medium">
+            <lightning-button
+              variant="brand"
+              label="Salvar vigência"
+              onclick={handleSave}
+              disabled={busy}
+            ></lightning-button>
+            <lightning-button
+              class="slds-m-left_small"
+              label="Nova vigência"
+              onclick={handleNew}
+              disabled={busy}
+            ></lightning-button>
+          </div>
+        </section>
+      </template>
+      <template lwc:else
+        ><p class="slds-m-top_medium">
+          Somente leitura. A gerência requer permissão específica.
+        </p></template
+      >
+    </div>
+  </lightning-card>
+</template>

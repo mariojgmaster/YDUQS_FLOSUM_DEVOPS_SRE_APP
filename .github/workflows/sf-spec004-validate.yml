@@ -1,0 +1,128 @@
+name: Salesforce SPEC004 - Validate Environments and Deployments
+
+on:
+  issues:
+    types: [opened]
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'force-app/main/default/classes/DevSreEnvironment*'
+      - 'force-app/main/default/classes/DevSreDeployment*'
+      - 'force-app/main/default/lwc/devSreDeliveryHub/**'
+      - 'force-app/main/default/lwc/devSreDeployments/**'
+      - 'force-app/main/default/lwc/devSreEnvironments/**'
+      - 'force-app/main/default/objects/DevSre_EnvironmentMapping__c/**'
+      - 'force-app/main/default/triggers/DevSreEnvironmentMapping*'
+      - 'force-app/main/default/tabs/pipelineMonitor.tab-meta.xml'
+      - 'force-app/main/default/permissionsets/DevSreDeployment_*'
+      - 'force-app/main/default/permissionsets/DevSreEnvironment_*'
+      - 'force-app/main/default/customPermissions/DevSre_ManageEnvironments*'
+      - 'force-app/main/default/layouts/DevSre_EnvironmentMapping__c-*'
+      - 'manifest/sf-spec004-environments-deployments.xml'
+      - 'config/spec004/**'
+      - 'scripts/ci/sf-spec004-validate.py'
+      - 'tests/test_spec004_validation.py'
+      - '.github/workflows/sf-spec004-validate.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sf-spec004-validate-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  policy:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Test validation policy and UI
+        run: |
+          python3 scripts/ci/sf-spec004-validate.py --policy-only
+          python3 -m unittest discover -s tests -p test_spec004_validation.py -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npx eslint force-app/main/default/lwc/devSreDeployments/devSreDeployments.js force-app/main/default/lwc/devSreEnvironments/devSreEnvironments.js force-app/main/default/lwc/devSreDeliveryHub/devSreDeliveryHub.js
+      - run: npm run test:unit -- -- --runInBand --runTestsByPath force-app/main/default/lwc/devSreDeployments/__tests__/devSreDeployments.test.js force-app/main/default/lwc/devSreEnvironments/__tests__/devSreEnvironments.test.js
+
+  collect:
+    if: >-
+      github.ref == 'refs/heads/master' && github.actor == github.repository_owner && github.run_attempt == 1 &&
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issues' && github.event.action == 'opened' &&
+      github.event.issue.title == 'SDOA VALIDATE DevSreFeat SPEC004' &&
+      github.event.issue.user.login == github.repository_owner && github.event.sender.login == github.repository_owner))
+    environment: sf-devsrefeat-read
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify exact read-only intent before credentials
+        run: python3 scripts/ci/sf-spec004-validate.py --verify-only
+      - name: Check reviewed source and certificate
+        env:
+          GH_READ_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request
+          from pathlib import Path
+          catalog=json.loads(Path('config/salesforce-devops/catalog.json').read_text())
+          target=catalog['targets']['DevSreFeat']
+          assert target['kind']=='sandbox' and target['github_environment']=='sf-devsrefeat-read'
+          assert target['instance_url']=='https://yduqs--devsrefeat.sandbox.my.salesforce.com'
+          req=urllib.request.Request('https://api.github.com/repos/'+os.environ['GITHUB_REPOSITORY']+'/branches/master', headers={'Authorization':'Bearer '+os.environ['GH_READ_TOKEN'],'Accept':'application/vnd.github+json'})
+          with urllib.request.urlopen(req, timeout=30) as response:
+              branch=json.load(response)
+          assert branch['protected'] is True and branch['commit']['sha']==os.environ['GITHUB_SHA']
+          print('PASS: CATALOG_SANDBOX_AND_PROTECTED_MASTER')
+          PY
+          openssl x509 -checkend 86400 -noout -in config/salesforce-devops/flosum-collector-cert.pem > /dev/null
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Salesforce CLI
+        run: npm install --global @salesforce/cli
+      - name: Authenticate without exporting credentials
+        env:
+          SF_CLIENT_ID: ${{ secrets.SF_CLIENT_ID }}
+          SF_USERNAME: ${{ secrets.SF_USERNAME }}
+          SF_JWT_KEY: ${{ secrets.SF_JWT_KEY }}
+          SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          test "$SF_INSTANCE_URL" = 'https://yduqs--devsrefeat.sandbox.my.salesforce.com'
+          test -n "$SF_CLIENT_ID" && test -n "$SF_USERNAME" && test -n "$SF_JWT_KEY"
+          printf '%s' "$SF_JWT_KEY" > "$RUNNER_TEMP/flosum-eca.key"
+          openssl pkey -in "$RUNNER_TEMP/flosum-eca.key" -noout -passin pass: > /dev/null 2>&1
+          if ! sf org login jwt --client-id "$SF_CLIENT_ID" --username "$SF_USERNAME" --jwt-key-file "$RUNNER_TEMP/flosum-eca.key" --instance-url "$SF_INSTANCE_URL" --alias spec004-ci --json > "$RUNNER_TEMP/flosum-auth.json" 2> "$RUNNER_TEMP/flosum-auth.err"; then
+            echo '::error::ECA authentication failed; raw response withheld'
+            exit 1
+          fi
+          echo 'PASS: DEV_SREFEAT_ECA_AUTH'
+      - name: Validate exact metadata package without persistent deployment
+        run: python3 scripts/ci/sf-spec004-validate.py
+      - name: Upload only encrypted validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec004-validation-${{ github.run_id }}
+          path: ${{ runner.temp }}/spec004-validation.cms
+          if-no-files-found: warn
+          retention-days: 1
+      - name: Remove credentials and outputs
+        if: always()
+        shell: bash
+        run: |
+          rm -f "$RUNNER_TEMP/flosum-eca.key" "$RUNNER_TEMP/flosum-auth.json" "$RUNNER_TEMP/flosum-auth.err" "$RUNNER_TEMP/spec004-validation.cms"
+          rm -rf "$HOME/.sf" "$HOME/.sfdx"

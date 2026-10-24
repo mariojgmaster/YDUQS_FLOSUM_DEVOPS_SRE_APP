@@ -1,0 +1,15 @@
+<template>
+  <lightning-tabset active-tab-value="deployments">
+    <lightning-tab label="Deployments" value="deployments"
+      ><c-dev-sre-deployments></c-dev-sre-deployments
+    ></lightning-tab>
+    <lightning-tab label="Ambientes" value="environments"
+      ><c-dev-sre-environments
+        onmappingchange={handleMappingChange}
+      ></c-dev-sre-environments
+    ></lightning-tab>
+    <lightning-tab label="Visão original" value="original"
+      ><c-pipeline-monitor></c-pipeline-monitor
+    ></lightning-tab>
+  </lightning-tabset>
+</template>

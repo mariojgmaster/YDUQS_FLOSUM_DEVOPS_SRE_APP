@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "target": "DevSreFeat",
+  "manifest": "manifest/sf-spec004-environments-deployments.xml",
+  "members": {
+    "ApexClass": [
+      "DevSreEnvironmentController",
+      "DevSreEnvironmentGuard",
+      "DevSreEnvironmentTest",
+      "DevSreDeploymentController",
+      "DevSreDeploymentTest"
+    ],
+    "ApexTrigger": [
+      "DevSreEnvironmentMapping"
+    ],
+    "CustomObject": [
+      "DevSre_EnvironmentMapping__c"
+    ],
+    "CustomPermission": [
+      "DevSre_ManageEnvironments"
+    ],
+    "PermissionSet": [
+      "DevSreEnvironment_Manager",
+      "DevSreDeployment_Reader"
+    ],
+    "LightningComponentBundle": [
+      "devSreDeliveryHub",
+      "devSreDeployments",
+      "devSreEnvironments"
+    ],
+    "CustomTab": [
+      "pipelineMonitor"
+    ],
+    "Layout": [
+      "DevSre_EnvironmentMapping__c-Environment Mapping"
+    ]
+  },
+  "tests": [
+    "DevSreEnvironmentTest",
+    "DevSreDeploymentTest"
+  ]
+}
