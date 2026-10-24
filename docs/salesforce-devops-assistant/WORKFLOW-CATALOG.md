@@ -1,5 +1,18 @@
 # Salesforce DevOps Assistant — catálogo padrão de operações (contrato v1)
 
+## Atualização técnica — Kit Universal v1 (piloto de homologação)
+
+Há uma implementação candidata para as quatro operações no **mesmo workflow M5**, sem utilizar os workflows de Incidentes:
+
+- `retrieve` e `compare`: novo `scripts/ci/sf-kit-read.sh` (consulta Metadata API em ZIP temporário), com `scripts/ci/sf-kit-read-report.py` para relatório seguro por membro do manifesto. Compare v1 significa **Git↔org**, não org↔org.
+- `validate`: mantém operação ChatOps `plan`, testada e homologada anteriormente, sem gravação.
+- `deploy`: mantém confirmação explícita, SHA exato, novo dry-run com Apex tests e somente depois escrita.
+- `templates/salesforce-devops-kit/v1/`: conjunto de arquivos congelados com hashes Git Blob SHA-1 em `manifest.json`; `sf-kit-install.py` cria apenas os arquivos faltantes no destino, após aprovação do pacote e com catálogo do target configurado. **Não usar `--apply` enquanto o manifest estiver `candidate`.**
+- Retorno bruto integral: somente repositório privado + `SDOA_EXPORT_RAW=true` (opção de admin, retenção 1 dia); logs e artifacts públicos permanecem sanitizados.
+
+A presença dos arquivos nesta branch não prova homologação Salesforce de Retrieve/Compare. Após merge e CI, executar apenas leituras reais e só então aprovar o manifest dos templates em PR separada. A instalação em outros repositórios continua bloqueada até essa aprovação.
+
+
 > **Domínio do plugin: Salesforce Metadata API/CLI, não o negócio da aplicação.**
 > A instalação padronizada cobre exclusivamente **Retrieve, Compare, Validate (dry-run) e Deploy**. Outras Actions presentes no repositório podem pertencer à aplicação; não integram o kit nem devem ser copiadas para outros projetos.
 
