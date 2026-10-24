@@ -50,12 +50,16 @@ def norm(s):
 
 def stage(tabs,klass,candidate,preview):
     check_preview(json.loads(Path(preview).read_text(encoding="utf-8")))
+    print("INFO: INCIDENT_MDAPI_STAGE_PREVIEW_OK",flush=True)
     source=Path("force-app/main/default/classes/DevSreIncidentControllerTest.cls").read_text(encoding="utf-8-sig")
     a=source.index(START); b=source.index(END,a)
     previous=source[:a]+OLD+source[b:]
     deployed=zip_member(klass,"DevSreIncidentControllerTest.cls").decode("utf-8-sig")
+    print("INFO: INCIDENT_MDAPI_STAGE_CLASS_RETRIEVED",flush=True)
     assert norm(deployed) in (norm(previous),norm(source)), "unexpected Apex test drift"
+    print("INFO: INCIDENT_MDAPI_STAGE_CLASS_BASELINE_OK",flush=True)
     root=ET.fromstring(zip_member(tabs,"incidentsRollbacks.tab"))
+    print("INFO: INCIDENT_MDAPI_STAGE_TAB_RETRIEVED",flush=True)
     assert root.tag==N+"CustomTab"
     refs=root.findall(N+"lwcComponent")
     assert len(refs)==1 and refs[0].text in ("incidentsRollbacks","devSreIncidentsHost")
@@ -65,8 +69,10 @@ def stage(tabs,klass,candidate,preview):
     tab=candidate/"tabs/incidentsRollbacks.tab"
     assert tab.is_file() and not tab.is_symlink()
     tab.write_bytes(ET.tostring(root,encoding="utf-8",xml_declaration=True))
+    print("INFO: INCIDENT_MDAPI_STAGE_TAB_PRESERVED",flush=True)
     test=candidate/"classes/DevSreIncidentControllerTest.cls"
     assert test.is_file() and norm(test.read_text(encoding="utf-8-sig"))==norm(source)
+    print("INFO: INCIDENT_MDAPI_STAGE_CANDIDATE_CLASS_OK",flush=True)
     md=ET.parse(candidate/"package.xml").getroot()
     groups={}
     for elem in md.findall(N+"types"):
@@ -74,6 +80,7 @@ def stage(tabs,klass,candidate,preview):
         assert key not in groups
         groups[key]=[x.text for x in elem.findall(N+"members")]
     assert groups=={"ApexClass":["DevSreIncidentControllerTest"],"LightningComponentBundle":["devSreIncidentsHost"],"CustomTab":["incidentsRollbacks"]}
+    print("INFO: INCIDENT_MDAPI_STAGE_PACKAGE_XML_OK",flush=True)
     paths={i.relative_to(candidate).as_posix() for i in candidate.rglob("*") if i.is_file()}
     required={"package.xml","tabs/incidentsRollbacks.tab","classes/DevSreIncidentControllerTest.cls","classes/DevSreIncidentControllerTest.cls-meta.xml","lwc/devSreIncidentsHost/devSreIncidentsHost.js-meta.xml"}
     assert required.issubset(paths)
