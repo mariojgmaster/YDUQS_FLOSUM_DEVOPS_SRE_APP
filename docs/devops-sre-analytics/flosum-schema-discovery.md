@@ -53,3 +53,14 @@ O [PR #88](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/pull/88)
 **Veredito vinculante:** `metric_status=NOT_MEASURABLE`. Não há justificativa para contar pipelines, steps, incidentes de teste ou demais configurações como deployments de produção.
 
 **Próximo incremento mínimo (ainda pendente):** mapear de maneira controlada a identidade exata do candidato de execução, relações com ambiente/commit/release e o carimbo temporal de fim (ou fonte alternativa auditável), sem publicar nomes internos, payloads ou registros em logs do repo público. Confirmar com equipe Flosum a semântica dos campos e o conjunto elegível de deploys PROD; só então especificar a correlação com incidentes/serviços. Não criar indicadores prematuramente.
+
+
+## Branch e Metadata Log: leitura direcionada (investigação 24/10/2026)
+
+O proprietário confirmou que a entidade candidata para deployments PROD é `Flosum__Metadata_Log__c`, associada à `Flosum__Branch__c`, e forneceu um URL de uma Branch específica na `DevSreFeat`. A heurística anterior baseada em "deploy" no nome dos objetos era incompleta e não encontrou essa fonte.
+
+**Próximo teste:** o workflow existente `Salesforce DevSreFeat - Diagnostico Seguro` recebe opção manual `flosum-branch-inspect` e input `branch_id` (15/18 caracteres). Não há Issue com o ID nem código hardcoded num GitHub público. O usuário proprietário é o único ator autorizado (workflow_dispatch, master, primeira tentativa).
+
+O teste obtém o schema real dos objetos Branch e Metadata Log; recupera **somente uma Branch pelo ID fornecido**, com até duas referências por tipo (organização, Branch, Commit, Release, Pipeline); e, havendo uma única referência Metadata Log → Branch validada por `referenceTo`, lê até oito logs associados à Branch (status/timestamp limitados por tipos de metadados). Toda saída é sanitizada em contagens e sinais; nenhuma linha com IDs, nomes de registros ou valores de negócio, e nenhum DML/deploy.
+
+**Ainda por validar:** API name do relacionamento real, se a referência é direta/indireta, existência de logs associados, status e timestamps semânticos de implantação, mapeamento da organização Salesforce/Flosum para ambientes `PROD/UAT/SIT/DEV`. Regras DORA **não** são liberadas por simples presença de schema ou linhas.
