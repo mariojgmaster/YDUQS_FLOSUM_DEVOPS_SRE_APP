@@ -109,3 +109,7 @@ No dry-run #40054058870, todos os metadados passaram (`component_errors=0`), por
 
 ## Diagnóstico seguro de métodos de teste Apex
 O dry-run #40055155347 alcançou 3 testes aprovados e 2 falhas `OTHER_APEX_EXCEPTION`. O parser agora registra somente nomes de métodos que já existem na classe pública `DevSreIncidentControllerTest` e nomes de exceções de uma enumeração fechada, sem publicar mensagens, linhas de stack ou identificadores privados. Usar esse resultado para corrigir o contrato de acesso ou a asserção precisa, sem rebaixar `WITH USER_MODE` no controller.
+
+## Testes de consulta na API 67 — DevSreFeat #40055376602
+
+O controller compilou e 3 testes Apex passaram; os dois testes de consulta falharam com `AuraHandledException`. Os métodos chamavam o controller fora do contexto de `System.runAs`, apesar de o Permission Set ser atribuído em `@TestSetup`. Agora o grant de `DevSreIncident_Operator` é realizado **dentro de cada método de teste positivo**, e as chamadas reais são feitas em `System.runAs`. Isto exerce `WITH USER_MODE` com perfil operacional e não altera o controller nem acessos permanentes na org. Os testes negativos de parâmetros também usam o contexto de operador para não confundir falta de acesso com entrada inválida.
