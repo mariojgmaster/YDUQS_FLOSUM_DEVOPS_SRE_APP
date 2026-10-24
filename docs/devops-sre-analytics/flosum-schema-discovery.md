@@ -64,3 +64,22 @@ O proprietário confirmou que a entidade candidata para deployments PROD é `Flo
 O teste obtém o schema real dos objetos Branch e Metadata Log; recupera **somente uma Branch pelo ID fornecido**, com até duas referências por tipo (organização, Branch, Commit, Release, Pipeline); e, havendo uma única referência Metadata Log → Branch validada por `referenceTo`, lê até oito logs associados à Branch (status/timestamp limitados por tipos de metadados). Toda saída é sanitizada em contagens e sinais; nenhuma linha com IDs, nomes de registros ou valores de negócio, e nenhum DML/deploy.
 
 **Ainda por validar:** API name do relacionamento real, se a referência é direta/indireta, existência de logs associados, status e timestamps semânticos de implantação, mapeamento da organização Salesforce/Flosum para ambientes `PROD/UAT/SIT/DEV`. Regras DORA **não** são liberadas por simples presença de schema ou linhas.
+
+## Evidência real da inspeção de Branch — 24/10/2026
+
+[Run #40135475770](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/actions/runs/40135475770), job `120995972600`, SHA `e8cd6de7bf4a62a9f115ea6687bd27616f225233`: **SUCCESS**, autenticação ECA/JWT na DevSreFeat e `PASS: FLOSUM_BRANCH_METADATA_LOG_READ_ONLY`. Operação `flosum-branch-inspect`, sem escrita Salesforce.
+
+- Branch recuperada; heurística encontrou 1 referência a Pipeline, não preenchida na amostra. Não detectou referências de organização/Branch/Commit/Release segundo seus critérios; isso não comprova ausência de outros relacionamentos ou campos textuais.
+- Metadata Log: **2 lookups para Branch**, **2 candidatos de lifecycle** e **4 candidatos temporais**.
+- O diagnóstico registrou `verified=false reason=ambiguous_reference` e não consultou linhas de Metadata Log. Não há contagem de deployments, destino confirmado, valor de status ou conclusão temporal comprovados.
+- `NOT_CERTIFIED` permanece vinculante; T008 não está concluída.
+
+### Ajuste mínimo após a evidência
+
+Inspecionar separadamente até dois lookups comprovados pelo describe, com limite de oito linhas por relacionamento e ordenação determinística. Reportar apenas slots, contagens, campos preenchidos e sobreposição entre as amostras. Não escolher relacionamento canônico pela contagem; não somar as amostras como total de deployments. Se houver mais de dois lookups, bloquear a amostragem e informar limite excedido.
+
+Verificar também referências de organização no próprio Metadata Log, incluindo a grafia `organisation`, antes ausente da heurística. Isso detecta candidatos e preenchimento, não certifica que uma referência seja o destino final do evento.
+
+**Correção de privacidade:** a primeira execução exibiu o input do registro no ambiente dos steps do runner, embora o script sanitizasse sua própria saída. Remover o input do ambiente/comando do workflow e lê-lo internamente de `GITHUB_EVENT_PATH`. A correção protege futuras execuções; não remove o conteúdo dos logs anteriores. Não copiar o ID para documentação, PR ou fixtures.
+
+**Aceite seguinte:** CI PASS, revisão e merge; nova execução manual da mesma operação com o ID já fornecido; analisar slots/organização e obter confirmação semântica dos campos/status/horários em canal adequado antes de especificar o adaptador. Nenhum novo workflow, ambiente ou privilégio, e nenhum deploy.

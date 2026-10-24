@@ -1,5 +1,8 @@
 import importlib.util
 import unittest
+import json
+import tempfile
+from unittest.mock import patch
 from pathlib import Path
 from contextlib import redirect_stdout
 from io import StringIO
@@ -70,11 +73,74 @@ class BranchInspectionTests(unittest.TestCase):
     def test_workflow_requires_manual_owner_and_no_embedded_id(self):
         y=(ROOT/".github/workflows/sf-devsrefeat-diagnostics.yml").read_text("utf-8")
         self.assertIn("flosum-branch-inspect",y)
-        self.assertIn("inputs.branch_id",y)
-        self.assertIn('sf-flosum-branch-inspect.py --branch-id "$BRANCH_RECORD_ID"',y)
+        self.assertIn("branch_id:",y)
+        self.assertNotIn("inputs.branch_id",y)
+        self.assertNotIn("BRANCH_RECORD_ID",y)
+        self.assertNotIn("--branch-id",y)
+        self.assertIn("python3 scripts/ci/sf-flosum-branch-inspect.py",y)
         self.assertIn('"$GITHUB_ACTOR" != "$GITHUB_REPOSITORY_OWNER"',y)
         self.assertNotIn(FAKE_ID,PATH.read_text("utf-8"))
         self.assertNotIn("sf project deploy",PATH.read_text("utf-8"))
+
+    def test_two_links_are_queried_separately_with_overlap_and_org_counts(self):
+        fields=log_fields()
+        fields["Flosum__Other_Branch__c"]={"type":"reference","referenceTo":[m.BRANCH]}
+        fields["Flosum__Organisation__c"]={"type":"reference","referenceTo":["Flosum__Organisation__c"]}
+        statements=[]
+        def fetch(sql):
+            statements.append(sql)
+            if f"FROM {m.BRANCH}" in sql:
+                return [{"Id":FAKE_ID}]
+            return [{"Id":"private-log", "Flosum__Organisation__c":"private-org"}]
+        output=StringIO()
+        with redirect_stdout(output):
+            m.inspect(FAKE_ID,lambda name: branch_fields() if name==m.BRANCH else fields,fetch)
+        self.assertEqual(len(statements),3)
+        self.assertIn("WHERE Flosum__Branch__c =",statements[1])
+        self.assertIn("WHERE Flosum__Other_Branch__c =",statements[2])
+        for sql in statements[1:]:
+            self.assertIn("LIMIT 8",sql)
+            self.assertIn("Flosum__Organisation__c",sql)
+        self.assertIn("organization_references=1",output.getvalue())
+        self.assertIn("organization_populated=1",output.getvalue())
+        self.assertIn("unique_sample_rows=1 overlap_sample_rows=1 canonical_link_verified=false",output.getvalue())
+        for value in (FAKE_ID,"private-log","private-org","Flosum__Other_Branch__c","Flosum__Organisation__c"):
+            self.assertNotIn(value,output.getvalue())
+
+    def test_more_than_two_links_does_not_query_logs(self):
+        fields=log_fields()
+        for name in ("Flosum__Other_Branch__c","Flosum__Third_Branch__c"):
+            fields[name]={"type":"reference","referenceTo":[m.BRANCH]}
+        statements=[]
+        def fetch(sql):
+            statements.append(sql)
+            return [{"Id":FAKE_ID}]
+        output=StringIO()
+        with redirect_stdout(output):
+            m.inspect(FAKE_ID,lambda name: branch_fields() if name==m.BRANCH else fields,fetch)
+        self.assertEqual(len(statements),1)
+        self.assertIn("reason=link_limit_exceeded",output.getvalue())
+
+    def test_oversized_log_result_is_rejected(self):
+        def fetch(sql):
+            return [{"Id":FAKE_ID}] if f"FROM {m.BRANCH}" in sql else [{"Id":"private"}]*9
+        with redirect_stdout(StringIO()), self.assertRaises(m.AuditError):
+            m.inspect(FAKE_ID,lambda name: branch_fields() if name==m.BRANCH else log_fields(),fetch)
+
+    def test_workflow_input_loaded_without_echoing_id(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            event=Path(tmp)/"event.json"
+            event.write_text(json.dumps({"inputs":{"branch_id":FAKE_ID}}),encoding="utf-8")
+            output=StringIO()
+            with patch.dict(m.os.environ,{"GITHUB_EVENT_PATH":str(event)}),redirect_stdout(output):
+                self.assertEqual(m.event_branch_id(),FAKE_ID)
+                event.write_text(json.dumps({"inputs":{"branch_id":FAKE_ID+"'"}}),encoding="utf-8")
+                with self.assertRaises(m.AuditError):
+                    m.event_branch_id()
+                event.write_text("{}",encoding="utf-8")
+                with self.assertRaises(m.AuditError):
+                    m.event_branch_id()
+            self.assertEqual(output.getvalue(),"")
 
 
 if __name__=="__main__":
