@@ -2,7 +2,7 @@
 
 **Estado:** proposta de domínio; NOT_READY_FOR_IMPLEMENTATION.
 **Data:** 24/10/2026.
-**Origem:** solicitação do responsável para configurar quais organizações representam PROD, UAT, SIT e DEV. A inspeção da Branch/Metadata Log preparada no PR #93 ainda não possui execução observada.
+**Origem:** solicitação do responsável para configurar quais organizações representam PROD, UAT, SIT e DEV. As coletas integrais #40138960350 e #40139152470 foram executadas, baixadas e analisadas. O [contrato técnico observado](flosum-source-contract.md) substitui as lacunas de identificação de campos descritas nesta proposta.
 
 ## Objetivo e limites
 
@@ -50,9 +50,9 @@ Alterações retroativas na configuração invalidam a certificação dos perío
 
 ## Pendências antes de plan/tasks de implementação
 
-- Executar o diagnóstico existente, operação manual `flosum-branch-inspect`, em `master`, usando privadamente o ID fornecido pelo responsável.
-- Comprovar relacionamento Metadata Log → Branch e referência de organização/destino, incluindo cardinalidade e semântica histórica.
-- Confirmar quais logs representam tentativas, validações ou deployments reais; identificar status terminal, timestamp de conclusão, unidade e timezone.
+- Coleta técnica concluída para a Branch selecionada: schema integral, Tooling FieldDefinition e 26 logs analisados. Ver [contrato técnico observado](flosum-source-contract.md). Não repetir diagnósticos agregados para identificar os mesmos campos.
+- Relacionamentos comprovados: `Flosum__Branch__c`, `Flosum__Source_Branch__c` e `Flosum__Organisation__c`. Implementação deve preservar distinção de papéis e validar períodos fora da amostra.
+- Regra técnica identificada: Process Type/Status + Job Completed/Succeed/Is Error; Start Date e Completed Date próprios, UTC. Deployment Date é fórmula CreatedDate. Validar operações especiais e cobertura antes de certificar métricas.
 - Confirmar a chave autoritativa da organização e os registros que correspondem a cada classe, sem publicar IDs ou valores corporativos no repositório público.
 - Definir quem administra/revisa essa configuração e o mecanismo Salesforce adequado. Custom Metadata, Custom Settings ou armazenamento de dados permanecem escolhas técnicas em aberto.
 - Confirmar serviços/aplicações e responsável por certificar cobertura (SPEC-003 T006c/T007/T008).

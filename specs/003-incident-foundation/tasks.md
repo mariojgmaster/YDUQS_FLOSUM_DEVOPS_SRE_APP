@@ -12,7 +12,7 @@
 - [x] T006b Definir responsáveis pela **revisão causal**: equipe DevOps/SRE (RMs); COE fora do MVP.
 - [ ] T006c Definir quem certifica cobertura DORA, ainda não atribuída.
 - [ ] T007 Confirmar cadastro autoritativo de serviços/aplicações.
-- [ ] T008 Inventariar objetos Flosum de deployment PROD, campos e contratos temporais. **Parcial:** inventário de metadados da DevSreFeat executado no [run #40130263390](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/actions/runs/40130263390) — 8 candidatos de deployment, 6 descritos, 1 com sinais de status/destino/commit, sem timestamp de conclusão identificado. Ainda falta validar objeto/fonte exata, registros reais autorizados e contrato temporal/PROD. Não marcar concluído.
+- [ ] T008 Inventariar objetos Flosum de deployment PROD, campos e contratos temporais. **Fonte técnica identificada e analisada:** runs #40138960350/#40139152470, com schema integral, Tooling FieldDefinition e 26 logs da Branch escolhida. Campos de operação, sucesso e início/fim comprovados no [contrato técnico](../../docs/devops-sre-analytics/flosum-source-contract.md). A tarefa permanece parcial quanto à validação da população completa/operações especiais e governança do período; não confundir descoberta concluída com cobertura DORA certificada.
 - [ ] T009 Aprovar campos mínimos, compartilhamento e retenção de histórico.
 
 ## Implementação posterior, não concluída
@@ -45,4 +45,10 @@
 
 Os jobs acima comprovam testes LWC, dry-run/deploy e validação após limpeza. Não encerram automaticamente T010b, T014b ou T020: ainda falta demonstrar a matriz completa de permissões, FLS e sharing. T012b/T013/T016 continuam pendentes; cadastro manual não certifica vínculo causal nem cobertura DORA.
 
-T008 permanece aberta. A inspeção direcionada Branch/Metadata Log foi preparada e mesclada no [PR #93](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/pull/93), mas ainda não há run observado dessa operação. O [contrato proposto de classificação de ambientes](../../docs/devops-sre-analytics/environment-classification-contract.md) registra regras e dependências sem inventar campos ou classificar destinos reais.
+T008 permanece aberta. A inspeção direcionada Branch/Metadata Log foi preparada e mesclada no [PR #93](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/pull/93), com coleta integral posteriormente executada e analisada nos runs #40138960350 e #40139152470; a identificação de campos não é mais bloqueio para especificar cadastro de ambientes e adaptador de leitura. O [contrato proposto de classificação de ambientes](../../docs/devops-sre-analytics/environment-classification-contract.md) registra regras e dependências sem inventar campos ou classificar destinos reais.
+
+## Aquisição integral concluída — 24/10/2026
+
+- [x] T025 Implementar, testar e executar coleta API integral de leitura com transporte criptografado e disparo owner-only por Issue; PRs #97/#99 mescladas, sete testes específicos e policy CI aprovados.
+- [x] T026 Baixar, verificar SHA-256, descriptografar e analisar o artifact real #40139152470; nenhuma lacuna técnica de consulta nos schemas/campos selecionados. Contrato de fonte consolidado; relatório integral preservado em canal privado.
+- [ ] T027 Próxima SPEC: catálogo de ambientes por referência da organização e adaptador de leitura, preservando causalidade, cobertura e validação de serviços como dependências separadas.
