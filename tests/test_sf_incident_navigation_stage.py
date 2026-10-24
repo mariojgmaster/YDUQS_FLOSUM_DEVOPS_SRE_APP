@@ -10,10 +10,10 @@ def tab(ref):
     return f'<CustomTab xmlns="{NS}"><label>Incidents &amp; Rollbacks</label><lwcComponent>{ref}</lwcComponent><motif>Custom20: Cup</motif></CustomTab>'
 class Tests(unittest.TestCase):
     def test_preview_expected_conflicts(self):
-        m.check_preview({"status":0,"result":{"toDeploy":[{"name":"devSreIncidentsHost"}],"conflicts":[{"name":"incidentsRollbacks"},{"name":"DevSreIncidentControllerTest"}],"toDelete":[],"ignored":[]}})
+        m.check_preview({"status":0,"result":{"toDeploy":[{"apiName":"devSreIncidentsHost"}],"conflicts":[{"apiName":"incidentsRollbacks"},{"apiName":"DevSreIncidentControllerTest"}],"toDelete":[],"ignored":[]}})
     def test_preview_refuses_extra_conflicts(self):
         with self.assertRaises(AssertionError):
-            m.check_preview({"status":0,"result":{"toDeploy":[{"name":"devSreIncidentsHost"}],"conflicts":[{"name":"Secret"}],"toDelete":[],"ignored":[]}})
+            m.check_preview({"status":0,"result":{"toDeploy":[{"apiName":"devSreIncidentsHost"}],"conflicts":[{"apiName":"Secret"}],"toDelete":[],"ignored":[]}})
     def test_original_fields_survive(self):
         cls=(R/"force-app/main/default/classes/DevSreIncidentControllerTest.cls").read_text("utf-8")
         a=cls.index(m.START);b=cls.index(m.END,a);old=cls[:a]+m.OLD+cls[b:]
