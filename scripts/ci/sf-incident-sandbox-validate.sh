@@ -58,6 +58,16 @@ if [[ "$navigation_exit" -ne 0 ]] ||
   exit 1
 fi
 python3 scripts/ci/sf-incident-original-tab-report.py --zip "$work_dir/navigation/customtabs.zip"
+# Diagnostic preview only. This is NOT a deploy and never ignores conflicts.
+python3 scripts/ci/verify-incident-navigation-scope.py
+nav_exit=0
+sf project deploy preview \
+  --manifest manifest/sf-devops-sre-incidents-navigation.xml \
+  --target-org devsrefeat-incidents --json \
+  > "$work_dir/nav-preview.json" 2> "$work_dir/nav-preview.err" || nav_exit=$?
+python3 scripts/ci/sf-incident-navigation-preview-report.py --file "$work_dir/nav-preview.json"
+echo "INFO: INCIDENT_NAV_PREVIEW_EXIT=$nav_exit"
+
 
 
 sf_exit=0

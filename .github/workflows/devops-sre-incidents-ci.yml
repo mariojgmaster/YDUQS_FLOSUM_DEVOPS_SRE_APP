@@ -18,6 +18,10 @@ on:
       - 'force-app/main/default/customPermissions/DevSre_ReviewIncidentCausality.customPermission-meta.xml'
       - 'manifest/sf-devops-sre-rm-review.xml'
       - 'manifest/sf-devops-sre-incidents-sandbox-validate.xml'
+      - 'manifest/sf-devops-sre-incidents-navigation.xml'
+      - 'scripts/ci/verify-incident-navigation-scope.py'
+      - 'scripts/ci/sf-incident-navigation-preview-report.py'
+      - 'tests/test_sf_incident_navigation_preview.py'
       - 'scripts/ci/verify-incident-sandbox-scope.py'
       - 'scripts/ci/sf-incident-sandbox-validate.sh'
       - 'scripts/ci/sf-incident-original-tab-report.py'
@@ -63,6 +67,8 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_sf_incident_component_diagnostics.py' -v
           python3 -m unittest discover -s tests -p 'test_sf_incident_apex_test_diagnostics.py' -v
           python3 -m unittest discover -s tests -p 'test_sf_incident_original_tab_report.py' -v
+          python3 scripts/ci/verify-incident-navigation-scope.py
+          python3 -m unittest discover -s tests -p 'test_sf_incident_navigation_preview.py' -v
           bash -n scripts/ci/sf-incident-sandbox-validate.sh
           bash -n scripts/ci/sf-incident-sandbox-deploy.sh
           bash -n scripts/ci/sf-incident-sandbox-cleanup.sh
