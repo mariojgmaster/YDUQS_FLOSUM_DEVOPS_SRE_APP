@@ -97,4 +97,18 @@ private class DevSreIncidentControllerTest {
     Database.SaveResult invalid = Database.update(first, false);
     Assert.isFalse(invalid.isSuccess(), 'Não aceitar restauração anterior ao impacto');
   }
+  @IsTest
+  static void refusesPrematureDeploymentCausality() {
+    DevSre_Incident__c incident = [
+      SELECT Id, CauseType__c, CauseReviewStatus__c
+      FROM DevSre_Incident__c
+      WHERE Title__c = 'Erro de serviço Alpha'
+      LIMIT 1
+    ];
+    incident.CauseType__c = 'DeploymentRelated';
+    incident.CauseReviewStatus__c = 'Confirmed';
+    incident.CauseJustification__c = 'Sem comprovacao de vinculo real do Flosum';
+    Database.SaveResult result = Database.update(incident, false);
+    Assert.isFalse(result.isSuccess(), 'Nao confirmar deployment sem evidencias verificadas.');
+  }
 }

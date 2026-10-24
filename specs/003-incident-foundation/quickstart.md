@@ -4,7 +4,7 @@
 
 - A equipe de DevOps/SRE cadastra incidentes manualmente no Salesforce.
 - Causalidade não é inferida por automação; operador não tem escrita em `CauseType__c` ou `CauseReviewStatus__c`.
-- Um vínculo causal só será usado em DORA após confirmação por revisor autorizado (método e pessoa exatos **a definir**).
+- Os **RMs DevOps** são revisores iniciais da causa; confirmação COE é evolução futura. A revisão de deployment ainda requer vínculo verificado antes de qualquer DORA.
 - Esta entrega não implementa `DevSre_IncidentDeployment__c`, `DevSre_MeasurementCoverage__c` nem qualquer KPI.
 
 ## Entregue no código (somente GitHub)
@@ -38,6 +38,14 @@ npm run test:unit -- -- --runInBand --runTestsByPath force-app/main/default/lwc/
 ## Riscos que impedem homologação
 
 1. OWD Private exige regra de compartilhamento ou processo de atribuição quando múltiplos operadores precisam colaborar num incidente.
-2. O papel revisor, trilha de aprovação causal e modelo de deployment Flosum ainda estão em aberto.
+2. O papel revisor está definido como RM DevOps; ainda falta política de sharing, vínculo Flosum e certificação de cobertura.
 3. Field History Tracking padrão tem limites/retenção próprios; a auditoria formal pode requerer política de retenção adicional.
 4. O CustomObject XML e os testes Apex precisam de validação contra a versão instalada na org. Ninguém afirmou que a metadata já compilou ou foi instalada.
+
+## MVP-02 / permissão de revisor e testes
+
+- Atribuir `DevSreIncident_Operator` + `DevSreIncident_RMReviewer` apenas a RMs aprovados. Não atribuir o segundo a operadores de rotina.
+- Confirmar `$Permission.DevSre_ReviewIncidentCausality` e FLS `Cause*` em usuário real; não basta ocultar botão.
+- Validar casos: operador tenta alterar causa via API (falha), incidente novo com causa não-pendente (falha), RM confirma `Other` com justificativa (sucesso), sem justificativa (falha), qualquer usuário confirma `DeploymentRelated` (falha).
+- Confirmar que o objeto continua `Private`, e providenciar compartilhamento controlado para RMs conforme a política a aprovar; Permission Set não cria sharing.
+- O manifesto novo `manifest/sf-devops-sre-rm-review.xml` é candidato a **validate** posterior. Não está na allowlist M4; nenhum deploy foi realizado.

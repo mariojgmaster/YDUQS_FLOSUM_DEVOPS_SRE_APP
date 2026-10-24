@@ -1,6 +1,7 @@
 import { createElement } from "lwc";
 import DevSreIncidentIntake from "c/devSreIncidentIntake";
 import listIncidents from "@salesforce/apex/DevSreIncidentController.listIncidents";
+jest.mock("@salesforce/customPermission/DevSre_ReviewIncidentCausality", () => ({ default: undefined }), { virtual: true });
 import listRecoveryActions from "@salesforce/apex/DevSreIncidentController.listRecoveryActions";
 
 jest.mock("@salesforce/apex/DevSreIncidentController.listIncidents", () => ({ default: jest.fn() }), { virtual: true });
@@ -72,6 +73,12 @@ describe("c-dev-sre-incident-intake", () => {
     const component = mount();
     await flush();
     expect(component.shadowRoot.textContent).toContain("mais de 50 incidentes");
+  });
+
+  it("nao exibe a revisao de causa para operador sem Custom Permission", async () => {
+    const component = mount();
+    await flush();
+    expect(component.shadowRoot.querySelector('lightning-button[label="Revisar causa (RM)"]')).toBeNull();
   });
 
   it("atualiza a consulta sem inventar estado", async () => {
