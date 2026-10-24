@@ -38,7 +38,7 @@ npm run test:unit -- -- --runInBand --runTestsByPath force-app/main/default/lwc/
 ## Riscos que impedem homologação
 
 1. OWD Private exige regra de compartilhamento ou processo de atribuição quando múltiplos operadores precisam colaborar num incidente.
-2. O papel revisor está definido como RM DevOps; ainda falta política de sharing, vínculo Flosum e certificação de cobertura.
+2. A revisão é realizada pela equipe DevOps/SRE (os RMs); ainda falta política de sharing, vínculo Flosum e certificação de cobertura.
 3. Field History Tracking padrão tem limites/retenção próprios; a auditoria formal pode requerer política de retenção adicional.
 4. O CustomObject XML e os testes Apex precisam de validação contra a versão instalada na org. Ninguém afirmou que a metadata já compilou ou foi instalada.
 

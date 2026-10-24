@@ -9,7 +9,7 @@
 
 ## Dependências de descoberta/revisão
 - [x] T006a Confirmar responsáveis pelo cadastro manual: equipe DevOps/SRE (aprovado em 23/10/2026).
-- [x] T006b Definir responsáveis pela **revisão causal**: RMs DevOps; COE fora do MVP.
+- [x] T006b Definir responsáveis pela **revisão causal**: equipe DevOps/SRE (RMs); COE fora do MVP.
 - [ ] T006c Definir quem certifica cobertura DORA, ainda não atribuída.
 - [ ] T007 Confirmar cadastro autoritativo de serviços/aplicações.
 - [ ] T008 Inventariar objetos Flosum de deployment PROD, campos e contratos temporais.
@@ -32,6 +32,11 @@
 
 ## MVP-02 / revisão em GitHub
 - [x] T017 Atualizar decisão de governança: RMs DevOps; COE postergado.
-- [x] T018 Preparar Custom Permission + Permission Set RM e regras de validação anti-confirmação prematura.
+- [x] T018 Preparar Custom Permission no Permission Set DevOps/SRE e regras anti-confirmação prematura.
 - [x] T019 Preparar formulário de revisão exclusivo para RM em LWC e testes Jest/CI.
 - [ ] T020 Validar deploy package, teste de permissões/FLS e sharing na DevSreFeat; nenhum deploy implícito.
+
+- [x] T021 Remover a separação artificial de RM e operador; revisão pelo grupo DevOps/SRE com o próprio `DevSreIncident_Operator`.
+- [x] T022 Preparar Public Group e sharing rules para todos os incidentes e ações da equipe, sem expor a organização inteira.
+- [x] T023 Preparar workflow manual de dry-run com teste Apex em DevSreFeat (execução real pós-merge).
+- [ ] T024 Registrar execução real do workflow DevSreFeat, job ID e resultados; sem marcar homologado antes do PASS.

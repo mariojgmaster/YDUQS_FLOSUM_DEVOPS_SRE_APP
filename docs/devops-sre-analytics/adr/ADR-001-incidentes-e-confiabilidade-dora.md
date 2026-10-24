@@ -77,7 +77,7 @@ Toda mudança que reabra ou corrija uma evidência pode invalidar uma certifica�
 
 - Os **RMs de DevOps** são os responsáveis iniciais por **gerir e revisar** incidentes; cadastro permanece com operadores DevOps/SRE.
 - Não há aprovação obrigatória do COE neste ciclo. Sua futura participação exigirá nova especificação, sem incluir controles não solicitados agora.
-- A pessoa do RM recebe `DevSreIncident_Operator` e `DevSreIncident_RMReviewer` conforme atribuição explícita. O segundo concede `DevSre_ReviewIncidentCausality`, campo causal editável e regras de validação no servidor; não concede `View All` nem contorna o `Private`.
+- A pessoa do RM recebe `DevSreIncident_Operator` conforme atribuição explícita. O próprio Permission Set de Operador concede `DevSre_ReviewIncidentCausality` e a FLS dos campos de revisão; não concede `View All` nem contorna o `Private`.
 - Revisão da **causa por outros fatores** pode ser confirmada ou rejeitada com justificativa. **Confirmação de `DeploymentRelated` permanece bloqueada**, inclusive pela API, até existir vínculo auditável com deployment real; criar essa associação é fase posterior.
 - Alterações manuais ao campo causal são impedidas para não RMs por regra de validação com `$Permission`. As regras exigem novos incidentes `Unconfirmed/Pending` e justificativa para conclusões.
 - **Nada nesta decisão libera cálculos DORA**. Fonte de deployments, vínculo causal, reconciliação e cobertura por serviço/período continuam gates obrigatórios.

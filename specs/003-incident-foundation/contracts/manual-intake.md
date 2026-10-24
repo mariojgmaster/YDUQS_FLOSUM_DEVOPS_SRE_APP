@@ -32,9 +32,9 @@ Não pode: atestar vínculo causal, certificar cobertura, publicar indicadores D
 
 Qualquer contagem dessa fila pode ser exibida como **volumetria operacional da fila**, nunca como número certificado de falhas de deployment. KPI DORA: `Não mensurável` até cobertura e vínculos revisados.
 
-## RM DevOps — revisão causal (MVP-02)
+## DevOps/SRE (RMs) — revisão causal (MVP-02)
 
-- Recebe `DevSreIncident_RMReviewer` **além** de `DevSreIncident_Operator`, com acesso a incidentes conforme compartilhamento Private.
+- Recebe `DevSreIncident_Operator` (inclui a Custom Permission de revisão), com acesso a incidentes conforme compartilhamento Private.
 - Custom Permission `DevSre_ReviewIncidentCausality` permite acessar os campos `CauseType__c`, `CauseReviewStatus__c`, `CauseJustification__c` via Lightning Data Service; não concede acesso amplo ou alteração em Flosum.
 - Regra de validação impede qualquer alteração de campos de causa por usuários sem a Custom Permission; cadastro inicial sempre `Unconfirmed/Pending`.
 - RM pode confirmar ou rejeitar classificação **não associada a deployment**, fornecendo justificativa auditável.
