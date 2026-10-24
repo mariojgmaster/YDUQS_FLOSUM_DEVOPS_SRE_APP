@@ -23,7 +23,7 @@ class IncidentDeploySafety(unittest.TestCase):
         for x in (
             'CONFIRMATION:-}" == "DEPLOY DevSreFeat"', "REQUESTED_SHA,,",
             "EXPECTED_ATTEMPT", "EXPECTED_ACTOR", "EXPECTED_OWNER",
-            "python3 scripts/ci/verify-incident-sandbox-scope.py"
+            "python3 scripts/ci/verify-incident-navigation-scope.py"
         ):
             self.assertIn(x,S)
 
@@ -80,11 +80,13 @@ class IncidentDeploySafety(unittest.TestCase):
         )
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertEqual(proc.stdout.strip(), "0\t1\t2\t1")
-        self.assertIn('[[ "$conflict_count" == "0" && "$delete_count" == "0" && "$ignored_count" == "0" ]]', S)
+        self.assertIn('sf-incident-navigation-stage.py', S)
+        self.assertIn('INCIDENT_DELTA_SECURITY_FAILED', S)
+        self.assertIn('--metadata-dir "$tmp_dir/mdapi"', S)
 
     def test_credential_safety_and_fail_closed(self):
         for x in ('chmod 600', 'trap ', 'INCIDENT_REAL_DEPLOY_UNCONFIRMED',
-                  'INCIDENT_PREVIEW_UNSAFE', 'INCIDENT_TARGET_DENIED',
+                  'INCIDENT_DELTA_SECURITY_FAILED', 'INCIDENT_TARGET_DENIED',
                   'INCIDENT_SAME_RUN_DRY_RUN_AND_APEX_TESTS'):
             self.assertIn(x,S)
         self.assertNotIn('cat "$tmp_dir/real.json"',S)
