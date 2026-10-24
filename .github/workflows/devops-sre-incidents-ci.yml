@@ -19,6 +19,10 @@ on:
       - 'scripts/ci/verify-incident-sandbox-scope.py'
       - 'scripts/ci/sf-incident-sandbox-validate.sh'
       - '.github/workflows/sf-devsrefeat-incidents-validate.yml'
+      - 'scripts/ci/sf-incident-chatops-intent.py'
+      - 'tests/test_sf_incident_chatops_intent.py'
+      - 'tests/test_sf_incident_component_diagnostics.py'
+      - 'scripts/ci/sf-incident-component-diagnostics.py'
   workflow_dispatch:
 
 permissions:
@@ -38,6 +42,11 @@ jobs:
         run: python3 scripts/ci/verify-rm-review.py
       - name: Validar allowlist da sandbox
         run: python3 scripts/ci/verify-incident-sandbox-scope.py
+      - name: Validar proteções do ChatOps e sintaxe do workflow sandbox
+        run: |
+          python3 -m unittest discover -s tests -p 'test_sf_incident_chatops_intent.py' -v
+          python3 -m unittest discover -s tests -p 'test_sf_incident_component_diagnostics.py' -v
+          bash -n scripts/ci/sf-incident-sandbox-validate.sh
       - name: Set up Node
         uses: actions/setup-node@v4
         with:

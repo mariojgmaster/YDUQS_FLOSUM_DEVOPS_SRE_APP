@@ -1,12 +1,15 @@
-# Manual-only check in the existing reviewed sandbox, no deployment persists.
-# This workflow MUST be triggered on master by the repository owner, never on PRs.
+# Two owner-only intents: workflow_dispatch or exact owner-authored Issue.
+# Both paths are SANDBOX DRY-RUN ONLY; no deployment persists, never from PRs.
 name: Salesforce DevSreFeat - Incident Validation
 
 on:
   workflow_dispatch:
+  issues:
+    types: [opened]
 
 permissions:
   contents: read
+  issues: read
 
 concurrency:
   group: sf-devsrefeat-read
@@ -14,7 +17,7 @@ concurrency:
 
 jobs:
   validate:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' && github.actor == github.repository_owner && github.run_attempt == 1 }}
+    if: ${{ github.ref == 'refs/heads/master' && github.actor == github.repository_owner && github.run_attempt == 1 && (github.event_name == 'workflow_dispatch' || (github.event_name == 'issues' && github.event.action == 'opened' && github.event.issue.user.login == github.repository_owner && github.event.sender.login == github.repository_owner && github.event.issue.title == 'SDOA VALIDATE DevSreFeat incident-intake')) }}
     name: Dry-run completo dos Incidentes na DevSreFeat
     runs-on: ubuntu-latest
     timeout-minutes: 100
@@ -29,12 +32,19 @@ jobs:
       EXPECTED_ACTOR: ${{ github.actor }}
       EXPECTED_OWNER: ${{ github.repository_owner }}
       EXPECTED_RUN_ATTEMPT: ${{ github.run_attempt }}
+      EXPECTED_EVENT_NAME: ${{ github.event_name }}
     steps:
       - name: Checkout da master revisada no SHA exato
         uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+      - name: Verificar intenção ChatOps exata antes de qualquer credencial
+        if: github.event_name == 'issues'
+        env:
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.repository }}
+        run: python3 scripts/ci/sf-incident-chatops-intent.py --event "$GITHUB_EVENT_PATH" --owner "$REPO_OWNER" --repository "$REPO_NAME"
       - name: Verificar escopo e controles estaticos
         shell: bash
         run: |

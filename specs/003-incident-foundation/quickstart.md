@@ -59,3 +59,28 @@ npm run test:unit -- -- --runInBand --runTestsByPath force-app/main/default/lwc/
 5. Nenhuma aprovação do COE é exigida neste MVP.
 
 **Status até haver execução de run:** código em GitHub não é validação Salesforce. Não declarar concluído.
+
+## ChatOps de validação sem deploy (autonomia autorizada para a DevSreFeat)
+
+O conector GitHub não oferece uma ação `workflow_dispatch` direta. Como o M5 já comprovou o disparo de GitHub Actions a partir de Issues do proprietário, este incremento habilita uma segunda solicitação **estritamente fixa** de validação, que o assistente pode criar pelo conector, consultar os runs e analisar os logs.
+
+**Título exato da Issue:**
+```text
+SDOA VALIDATE DevSreFeat incident-intake
+```
+
+**Corpo exato:**
+```text
+SDOA-INCIDENT-VALIDATE/1
+operation=validate
+target=DevSreFeat
+package_id=incident-intake
+```
+
+O workflow de `issues.opened` somente executa se o autor, ator e emissor da Issue forem o dono do repositório; ref `master`, SHA de checkout fixo, `run_attempt=1`, manifest fixo e ambiente JWT existente. A intenção é revalidada **também no job privilegiado**. Não aceita scripts, parâmetros de comando, manifests arbitrários, produção ou deployment. A Issue é pedido auditável, **não é prova de execução**: depois da criação, localizar o run, job e logs reais.
+
+Se a integração do conector não produzir uma Issue como o proprietário ou se não houver run, usar o `workflow_dispatch` manual já existente; nunca inferir sucesso.
+
+**Diagnóstico:** em falhas de dry-run, emitir `SDOA_M42_DRY_RUN_DIAG` com contagens agregadas e categorias enumeradas de erro; nenhum erro bruto ou identificador da org em logs de repositório público. O prefixo é do utilitário genérico M4 reutilizado, embora a operação seja a validação de incidentes. O diagnóstico mais detalhado segue disponível exclusivamente no Deployment Status da DevSreFeat.
+
+O diagnóstico categórico também emite `INCIDENT_COMPONENT_DIAG: type=... category=... count=N`, onde o tipo vem de uma allowlist de metadados e a categoria é uma enumeração estática. **Nunca** expõe componentes de outras partes da org, erros brutos ou IDs de cliente; resultados detalhados ficam no Deployment Status da sandbox.
