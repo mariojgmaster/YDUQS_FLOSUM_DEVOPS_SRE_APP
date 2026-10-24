@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>CauseReviewNeedsJustification</fullName>
   <active>true</active>
   <errorConditionFormula>AND(OR(ISPICKVAL(CauseReviewStatus__c, "Confirmed"), ISPICKVAL(CauseReviewStatus__c, "Rejected")), ISBLANK(CauseJustification__c))</errorConditionFormula>
   <errorMessage>Registre a justificativa da revisao causal.</errorMessage>

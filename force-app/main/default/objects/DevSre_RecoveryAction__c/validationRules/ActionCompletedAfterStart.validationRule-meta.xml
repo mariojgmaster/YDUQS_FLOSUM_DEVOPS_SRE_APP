@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>ActionCompletedAfterStart</fullName>
     <active>true</active>
     <errorConditionFormula>AND(NOT(ISBLANK(StartedAt__c)), NOT(ISBLANK(CompletedAt__c)), CompletedAt__c &lt; StartedAt__c)</errorConditionFormula>
     <errorMessage>A conclusão não pode ocorrer antes do início da ação.</errorMessage>

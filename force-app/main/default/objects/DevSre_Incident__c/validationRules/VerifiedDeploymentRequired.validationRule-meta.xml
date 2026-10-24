@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>VerifiedDeploymentRequired</fullName>
   <active>true</active>
   <errorConditionFormula>AND(ISPICKVAL(CauseType__c, "DeploymentRelated"), ISPICKVAL(CauseReviewStatus__c, "Confirmed"))</errorConditionFormula>
   <errorMessage>Confirmacao de causa por deployment bloqueada ate haver vinculo verificado ao deployment real do Flosum.</errorMessage>

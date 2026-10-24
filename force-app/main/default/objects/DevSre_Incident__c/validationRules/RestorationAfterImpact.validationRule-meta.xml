@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>RestorationAfterImpact</fullName>
     <active>true</active>
     <errorConditionFormula>AND(NOT(ISBLANK(ImpactStartedAt__c)), NOT(ISBLANK(RestoredAt__c)), RestoredAt__c &lt; ImpactStartedAt__c)</errorConditionFormula>
     <errorMessage>O instante da restauração não pode ser anterior ao início do impacto.</errorMessage>
