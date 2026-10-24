@@ -106,3 +106,6 @@ No dry-run #40054058870, todos os metadados passaram (`component_errors=0`), por
 - Para testar consultas do controller **em usuário autorizado**, `@TestSetup` atribui temporariamente a `DevSreIncident_Operator` ao usuário de teste dentro de `System.runAs`, isolando PermissionSetAssignment (setup-object DML) dos objetos de negócio; dados test-only são revertidos após execução.
 - O controller em produção não muda: `WITH USER_MODE`, `with sharing` e verificações CRUD/FLS seguem obrigatórios. Nenhuma permissão foi adicionada a usuários reais na org.
 - CI protege os modos e as permissões e o processo precisa do novo `--dry-run` com Apex tests na DevSreFeat antes de chamar homologado.
+
+## Diagnóstico seguro de métodos de teste Apex
+O dry-run #40055155347 alcançou 3 testes aprovados e 2 falhas `OTHER_APEX_EXCEPTION`. O parser agora registra somente nomes de métodos que já existem na classe pública `DevSreIncidentControllerTest` e nomes de exceções de uma enumeração fechada, sem publicar mensagens, linhas de stack ou identificadores privados. Usar esse resultado para corrigir o contrato de acesso ou a asserção precisa, sem rebaixar `WITH USER_MODE` no controller.
