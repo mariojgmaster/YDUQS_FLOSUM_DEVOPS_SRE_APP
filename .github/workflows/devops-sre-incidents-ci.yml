@@ -25,6 +25,9 @@ on:
       - 'scripts/ci/sf-incident-component-diagnostics.py'
       - 'scripts/ci/sf-incident-apex-test-diagnostics.py'
       - 'tests/test_sf_incident_apex_test_diagnostics.py'
+      - '.github/workflows/sf-devsrefeat-incidents-deploy.yml'
+      - 'scripts/ci/sf-incident-sandbox-deploy.sh'
+      - 'tests/test_sf_incident_explicit_deploy.py'
   workflow_dispatch:
 
 permissions:
@@ -50,6 +53,8 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_sf_incident_component_diagnostics.py' -v
           python3 -m unittest discover -s tests -p 'test_sf_incident_apex_test_diagnostics.py' -v
           bash -n scripts/ci/sf-incident-sandbox-validate.sh
+          bash -n scripts/ci/sf-incident-sandbox-deploy.sh
+          python3 -m unittest discover -s tests -p 'test_sf_incident_explicit_deploy.py' -v
       - name: Set up Node
         uses: actions/setup-node@v4
         with:

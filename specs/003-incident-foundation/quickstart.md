@@ -113,3 +113,25 @@ O dry-run #40055155347 alcançou 3 testes aprovados e 2 falhas `OTHER_APEX_EXCEP
 ## Testes de consulta na API 67 — DevSreFeat #40055376602
 
 O controller compilou e 3 testes Apex passaram; os dois testes de consulta falharam com `AuraHandledException`. Os métodos chamavam o controller fora do contexto de `System.runAs`, apesar de o Permission Set ser atribuído em `@TestSetup`. Agora o grant de `DevSreIncident_Operator` é realizado **dentro de cada método de teste positivo**, e as chamadas reais são feitas em `System.runAs`. Isto exerce `WITH USER_MODE` com perfil operacional e não altera o controller nem acessos permanentes na org. Os testes negativos de parâmetros também usam o contexto de operador para não confundir falta de acesso com entrada inválida.
+
+## Deploy REAL controlado na sandbox DevSreFeat — workflow dedicado
+
+**Autorização de escopo:** somente o módulo Incidentes e Recuperações, com o manifesto existente `manifest/sf-devops-sre-incidents-sandbox-validate.xml`. Não implantar na produção, não alterar Flosum, não executar `quick deploy`.
+
+**Execução exclusivamente manual por proprietário:** o fluxo `Salesforce DevSreFeat - Deploy Incidentes Explicito` exige `workflow_dispatch`, `master` protegida, SHA imutável completo, confirmação literal `DEPLOY DevSreFeat`, GitHub Environment `sf-devsrefeat-read`, e `run_attempt=1`. O conector GitHub disponível ao assistente consegue criar PR/Issue/ler logs, **mas não dispõe do disparo `workflow_dispatch`**. Uma Issue de ChatOps é aceita apenas para dry-run, nunca para escrita.
+
+**Pré-requisito de governança GitHub:** consultar `master.protected` e regras ativas. Se `protected=false`, aplicar Branch Protection ou ruleset antes da execução real, por exemplo exigindo PR/checks e bloqueando force pushes e deleção. O workflow revalida `protected=true` via GitHub API e falha fechado.
+
+**Passos do proprietário para o deploy (após merge do workflow, regras de proteção e CI PASS):**
+
+1. Conferir último SHA completo da `master` no repositório.
+2. GitHub → Actions → `Salesforce DevSreFeat - Deploy Incidentes Explicito` → Run workflow (branch `master`).
+3. Preencher `commit_sha` com o SHA completo e `confirmation` com o texto exato `DEPLOY DevSreFeat`.
+4. O job verifica a intenção, manifesto e proteção da branch; executa lint/Jest, prévia sem conflitos/exclusões/ignorados, **novo dry-run Metadata API + RunSpecifiedTests** e, apenas se PASS, `sf project deploy start` real com o **mesmo** SHA/manifest/org/testes.
+5. Em caso de resposta ambígua do deploy, NÃO repetir: consultar Setup → Deployment Status pelo mesmo horário/run e reconciliar antes de nova tentativa.
+6. Após real PASS, configurar **integrantes do grupo `DevSre_Incident_RMs` e Permission Set `DevSreIncident_Operator`**; esse mapeamento de pessoas é admin e não é codificado no pacote.
+7. Habilitar tab `DevSre_Incident_Intake` no Lightning App pelo App Manager, se ainda não estiver na navegação, e homologar cadastro, revisão, compartilhamento entre 2 membros e bloqueio de 1 não-membro na sandbox.
+
+**Validação técnica anterior conhecida:** [Incident Validation #40055639545](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/actions/runs/40055639545) — PASS, SHA `de63f8224b6151f14a40b19cdf4a4917ebd431ac`. Não usar este sucesso como substituto do novo dry-run obrigatório **no mesmo run de deploy**.
+
+Nenhum workflow `push`, `issues`, `workflow_run`, PR ou agendamento pode acionar esta implantação real.
