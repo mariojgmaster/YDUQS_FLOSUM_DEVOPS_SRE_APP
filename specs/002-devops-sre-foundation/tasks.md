@@ -13,7 +13,7 @@
 - [x] T008 Disponibilizar CI restrito a testes de LWC do novo componente.
 
 ## Validação não executada na origem ainda
-- [ ] T009 Executar Jest e lint do novo LWC com dependências instaladas, verificar logs de CI.
+- [x] T009 Executar Jest e lint do novo LWC com dependências instaladas, verificar logs de CI — [run #40044764106](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/actions/runs/40044764106): ESLint PASS; 6/6 Jest PASS.
 - [ ] T010 Validar compile, segurança e Apex tests na DevSreFeat sem deploy.
 - [ ] T011 Verificar dados reais, perfis e o comportamento de FLS na sandbox.
 - [ ] T012 Validar configuração da Lightning Component Tab, App Manager e tema Cosmos.

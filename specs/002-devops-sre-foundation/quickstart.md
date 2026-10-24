@@ -23,4 +23,7 @@ Após aprovação e deploy explícito, criar **Lightning Component Tab** para `d
 
 ## Evidência
 
-Anotar aqui os IDs dos jobs, URL do run e resultados somente **após execução real**. No estado inicial: testes na org **não executados**; deploy real **não executado**.
+- **GitHub Actions CI:** [run #40044764106](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/actions/runs/40044764106) concluído com sucesso, no commit `7fab12addc1d173fedb8036918eebd0312736c27`. ESLint PASS; 1 suíte Jest PASS, 6/6 testes.
+- **M4 Policy Checks:** [run #40044764099](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/actions/runs/40044764099) com sucesso (valida a política existente, não Apex).
+- **Apex/DevSreFeat:** ainda sem execução comprovada; CI Jest não substitui validação Apex.
+- **Deploy real:** não executado.
