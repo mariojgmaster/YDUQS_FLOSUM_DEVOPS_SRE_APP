@@ -143,3 +143,15 @@ O segundo acionamento de deploy explícito na DevSreFeat ([run #40061863199](htt
 Corrigimos extraindo o filtro em `scripts/ci/incident-preview-counts.jq` e isolando os quatro `( ... | length )` com parênteses. O script faz captura do retorno de jq (falha fechada), valida que todas as quatro contagens são numéricas, e mantém o bloqueio a conflitos, exclusões e itens ignorados. Testes de regressão **executam o filtro jq real** com cenários com e sem pendências.
 
 O run #40061863199 terminou FAIL, e **não realizou dry-run nem deploy persistente**. A correção deve ser mesclada mediante CI antes de novo `workflow_dispatch` com SHA atual, confirmação literal, proteção master e testes no mesmo run. **Nunca usar rerun do job de escrita.**
+
+## Remoção física da tab duplicada (após teste visual da aba original)
+
+Existe workflow separado `Salesforce DevSreFeat - Remover Aba Duplicada Incidentes`, exclusivamente manual, protegido por actor owner, `master` protegida, SHA de commit de 40 caracteres e confirmação literal `DELETE DevSre_Incident_Intake DevSreFeat`.
+
+1. **Antes:** executar deploy real do host da aba original via workflow `Salesforce DevSreFeat - Deploy Incidentes Explicito` e abrir `incidentsRollbacks` comprovando as duas visões.
+2. Cleanup lê diretamente da sandbox os metadados das abas `incidentsRollbacks` e `DevSre_Incident_Intake`. Só prossegue se a primeira aponta para `devSreIncidentsHost` e a segunda ainda aponta para `devSreIncidentIntake`.
+3. `destructiveChangesPost.xml` tem **apenas** `CustomTab DevSre_Incident_Intake`; `package.xml` está vazio. Exige dry-run com 5 testes Apex PASS e resposta de sucesso antes de qualquer exclusão física.
+4. O LWC `devSreIncidentIntake`, o host original, os objetos `DevSre_Incident__c` e `DevSre_RecoveryAction__c`, as permissões e os registros permanecem. Nenhum objeto é excluído.
+5. O workflow é **destrutivo e separado** do deploy normal. Não utilizar Issue ChatOps para este tipo de operação. Não repetir run ambíguo; verificar o Deployment Status.
+
+Status até essa execução: remoção física não foi feita, apenas a definição duplicada foi removida do repositório.
