@@ -1,0 +1,94 @@
+# Explicit REAL metadata deployment to DevSreFeat only. Never add push, PR,
+# Issue, label, workflow_run or schedule triggers to this workflow.
+name: Salesforce DevSreFeat - Deploy Incidentes Explicito
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: "SHA completo de 40 caracteres da master a implantar"
+        required: true
+        type: string
+      confirmation:
+        description: "Digite literalmente DEPLOY DevSreFeat para autorizar escrita REAL"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sf-devsrefeat-read
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' && github.actor == github.repository_owner && github.run_attempt == 1 }}
+    name: Validar e implantar incidentes exclusivamente na DevSreFeat
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: sf-devsrefeat-read
+    env:
+      SF_CLIENT_ID: ${{ secrets.SF_CLIENT_ID }}
+      SF_USERNAME: ${{ secrets.SF_USERNAME }}
+      SF_JWT_KEY: ${{ secrets.SF_JWT_KEY }}
+      SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
+      REQUESTED_SHA: ${{ inputs.commit_sha }}
+      CONFIRMATION: ${{ inputs.confirmation }}
+      EXPECTED_SHA: ${{ github.sha }}
+      EXPECTED_REF: ${{ github.ref }}
+      EXPECTED_EVENT: ${{ github.event_name }}
+      EXPECTED_ACTOR: ${{ github.actor }}
+      EXPECTED_OWNER: ${{ github.repository_owner }}
+      EXPECTED_ATTEMPT: ${{ github.run_attempt }}
+    steps:
+      - name: Checkout exato do commit autorizado
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Confirmar protecao da master via API GitHub
+        shell: bash
+        env:
+          GH_READ_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          branch_json="$(mktemp)"
+          trap 'rm -f "$branch_json"' EXIT
+          if ! curl --fail --silent --show-error --location --max-time 20 \
+            --header "Authorization: Bearer $GH_READ_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/branches/master" > "$branch_json" 2>/dev/null; then
+            echo "::error title=INCIDENT_MASTER_PROTECTION_UNVERIFIABLE::Nao foi possivel comprovar a protecao da master."
+            exit 1
+          fi
+          if ! jq -e '.name == "master" and .protected == true' "$branch_json" >/dev/null 2>&1; then
+            echo "::error title=INCIDENT_MASTER_UNPROTECTED::Habilite Branch Protection ou ruleset ativo para master antes do deploy real."
+            exit 1
+          fi
+          echo "PASS: INCIDENT_MASTER_BRANCH_PROTECTED"
+      - name: Verificar manifesto e invariantes de seguranca
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/verify-incident-sandbox-scope.py
+          python3 scripts/ci/verify-incident-metadata.py
+          python3 scripts/ci/verify-rm-review.py
+          bash -n scripts/ci/sf-incident-sandbox-deploy.sh
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Testar LWC no SHA autorizado
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx eslint force-app/main/default/lwc/devSreIncidentIntake/devSreIncidentIntake.js
+          npm run test:unit -- -- --runInBand --runTestsByPath force-app/main/default/lwc/devSreIncidentIntake/__tests__/devSreIncidentIntake.test.js force-app/main/default/lwc/devSreIncidentIntake/__tests__/devSreIncidentIntakeRm.test.js
+      - name: Instalar Salesforce CLI
+        run: npm install --global @salesforce/cli
+      - name: Dry-run e deploy real no mesmo SHA e manifest
+        shell: bash
+        run: bash scripts/ci/sf-incident-sandbox-deploy.sh
