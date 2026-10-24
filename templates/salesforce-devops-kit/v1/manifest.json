@@ -42,7 +42,7 @@
     {
       "source": "templates/salesforce-devops-kit/v1/files/scripts/ci/sf-m5-chatops-intent.py",
       "destination": "scripts/ci/sf-m5-chatops-intent.py",
-      "git_blob_sha": "201a2c548cb02fe1b8ca4393d4e2c116ccada27c"
+      "git_blob_sha": "81c67c60e009a5e5e91aecb40fc20563c9307f66"
     },
     {
       "source": "templates/salesforce-devops-kit/v1/files/scripts/ci/sf-general-deploy.sh",
