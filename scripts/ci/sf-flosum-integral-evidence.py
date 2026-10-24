@@ -21,7 +21,8 @@ FIELDS = ['Flosum__Branch__c', 'Flosum__Organisation__c',
           'Flosum__Process_Type__c', 'Flosum__Status__c',
           'Flosum__Job_Completed__c', 'Flosum__Result__c',
           'Flosum__Deployment_Date__c', 'Flosum__Async_Request_Id__c',
-          'Flosum__Patch__c']
+          'Flosum__Patch__c', 'Flosum__Succeed__c', 'Flosum__Is_Error__c',
+          'Flosum__Parent_Log__c', 'Flosum__Automation_Completed__c']
 
 
 class EvidenceError(Exception):
@@ -100,7 +101,7 @@ def collect(scope, reader=rows, schema_reader=describe):
         raise EvidenceError('branch scope not unique')
     branch_id = candidates[0]
     bfields = fieldmap(evidence['schemas'][BRANCH])
-    branch_cols = readable_columns(evidence['schemas'][BRANCH], ['Id', 'Name', 'CreatedDate', 'LastModifiedDate'] + [x for x, f in bfields.items() if f.get('type') in ('reference', 'date', 'datetime')])
+    branch_cols = readable_columns(evidence['schemas'][BRANCH], ['Id', 'Name', 'CreatedDate', 'LastModifiedDate', 'Flosum__Last_Commit__c'] + [x for x, f in bfields.items() if f.get('type') in ('reference', 'date', 'datetime')])
     evidence['records'][BRANCH] = reader(f"SELECT {', '.join(branch_cols)} FROM {BRANCH} WHERE Id = '{branch_id}' LIMIT 1")
     mfields = fieldmap(evidence['schemas'][LOG])
     links = sorted(x for x, f in mfields.items() if NAME.fullmatch(x) and f.get('type') == 'reference' and BRANCH in (f.get('referenceTo') or []))
