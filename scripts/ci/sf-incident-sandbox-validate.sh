@@ -96,7 +96,7 @@ jq -e '.status==0' "$WORK/convert.json" >/dev/null || gate INCIDENT_CONVERT_UNCO
 python3 scripts/ci/sf-incident-navigation-stage.py \
   --tabs "$WORK/remote-tabs/tabs.zip" \
   --klass "$WORK/remote-class/class.zip" \
-  --candidate "$WORK/mdapi" --preview "$WORK/preview.json" ||
+  --candidate "$WORK/mdapi" --preview "$WORK/nav-preview.json" ||
   gate INCIDENT_DELTA_SECURITY_FAILED
 
 sf project deploy start --dry-run --metadata-dir "$work_dir/mdapi" \
