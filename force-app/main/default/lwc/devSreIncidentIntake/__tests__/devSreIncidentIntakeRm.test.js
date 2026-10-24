@@ -13,7 +13,7 @@ const INCIDENT_ID = "a01000000000001AAA";
 describe("revisao pela equipe DevOps/SRE", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    listIncidents.mockResolvedValue({ incidents: [{ id: INCIDENT_ID, number: "INC-000001", title: "Análise RM", status: "Open" }], hasMore: false });
+    listIncidents.mockResolvedValue({ incidents: [{ id: INCIDENT_ID, recordNumber: "INC-000001", title: "Análise RM", status: "Open" }], hasMore: false });
     listRecoveryActions.mockResolvedValue({ actions: [], hasMore: false });
   });
   afterEach(() => { document.body.innerHTML = ""; });
@@ -24,7 +24,7 @@ describe("revisao pela equipe DevOps/SRE", () => {
     await flush();
     expect(component.shadowRoot.querySelector('lightning-button[label="Revisar causa"]')).toBeNull();
     component.shadowRoot.querySelector('lightning-datatable[data-name="incidents"]').dispatchEvent(
-      new CustomEvent("rowaction", { detail: { action: { name: "view_actions" }, row: { id: INCIDENT_ID, number: "INC-000001" } } })
+      new CustomEvent("rowaction", { detail: { action: { name: "view_actions" }, row: { id: INCIDENT_ID, recordNumber: "INC-000001" } } })
     );
     await flush();
     const buttons = [...component.shadowRoot.querySelectorAll("lightning-button")];

@@ -84,3 +84,12 @@ Se a integração do conector não produzir uma Issue como o proprietário ou se
 **Diagnóstico:** em falhas de dry-run, emitir `SDOA_M42_DRY_RUN_DIAG` com contagens agregadas e categorias enumeradas de erro; nenhum erro bruto ou identificador da org em logs de repositório público. O prefixo é do utilitário genérico M4 reutilizado, embora a operação seja a validação de incidentes. O diagnóstico mais detalhado segue disponível exclusivamente no Deployment Status da DevSreFeat.
 
 O diagnóstico categórico também emite `INCIDENT_COMPONENT_DIAG: type=... category=... count=N`, onde o tipo vem de uma allowlist de metadados e a categoria é uma enumeração estática. **Nunca** expõe componentes de outras partes da org, erros brutos ou IDs de cliente; resultados detalhados ficam no Deployment Status da sandbox.
+
+## Correções guiadas pelo Deployment Status #40053356943 (23/10/2026)
+
+- Dez regras de validação não declaravam `fullName` na Metadata API. Foi adicionado o nome exato de cada regra conforme o caminho dos arquivos, sem alterar as fórmulas.
+- A classe Apex `DevSreIncidentController` usava o identificador reservado `number`. O DTO passou a fornecer `recordNumber` para incidentes e ações; JS/LWC e testes atualizados.
+- Dois Permission Sets tentavam declarar Field-Level Security para campos obrigatórios. A Salesforce rejeita esse metadado; eliminamos as permissões de campo referentes a `Title__c`, `ServiceKey__c` e `Incident__c`, mas **os três continuam obrigatórios** no schema, preservando a integridade.
+- Os erros subsequentes no LWC e na classe de teste eram consequência provável da classe Apex inválida; validar novamente o conjunto antes de encerrar.
+- Reforçado o CI com assertivas específicas que evitam essas regressões.
+- A alteração fica em PR separado, sem deploy real. Após merge, solicitar novo dry-run via Issue ChatOps do proprietário e inspecionar o run Salesforce.

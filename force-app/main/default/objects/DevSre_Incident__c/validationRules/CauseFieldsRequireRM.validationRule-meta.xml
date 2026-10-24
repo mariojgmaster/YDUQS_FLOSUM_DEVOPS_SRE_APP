@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>CauseFieldsRequireRM</fullName>
   <active>true</active>
   <errorConditionFormula>AND(NOT(ISNEW()), OR(ISCHANGED(CauseType__c), ISCHANGED(CauseReviewStatus__c), ISCHANGED(CauseJustification__c)), NOT($Permission.DevSre_ReviewIncidentCausality))</errorConditionFormula>
   <errorMessage>Somente RMs DevOps autorizados podem alterar a revisao causal.</errorMessage>
