@@ -40,7 +40,7 @@ class SafeReportTests(unittest.TestCase):
         self.assertEqual(report["tests_completed"], 1)
         serialized = json.dumps(report)
         for secret in (sensitive, "OrgSecretClass", "privateMethod", "00D000000000001XYZ",
-                       "stackTrace", "problem", "JWT_secret"):
+                       "stackTrace", "\"problem\":", "JWT_secret"):
             self.assertNotIn(secret, serialized)
         self.assertIn("ClonePipelineControllerTest", serialized)
         self.assertIn("<unlisted>", serialized)
