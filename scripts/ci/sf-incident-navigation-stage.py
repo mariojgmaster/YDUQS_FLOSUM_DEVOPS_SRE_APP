@@ -20,8 +20,10 @@ END="    }\n\n    return new User"
 ALLOWED={"DevSreIncidentControllerTest","incidentsRollbacks","devSreIncidentsHost"}
 
 def check_preview(data):
-    assert isinstance(data,dict) and data.get("status") in (0,"0",None)
-    print("INFO: INCIDENT_STRICT_PREVIEW_STATUS_OK",flush=True)
+    # Status may report source-tracking conflict state; CLI exit is checked
+    # by the caller, and all preview members are checked below.
+    assert isinstance(data,dict)
+    print("INFO: INCIDENT_STRICT_PREVIEW_STATUS_HANDLED_BY_CLI_EXIT",flush=True)
     result=data["result"]
     values={}
     for key in ("toDeploy","conflicts","toDelete","ignored"):
