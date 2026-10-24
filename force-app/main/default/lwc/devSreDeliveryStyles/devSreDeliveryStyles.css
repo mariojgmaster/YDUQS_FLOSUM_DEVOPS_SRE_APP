@@ -1,0 +1,125 @@
+/* Shared semantic tokens, foundation defaults and Lightning theme bridge. */
+:host {
+  --ds-spacing-2: 0.5rem;
+  --ds-spacing-3: 0.75rem;
+  --ds-spacing-4: 1rem;
+  --ds-spacing-8: 2rem;
+  --ds-color-text-primary: var(--slds-g-color-on-surface-3, #181818);
+  --ds-color-text-secondary: var(--slds-g-color-on-surface-2, #444444);
+  --ds-color-surface-primary: var(--slds-g-color-surface-1, #ffffff);
+  --ds-color-surface-secondary: var(--slds-g-color-surface-2, #f3f3f3);
+  --ds-color-border-default: var(--slds-g-color-border-base-1, #c9c9c9);
+  --ds-color-info-surface: var(--slds-g-color-surface-2, #f3f3f3);
+  --ds-color-danger-surface: var(--slds-g-color-error-container-1, #fef1ee);
+  --ds-color-text-danger: var(--slds-g-color-on-error-container-1, #8e030f);
+  --ds-font-family-sans:
+    Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --ds-font-size-body: 0.875rem;
+  --ds-font-size-caption: 0.8125rem;
+  --ds-font-size-heading: 1.125rem;
+  --ds-font-weight-semibold: 600;
+  --ds-line-height-body: 1.5;
+  --ds-radius-card: 0.5rem;
+  --ds-border-width-1: 1px;
+  --ds-size-control-min: 12rem;
+  --ds-size-loader: 5rem;
+  display: block;
+  color: var(--ds-color-text-primary);
+  font-family: var(--ds-font-family-sans);
+  font-size: var(--ds-font-size-body);
+  line-height: var(--ds-line-height-body);
+}
+.ds-page {
+  background: var(--ds-color-surface-primary);
+  border: var(--ds-border-width-1) solid var(--ds-color-border-default);
+  border-radius: var(--ds-radius-card);
+}
+.ds-header,
+.ds-section {
+  padding: var(--ds-spacing-4);
+}
+.ds-header,
+.ds-toolbar,
+.ds-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-spacing-3);
+}
+.ds-header {
+  background: var(--ds-color-surface-secondary);
+}
+.ds-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-spacing-3);
+}
+.ds-title {
+  font-size: var(--ds-font-size-heading);
+  font-weight: var(--ds-font-weight-semibold);
+}
+.ds-subtitle,
+.ds-help {
+  color: var(--ds-color-text-secondary);
+}
+.ds-help {
+  font-size: var(--ds-font-size-caption);
+  margin-block-start: var(--ds-spacing-2);
+}
+.ds-filters {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, var(--ds-size-control-min)), 1fr)
+  );
+  gap: var(--ds-spacing-3);
+  align-items: end;
+}
+.ds-stack {
+  display: grid;
+  gap: var(--ds-spacing-4);
+}
+.ds-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-spacing-2);
+  align-items: center;
+}
+.ds-banner {
+  padding: var(--ds-spacing-3);
+  background: var(--ds-color-info-surface);
+  border-radius: var(--ds-radius-card);
+}
+.ds-error {
+  padding: var(--ds-spacing-3);
+  background: var(--ds-color-danger-surface);
+  color: var(--ds-color-text-danger);
+}
+.ds-empty {
+  padding: var(--ds-spacing-8) var(--ds-spacing-4);
+  text-align: center;
+}
+.ds-empty h3 {
+  font-weight: var(--ds-font-weight-semibold);
+}
+.ds-empty p {
+  margin-block-start: var(--ds-spacing-2);
+  color: var(--ds-color-text-secondary);
+}
+.ds-loading {
+  position: relative;
+  min-height: var(--ds-size-loader);
+}
+.ds-table {
+  overflow-x: auto;
+  min-width: 0;
+}
+.ds-editor {
+  background: var(--ds-color-surface-secondary);
+  padding: var(--ds-spacing-4);
+  border-radius: var(--ds-radius-card);
+}
+.ds-footer {
+  padding-block-start: var(--ds-spacing-3);
+}

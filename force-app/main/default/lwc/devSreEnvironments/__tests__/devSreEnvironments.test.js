@@ -55,11 +55,12 @@ describe("vigências de ambientes", () => {
   });
   afterEach(() => {
     document.body.innerHTML = "";
+    jest.restoreAllMocks();
   });
   it("leitor consulta mas não recebe formulário de escrita", async () => {
     const el = mount();
     await flush();
-    expect(button(el, "Salvar vigência")).toBeUndefined();
+    expect(button(el, "Salvar classificação")).toBeUndefined();
     expect(el.shadowRoot.textContent).toContain("Somente leitura");
     expect(saveMapping).not.toHaveBeenCalled();
   });
@@ -70,6 +71,8 @@ describe("vigências de ambientes", () => {
     });
     const el = mount();
     await flush();
+    button(el, "Classificar organização").click();
+    await flush();
     change(el, "organizationId", "org1");
     change(el, "environmentClass", "PROD");
     change(el, "validFrom", "2026-01-01T00:00:00.000Z");
@@ -77,7 +80,7 @@ describe("vigências de ambientes", () => {
     el.shadowRoot.querySelectorAll("[data-form]").forEach((input) => {
       input.reportValidity = jest.fn(() => true);
     });
-    button(el, "Salvar vigência").click();
+    button(el, "Salvar classificação").click();
     await flush();
     expect(saveMapping).toHaveBeenCalledWith({
       mappingId: null,
@@ -87,8 +90,10 @@ describe("vigências de ambientes", () => {
       validTo: null,
       reason: "Classificação aprovada"
     });
-    expect(el.shadowRoot.textContent).toContain("Vigência salva");
+    expect(el.shadowRoot.textContent).toContain("Classificação salva");
     expect(listMappings).toHaveBeenCalledTimes(2);
+    expect(listMappings.mock.calls[1][0].organizationId).toBe("org1");
+    expect(el.shadowRoot.querySelector("[data-form]")).toBeNull();
   });
   it("protege a identidade ao encerrar uma vigência", async () => {
     searchOrganizations.mockResolvedValue({ options: [], canManage: true });
@@ -103,13 +108,11 @@ describe("vigências de ambientes", () => {
     listMappings.mockResolvedValue([row]);
     const el = mount();
     await flush();
-    el.shadowRoot
-      .querySelector("lightning-datatable")
-      .dispatchEvent(
-        new CustomEvent("rowaction", {
-          detail: { action: { name: "edit" }, row }
-        })
-      );
+    el.shadowRoot.querySelector("lightning-datatable").dispatchEvent(
+      new CustomEvent("rowaction", {
+        detail: { action: { name: "edit" }, row }
+      })
+    );
     await flush();
     expect(
       [
@@ -134,14 +137,133 @@ describe("vigências de ambientes", () => {
     });
     const el = mount();
     await flush();
+    button(el, "Classificar organização").click();
+    await flush();
     el.shadowRoot.querySelectorAll("[data-form]").forEach((input) => {
       input.reportValidity = jest.fn(() => true);
     });
-    button(el, "Salvar vigência").click();
+    button(el, "Salvar classificação").click();
     await flush();
     expect(el.shadowRoot.querySelector('[role="alert"]').textContent).toContain(
       "sobrepostas"
     );
-    expect(el.shadowRoot.textContent).not.toContain("Vigência salva");
+    expect(el.shadowRoot.textContent).not.toContain("Classificação salva");
+  });
+  it("abre apenas classificações atuais e respeita início inclusivo e fim exclusivo", async () => {
+    jest.spyOn(Date, "now").mockReturnValue(Date.parse("2026-07-01T00:00:00Z"));
+    listMappings.mockResolvedValue([
+      {
+        id: "past",
+        environmentClass: "UAT",
+        validFrom: "2026-01-01T00:00:00Z",
+        validTo: "2026-07-01T00:00:00Z"
+      },
+      {
+        id: "now",
+        environmentClass: "PROD",
+        validFrom: "2026-07-01T00:00:00Z",
+        validTo: null
+      },
+      {
+        id: "next",
+        environmentClass: "DEV",
+        validFrom: "2027-01-01T00:00:00Z",
+        validTo: null
+      }
+    ]);
+    const el = mount();
+    await flush();
+    const table = () => el.shadowRoot.querySelector("lightning-datatable");
+    expect(table().data.map((row) => row.id)).toEqual(["now"]);
+    expect(table().data[0].environmentLabel).toBe("PROD · Produção");
+    change(el, "view", "ended");
+    await flush();
+    expect(table().data.map((row) => row.id)).toEqual(["past"]);
+    change(el, "view", "scheduled");
+    await flush();
+    expect(table().data.map((row) => row.id)).toEqual(["next"]);
+    change(el, "view", "all");
+    await flush();
+    expect(table().data).toHaveLength(3);
+  });
+  it("exige ação explícita para cadastrar, não presume data inicial e permite cancelar", async () => {
+    searchOrganizations.mockResolvedValue({ options: [], canManage: true });
+    const el = mount();
+    await flush();
+    expect(el.shadowRoot.querySelector("[data-form]")).toBeNull();
+    button(el, "Classificar organização").click();
+    await flush();
+    const start = [...el.shadowRoot.querySelectorAll("lightning-input")].find(
+      (input) => input.name === "validFrom"
+    );
+    expect(start.value).toBe("");
+    expect(start.required).toBe(true);
+    expect(
+      [...el.shadowRoot.querySelectorAll("lightning-input")].find(
+        (input) => input.name === "validTo"
+      )
+    ).toBeUndefined();
+    button(el, "Cancelar").click();
+    await flush();
+    expect(el.shadowRoot.querySelector("[data-form]")).toBeNull();
+    expect(saveMapping).not.toHaveBeenCalled();
+  });
+  it("revela data final apenas quando solicitada e não permite reabrir período encerrado", async () => {
+    searchOrganizations.mockResolvedValue({ options: [], canManage: true });
+    const row = {
+      id: "map1",
+      organizationId: "org1",
+      environmentClass: "PROD",
+      validFrom: "2026-01-01T00:00:00Z",
+      validTo: "2026-06-01T00:00:00Z",
+      reason: "Troca de uso"
+    };
+    listMappings.mockResolvedValue([row]);
+    const el = mount();
+    await flush();
+    button(el, "Classificar organização").click();
+    await flush();
+    const toggle = [...el.shadowRoot.querySelectorAll("lightning-input")].find(
+      (input) => input.name === "hasEnd"
+    );
+    toggle.checked = true;
+    toggle.dispatchEvent(new CustomEvent("change"));
+    await flush();
+    expect(
+      [...el.shadowRoot.querySelectorAll("lightning-input")].find(
+        (input) => input.name === "validTo"
+      ).required
+    ).toBe(true);
+    button(el, "Cancelar").click();
+    change(el, "view", "all");
+    await flush();
+    el.shadowRoot
+      .querySelector("lightning-datatable")
+      .dispatchEvent(
+        new CustomEvent("rowaction", {
+          detail: { action: { name: "edit" }, row }
+        })
+      );
+    await flush();
+    expect(
+      [...el.shadowRoot.querySelectorAll("lightning-input")].find(
+        (input) => input.name === "hasEnd"
+      ).disabled
+    ).toBe(true);
+  });
+  it("não apresenta vazio quando a consulta falha e permite recuperar", async () => {
+    listMappings.mockRejectedValueOnce({
+      body: { message: "Sem acesso às classificações" }
+    });
+    const el = mount();
+    await flush();
+    expect(el.shadowRoot.querySelector('[role="alert"]').textContent).toContain(
+      "Sem acesso"
+    );
+    expect(el.shadowRoot.querySelector(".ds-empty")).toBeNull();
+    button(el, "Atualizar lista").click();
+    await flush();
+    expect(el.shadowRoot.querySelector('[role="alert"]')).toBeNull();
+    expect(el.shadowRoot.querySelector(".ds-empty")).not.toBeNull();
   });
 });

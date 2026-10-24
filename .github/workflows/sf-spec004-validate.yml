@@ -9,6 +9,7 @@ on:
       - 'force-app/main/default/classes/DevSreEnvironment*'
       - 'force-app/main/default/classes/DevSreDeployment*'
       - 'force-app/main/default/lwc/devSreDeliveryHub/**'
+      - 'force-app/main/default/lwc/devSreDeliveryStyles/**'
       - 'force-app/main/default/lwc/devSreDeployments/**'
       - 'force-app/main/default/lwc/devSreEnvironments/**'
       - 'force-app/main/default/objects/DevSre_EnvironmentMapping__c/**'
@@ -22,6 +23,7 @@ on:
       - 'config/spec004/**'
       - 'scripts/ci/sf-spec004-validate.py'
       - 'tests/test_spec004_validation.py'
+      - 'jest.config.js'
       - '.github/workflows/sf-spec004-validate.yml'
 
 permissions:
