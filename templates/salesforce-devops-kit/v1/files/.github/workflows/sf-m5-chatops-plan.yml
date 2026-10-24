@@ -1,0 +1,126 @@
+# M5.3: immutable owner-issued GitHub Issue -> Salesforce PLAN or SHA-pinned explicit DEPLOY.
+# Never accept comments, edits, re-runs or implicit deployment authorization.
+name: Salesforce DevOps - Universal Kit
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: read
+
+concurrency:
+  group: sdoa-kit-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    if: ${{ github.event_name == 'issues' && github.event.action == 'opened' && github.actor == github.repository_owner && github.event.issue.user.login == github.repository_owner && github.event.sender.login == github.repository_owner && (startsWith(github.event.issue.title, 'SDOA PLAN ') || startsWith(github.event.issue.title, 'SDOA DEPLOY ') || startsWith(github.event.issue.title, 'SDOA RETRIEVE ') || startsWith(github.event.issue.title, 'SDOA COMPARE ')) && github.ref == 'refs/heads/master' && github.run_attempt == 1 }}
+    runs-on: ubuntu-latest
+    outputs:
+      operation: ${{ steps.intent.outputs.operation }}
+      confirmation: ${{ steps.intent.outputs.confirmation }}
+      commit_sha: ${{ steps.intent.outputs.commit_sha }}
+      target: ${{ steps.intent.outputs.target }}
+      package_id: ${{ steps.intent.outputs.package_id }}
+      issue_number: ${{ steps.intent.outputs.issue_number }}
+      github_environment: ${{ steps.registry.outputs.github_environment }}
+      instance_url: ${{ steps.registry.outputs.instance_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Validate M4/M5 security policy and shell syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n scripts/ci/sf-general-deploy.sh
+          python3 -m unittest discover -s tests -p 'test_sf_kit_contract.py' -v
+      - name: Verify strict owner-authored Issue
+        id: intent
+        env:
+          OWNER: ${{ github.repository_owner }}
+          REPOSITORY: ${{ github.repository }}
+        run: python3 scripts/ci/sf-m5-chatops-intent.py --event "$GITHUB_EVENT_PATH" --owner "$OWNER" --repository "$REPOSITORY" --commit-sha "$GITHUB_SHA" --output-file "$GITHUB_OUTPUT"
+      - name: Resolve approved environment and manifest
+        id: registry
+        env:
+          TARGET: ${{ steps.intent.outputs.target }}
+          PACKAGE_ID: ${{ steps.intent.outputs.package_id }}
+        run: python3 scripts/ci/sf-deploy-policy.py resolve --target "$TARGET" --package "$PACKAGE_ID" --output-file "$GITHUB_OUTPUT"
+
+  execute:
+    needs: resolve
+    if: ${{ needs.resolve.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 140
+    environment:
+      name: ${{ needs.resolve.outputs.github_environment }}
+    env:
+      SF_CLIENT_ID: ${{ secrets.SF_CLIENT_ID }}
+      SF_USERNAME: ${{ secrets.SF_USERNAME }}
+      SF_JWT_KEY: ${{ secrets.SF_JWT_KEY }}
+      SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
+      EXPECTED_INSTANCE_URL: ${{ needs.resolve.outputs.instance_url }}
+      GITHUB_ENVIRONMENT_NAME: ${{ needs.resolve.outputs.github_environment }}
+      OPERATION: ${{ needs.resolve.outputs.operation }}
+      TARGET: ${{ needs.resolve.outputs.target }}
+      PACKAGE_ID: ${{ needs.resolve.outputs.package_id }}
+      CONFIRMATION: ${{ needs.resolve.outputs.confirmation }}
+      GITHUB_EVENT_REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+      SDOA_EXPORT_RAW: ${{ vars.SDOA_EXPORT_RAW }}
+    steps:
+      - name: Checkout exact reviewed master SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Setup Salesforce CLI runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Salesforce CLI
+        run: npm install --global @salesforce/cli
+      - name: Reverify Issue and execute approved validation or deployment
+        if: ${{ needs.resolve.outputs.operation == 'plan' || needs.resolve.outputs.operation == 'deploy' }}
+        shell: bash
+        run: bash scripts/ci/sf-general-deploy.sh
+      - name: Retrieve or compare reviewed Salesforce metadata
+        if: ${{ needs.resolve.outputs.operation == 'retrieve' || needs.resolve.outputs.operation == 'compare' }}
+        shell: bash
+        run: bash scripts/ci/sf-kit-read.sh
+      - name: Upload sanitized Salesforce report (NO RAW JSON)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdoa-safe-report-${{ github.run_id }}
+          path: ${{ runner.temp }}/sdoa-safe-report.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Upload full Salesforce read payload (PRIVATE REPO OPT-IN ONLY)
+        if: ${{ github.event.repository.private && vars.SDOA_EXPORT_RAW == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdoa-private-raw-${{ github.run_id }}
+          path: ${{ runner.temp }}/sdoa-private-raw/
+          if-no-files-found: ignore
+          retention-days: 1
+      - name: Publish verified operation outcome
+        if: ${{ success() }}
+        env:
+          ISSUE: ${{ needs.resolve.outputs.issue_number }}
+          OPERATION: ${{ needs.resolve.outputs.operation }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$OPERATION" == plan ]]; then
+            echo "SDOA_M5_PLAN_SUCCEEDED: issue=$ISSUE operation=plan real_deploy=false"
+          elif [[ "$OPERATION" == deploy ]]; then
+            echo "SDOA_M5_DEPLOY_SUCCEEDED: issue=$ISSUE operation=deploy real_deploy=true"
+          elif [[ "$OPERATION" == retrieve || "$OPERATION" == compare ]]; then
+            echo "SDOA_M5_READ_SUCCEEDED: issue=$ISSUE operation=$OPERATION real_deploy=false"
+          else
+            exit 1
+          fi

@@ -14,6 +14,7 @@ ID = r"[A-Za-z][A-Za-z0-9_-]{0,59}"
 SHA = r"[0-9a-f]{40}"
 OWNER = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})\Z")
 PLAN = re.compile(rf"SDOA-CHATOPS/1\noperation=plan\ntarget=({ID})\npackage_id=({ID})\n?\Z")
+READ = re.compile(rf"SDOA-CHATOPS/3\noperation=(retrieve|compare)\ntarget=({ID})\npackage_id=({ID})\n?\Z")
 DEPLOY = re.compile(
     rf"SDOA-CHATOPS/2\noperation=deploy\ntarget=({ID})\npackage_id=({ID})"
     rf"\ncommit_sha=({SHA})\nconfirmation=DEPLOY ({ID}) ({ID})\n?\Z"
@@ -54,17 +55,22 @@ def check(event, owner, repository, expected_target=None, expected_package=None,
         sha = ""
         confirmation = ""
     else:
-        parsed = DEPLOY.fullmatch(body)
-        if not parsed:
-            raise IntentError("Intent not exact")
-        operation = "deploy"
-        target, package, sha, confirming_target, confirming_package = parsed.groups()
-        if (target, package) != (confirming_target, confirming_package):
-            raise IntentError("Deploy confirmation mismatch")
-        confirmation = f"DEPLOY {target} {package}"
-        # A privileged job must compare the exact issue SHA to checked-out master.
-        if expected_sha is None or sha != expected_sha:
-            raise IntentError("Deploy commit SHA mismatch")
+        read = READ.fullmatch(body)
+        if read:
+            operation, target, package = read.groups()
+            sha = ""
+            confirmation = ""
+        else:
+            parsed = DEPLOY.fullmatch(body)
+            if not parsed:
+                raise IntentError("Intent not exact")
+            operation = "deploy"
+            target, package, sha, confirming_target, confirming_package = parsed.groups()
+            if (target, package) != (confirming_target, confirming_package):
+                raise IntentError("Deploy confirmation mismatch")
+            confirmation = f"DEPLOY {target} {package}"
+            if expected_sha is None or sha != expected_sha:
+                raise IntentError("Deploy commit SHA mismatch")
     if issue.get("title") != f"SDOA {operation.upper()} {target} {package}":
         raise IntentError("Title mismatch")
     if expected_operation is not None and operation != expected_operation:

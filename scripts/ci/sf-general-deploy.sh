@@ -59,6 +59,15 @@ SAFE_REPORT="$RUNNER_TEMP/sdoa-safe-report.json"
 write_safe_report() {
   python3 scripts/ci/sf-deploy-safe-diagnostic.py --file "$1" --exit "$2" --phase "$3" --report "$SAFE_REPORT" --package "$PACKAGE_ID"
 }
+# Raw CLI data may contain org-private details. Only copy to a PRIVATE repo
+# after an owner-configured GitHub variable opts in to one-day retention.
+save_private_result() {
+  if [[ "${GITHUB_EVENT_REPOSITORY_PRIVATE:-false}" == true && "${SDOA_EXPORT_RAW:-false}" == true ]]; then
+    mkdir -p "$RUNNER_TEMP/sdoa-private-raw"
+    cp "$1" "$RUNNER_TEMP/sdoa-private-raw/$2"
+    echo "SDOA_KIT_PRIVATE_RAW_READY: full CLI response available as restricted artifact."
+  fi
+}
 
 
 # Apex tests remain mandatory for both plan and deploy, including LWC-only packages.
@@ -80,9 +89,11 @@ dry_exit=0
 sf project deploy start --dry-run --metadata-dir "$TEMP/candidate-mdapi" "${test_args[@]}" --target-org sdoa-universal --wait 60 --json > "$TEMP/dry.json" 2> "$TEMP/dry.err" || dry_exit=$?
 if [[ "$dry_exit" != 0 ]] || ! jq -e '.status==0 and .result.success==true and (.result.done==true or .result.status=="Succeeded") and ((.result.numberComponentErrors // 0)==0) and ((.result.numberTestErrors // 0)==0)' "$TEMP/dry.json" >/dev/null 2>&1; then
   write_safe_report "$TEMP/dry.json" "$dry_exit" DRY_RUN
+  save_private_result "$TEMP/dry.json" "validate.json"
   abort SDOA_M42_DRY_RUN_FAILED 'Salesforce rejected dry-run, Apex tests failed, or response was not confirmed. See sanitized diagnostic and Salesforce Deployment Status; no real deployment attempted.'
 fi
 write_safe_report "$TEMP/dry.json" "$dry_exit" DRY_RUN
+save_private_result "$TEMP/dry.json" "validate.json"
 echo 'SDOA_M42_DRY_RUN_PASSED: Salesforce validation succeeded; specified Apex tests passed.'
 if [[ "$OPERATION" == plan ]]; then
   echo 'SDOA_M42_PLAN_OK: Salesforce dry-run validated this exact package. No real deployment was submitted.'
@@ -97,7 +108,9 @@ real_exit=0
 sf project deploy start --metadata-dir "$TEMP/candidate-mdapi" "${test_args[@]}" --target-org sdoa-universal --wait 60 --json > "$TEMP/deploy.json" 2> "$TEMP/deploy.err" || real_exit=$?
 if [[ "$real_exit" != 0 ]] || ! jq -e '.status==0 and .result.success==true and (.result.done==true or .result.status=="Succeeded") and ((.result.numberComponentErrors // 0)==0) and ((.result.numberTestErrors // 0)==0)' "$TEMP/deploy.json" >/dev/null 2>&1; then
   write_safe_report "$TEMP/deploy.json" "$real_exit" REAL_DEPLOY
+  save_private_result "$TEMP/deploy.json" "deploy.json"
   abort SDOA_M42_DEPLOY_UNCONFIRMED 'Real deploy failed or outcome uncertain; inspect Salesforce Deployment Status before retrying. Do not rerun this job.'
 fi
 write_safe_report "$TEMP/deploy.json" "$real_exit" REAL_DEPLOY
+save_private_result "$TEMP/deploy.json" "deploy.json"
 echo 'SDOA_REAL_DEPLOY_SUCCEEDED: Salesforce confirmed persistent deployment.'

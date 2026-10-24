@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   resolve:
-    if: ${{ github.event_name == 'issues' && github.event.action == 'opened' && github.actor == github.repository_owner && github.event.issue.user.login == github.repository_owner && github.event.sender.login == github.repository_owner && (startsWith(github.event.issue.title, 'SDOA PLAN ') || startsWith(github.event.issue.title, 'SDOA DEPLOY ')) && github.ref == 'refs/heads/master' && github.run_attempt == 1 }}
+    if: ${{ github.event_name == 'issues' && github.event.action == 'opened' && github.actor == github.repository_owner && github.event.issue.user.login == github.repository_owner && github.event.sender.login == github.repository_owner && (startsWith(github.event.issue.title, 'SDOA PLAN ') || startsWith(github.event.issue.title, 'SDOA DEPLOY ') || startsWith(github.event.issue.title, 'SDOA RETRIEVE ') || startsWith(github.event.issue.title, 'SDOA COMPARE ')) && github.ref == 'refs/heads/master' && github.run_attempt == 1 }}
     runs-on: ubuntu-latest
     outputs:
       operation: ${{ steps.intent.outputs.operation }}
@@ -83,6 +83,8 @@ jobs:
       TARGET: ${{ needs.resolve.outputs.target }}
       PACKAGE_ID: ${{ needs.resolve.outputs.package_id }}
       CONFIRMATION: ${{ needs.resolve.outputs.confirmation }}
+      GITHUB_EVENT_REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+      SDOA_EXPORT_RAW: ${{ vars.SDOA_EXPORT_RAW }}
     steps:
       - name: Checkout exact reviewed master SHA
         uses: actions/checkout@v4
@@ -95,9 +97,14 @@ jobs:
           node-version: '22'
       - name: Install Salesforce CLI
         run: npm install --global @salesforce/cli
-      - name: Reverify Issue intent and run M4.2 Salesforce PLAN
+      - name: Reverify Issue and execute approved validation or deployment
+        if: ${{ needs.resolve.outputs.operation == 'plan' || needs.resolve.outputs.operation == 'deploy' }}
         shell: bash
         run: bash scripts/ci/sf-general-deploy.sh
+      - name: Retrieve or compare reviewed Salesforce metadata
+        if: ${{ needs.resolve.outputs.operation == 'retrieve' || needs.resolve.outputs.operation == 'compare' }}
+        shell: bash
+        run: bash scripts/ci/sf-kit-read.sh
       - name: Upload sanitized Salesforce report (NO RAW JSON)
         if: always()
         uses: actions/upload-artifact@v4
@@ -106,6 +113,14 @@ jobs:
           path: ${{ runner.temp }}/sdoa-safe-report.json
           if-no-files-found: ignore
           retention-days: 7
+      - name: Upload full Salesforce read payload (PRIVATE REPO OPT-IN ONLY)
+        if: ${{ github.event.repository.private && vars.SDOA_EXPORT_RAW == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdoa-private-raw-${{ github.run_id }}
+          path: ${{ runner.temp }}/sdoa-private-raw/
+          if-no-files-found: ignore
+          retention-days: 1
       - name: Publish verified operation outcome
         if: ${{ success() }}
         env:
@@ -118,6 +133,8 @@ jobs:
             echo "SDOA_M5_PLAN_SUCCEEDED: issue=$ISSUE operation=plan real_deploy=false"
           elif [[ "$OPERATION" == deploy ]]; then
             echo "SDOA_M5_DEPLOY_SUCCEEDED: issue=$ISSUE operation=deploy real_deploy=true"
+          elif [[ "$OPERATION" == retrieve || "$OPERATION" == compare ]]; then
+            echo "SDOA_M5_READ_SUCCEEDED: issue=$ISSUE operation=$OPERATION real_deploy=false"
           else
             exit 1
           fi
