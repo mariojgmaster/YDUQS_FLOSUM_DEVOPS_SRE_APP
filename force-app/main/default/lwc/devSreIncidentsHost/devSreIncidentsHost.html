@@ -1,0 +1,12 @@
+<template>
+  <section aria-label="Incidents &amp; Rollbacks" class="slds-p-around_small">
+    <lightning-tabset active-tab-value="original" variant="scoped">
+      <lightning-tab label="Visão original" value="original">
+        <c-incidents-rollbacks></c-incidents-rollbacks>
+      </lightning-tab>
+      <lightning-tab label="Gestão de incidentes" value="management">
+        <c-dev-sre-incident-intake></c-dev-sre-incident-intake>
+      </lightning-tab>
+    </lightning-tabset>
+  </section>
+</template>

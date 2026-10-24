@@ -12,6 +12,7 @@
   </types>
   <types>
     <members>devSreIncidentIntake</members>
+    <members>devSreIncidentsHost</members>
     <name>LightningComponentBundle</name>
   </types>
   <types>
@@ -33,7 +34,7 @@
     <name>SharingRules</name>
   </types>
   <types>
-    <members>DevSre_Incident_Intake</members>
+    <members>incidentsRollbacks</members>
     <name>CustomTab</name>
   </types>
   <version>67.0</version>

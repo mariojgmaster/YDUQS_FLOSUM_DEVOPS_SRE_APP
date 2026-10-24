@@ -35,7 +35,7 @@ for root in [
         if root.name in ("permissionsets", "tabs", "classes", "manifest"):
             if not (
                 path.name.startswith("DevSreIncident_")
-                or path.name.startswith("DevSre_Incident_Intake")
+                or path.name.startswith("incidentsRollbacks.")
                 or path.name.startswith("DevSreIncidentController")
                 or path.name == "sf-devops-sre-incident-intake.xml"
             ):
@@ -135,6 +135,8 @@ assert "Database.insert(new List<DevSre_RecoveryAction__c>{" in test_apex
 assert test_apex.count("AccessLevel.SYSTEM_MODE") >= 4
 assert "WHERE Name = 'DevSreIncident_Operator'" in test_apex
 assert "new PermissionSetAssignment(" in test_apex
+assert "List<PermissionSetAssignment> assigned" in test_apex
+assert "if (assigned.isEmpty())" in test_apex
 assert "private static User operatorContext()" in test_apex
 assert "System.runAs(new User(Id = runningUser))" in test_apex
 assert test_apex.count("User actor = operatorContext();") == 3
@@ -145,4 +147,12 @@ assert controller.count("WITH USER_MODE") >= 3
 assert "with sharing class DevSreIncidentController" in controller
 print("PASS: INCIDENT_API67_TEST_FIXTURE_MODE_AND_CONTROLLER_SECURITY")
 
+assert (ROOT / "tabs/incidentsRollbacks.tab-meta.xml").exists()
+assert not (ROOT / "tabs/DevSre_Incident_Intake.tab-meta.xml").exists()
+host = (ROOT / "lwc/devSreIncidentsHost/devSreIncidentsHost.html").read_text("utf-8")
+assert "<c-incidents-rollbacks>" in host
+assert "<c-dev-sre-incident-intake>" in host
+assert host.count("<lightning-tab ") == 2
+assert "lightning__Tab" in (ROOT / "lwc/devSreIncidentsHost/devSreIncidentsHost.js-meta.xml").read_text("utf-8")
+print("PASS: INCIDENT_ORIGINAL_TAB_BRIDGE_AND_NO_DUPLICATE_TAB")
 print(f"PASS: INCIDENT_XML_AND_SECURITY_GATES files={count}")
