@@ -23,12 +23,12 @@ class IncidentDeploySafety(unittest.TestCase):
         for x in (
             'CONFIRMATION:-}" == "DEPLOY DevSreFeat"', "REQUESTED_SHA,,",
             "EXPECTED_ATTEMPT", "EXPECTED_ACTOR", "EXPECTED_OWNER",
-            "python3 scripts/ci/verify-incident-sandbox-scope.py"
+            "python3 scripts/ci/verify-incident-navigation-scope.py"
         ):
             self.assertIn(x,S)
 
     def test_single_scoped_manifest_and_two_deploys(self):
-        target="manifest/sf-devops-sre-incidents-sandbox-validate.xml"
+        target="manifest/sf-devops-sre-incidents-navigation.xml"
         self.assertIn(target,S)
         self.assertEqual(S.count('sf project deploy start'),2)
         self.assertIn("--dry-run",S)
@@ -36,6 +36,8 @@ class IncidentDeploySafety(unittest.TestCase):
         self.assertIn('test_class="DevSreIncidentControllerTest"',S)
         self.assertIn("numberTestsCompleted",S)
         self.assertIn("sf project deploy preview",S)
+        self.assertIn('--metadata-dir "$tmp_dir/mdapi"', S)
+        self.assertIn('sf-incident-navigation-stage.py', S)
         for forbidden in ("--ignore-conflicts", "sf project deploy quick", "destructiveChanges",
                           "manifest/sf-devsrefeat-m3.xml", "https://login.salesforce.com", "--target-org production"):
             self.assertNotIn(forbidden,S)
@@ -78,11 +80,13 @@ class IncidentDeploySafety(unittest.TestCase):
         )
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertEqual(proc.stdout.strip(), "0\t1\t2\t1")
-        self.assertIn('[[ "$conflict_count" == "0" && "$delete_count" == "0" && "$ignored_count" == "0" ]]', S)
+        self.assertIn('sf-incident-navigation-stage.py', S)
+        self.assertIn('INCIDENT_DELTA_SECURITY_FAILED', S)
+        self.assertIn('--metadata-dir "$tmp_dir/mdapi"', S)
 
     def test_credential_safety_and_fail_closed(self):
         for x in ('chmod 600', 'trap ', 'INCIDENT_REAL_DEPLOY_UNCONFIRMED',
-                  'INCIDENT_PREVIEW_UNSAFE', 'INCIDENT_TARGET_DENIED',
+                  'INCIDENT_DELTA_SECURITY_FAILED', 'INCIDENT_TARGET_DENIED',
                   'INCIDENT_SAME_RUN_DRY_RUN_AND_APEX_TESTS'):
             self.assertIn(x,S)
         self.assertNotIn('cat "$tmp_dir/real.json"',S)
