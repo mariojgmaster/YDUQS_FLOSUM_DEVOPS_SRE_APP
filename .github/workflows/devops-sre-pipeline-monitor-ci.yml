@@ -7,6 +7,9 @@ on:
       - 'force-app/main/default/lwc/devSrePipelineMonitor/**'
       - 'force-app/main/default/classes/DevSrePipelineMonitorController*'
       - 'manifest/sf-devops-sre-pipeline-monitor.xml'
+      - '.github/workflows/sf-devsrefeat-diagnostics.yml'
+      - 'scripts/ci/sf-flosum-schema-inventory.py'
+      - 'tests/test_sf_fl_osum_schema_inventory.py'
   workflow_dispatch:
 
 permissions:
@@ -20,6 +23,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Validate Flosum schema inventory security and parsing
+        run: python3 -m unittest discover -s tests -p 'test_sf_fl_osum_schema_inventory.py' -v
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
