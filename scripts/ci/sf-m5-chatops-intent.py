@@ -14,7 +14,7 @@ ID = r"[A-Za-z][A-Za-z0-9_-]{0,59}"
 SHA = r"[0-9a-f]{40}"
 OWNER = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})\Z")
 PLAN = re.compile(rf"SDOA-CHATOPS/1\noperation=plan\ntarget=({ID})\npackage_id=({ID})\n?\Z")
-READ = re.compile(rf"SDOA-CHATOPS/3\\noperation=(retrieve|compare)\\ntarget=({ID})\\npackage_id=({ID})\\n?\\Z")
+READ = re.compile(rf"SDOA-CHATOPS/3\noperation=(retrieve|compare)\ntarget=({ID})\npackage_id=({ID})\n?\Z")
 DEPLOY = re.compile(
     rf"SDOA-CHATOPS/2\noperation=deploy\ntarget=({ID})\npackage_id=({ID})"
     rf"\ncommit_sha=({SHA})\nconfirmation=DEPLOY ({ID}) ({ID})\n?\Z"
