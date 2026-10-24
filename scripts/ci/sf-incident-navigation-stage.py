@@ -21,6 +21,7 @@ ALLOWED={"DevSreIncidentControllerTest","incidentsRollbacks","devSreIncidentsHos
 
 def check_preview(data):
     assert data["status"]==0
+    print("INFO: INCIDENT_STRICT_PREVIEW_STATUS_OK",flush=True)
     result=data["result"]
     values={}
     for key in ("toDeploy","conflicts","toDelete","ignored"):
@@ -31,13 +32,16 @@ def check_preview(data):
             assert isinstance(item,dict)
             name=next((item[k] for k in ("name","fullName","member","componentName","apiName")
                        if isinstance(item.get(k),str) and item[k] in ALLOWED),None)
-            assert name is not None and name not in names
+            assert name is not None and name not in names, "unrecognized or repeated component"
             names.append(name)
         values[key]=set(names)
+        # Print only already-allowlisted member identifiers, never arbitrary org metadata.
+        print(f"INFO: INCIDENT_STRICT_PREVIEW_GROUP_OK group={key} members={','.join(sorted(names)) or 'none'}",flush=True)
     assert not values["toDelete"] and not values["ignored"]
     assert values["toDeploy"].issubset({"devSreIncidentsHost"})
     assert values["conflicts"].issubset({"incidentsRollbacks","DevSreIncidentControllerTest"})
     assert values["toDeploy"]|values["conflicts"]==ALLOWED
+    print("INFO: INCIDENT_STRICT_PREVIEW_FINAL_MATCH_OK",flush=True)
 
 def zip_member(zipname,filename):
     with ZipFile(zipname) as z:
