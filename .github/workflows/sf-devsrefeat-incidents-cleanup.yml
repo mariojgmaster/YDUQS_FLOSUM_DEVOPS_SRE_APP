@@ -1,0 +1,69 @@
+name: Salesforce DevSreFeat - Remover Aba Duplicada Incidentes
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: "SHA completo da master"
+        required: true
+        type: string
+      confirmation:
+        description: "Digite DELETE DevSre_Incident_Intake DevSreFeat"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sf-devsrefeat-read
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' && github.actor == github.repository_owner && github.run_attempt == 1 }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    environment: sf-devsrefeat-read
+    env:
+      SF_CLIENT_ID: ${{ secrets.SF_CLIENT_ID }}
+      SF_USERNAME: ${{ secrets.SF_USERNAME }}
+      SF_JWT_KEY: ${{ secrets.SF_JWT_KEY }}
+      SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
+      REQUESTED_SHA: ${{ inputs.commit_sha }}
+      CONFIRMATION: ${{ inputs.confirmation }}
+      EXPECTED_SHA: ${{ github.sha }}
+      EXPECTED_REF: ${{ github.ref }}
+      EXPECTED_ACTOR: ${{ github.actor }}
+      EXPECTED_OWNER: ${{ github.repository_owner }}
+      EXPECTED_ATTEMPT: ${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verificar master protegida
+        env:
+          GH_READ_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          response="$(mktemp)"
+          trap 'rm -f "$response"' EXIT
+          curl --fail --silent --show-error --max-time 20 \
+            --header "Authorization: Bearer $GH_READ_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/branches/master" > "$response" 2>/dev/null
+          jq -e '.protected==true' "$response" >/dev/null ||
+            { echo "::error::master nao protegida"; exit 1; }
+      - name: Verificar escopo de exclusao
+        run: |
+          python3 scripts/ci/sf-incident-cleanup-preflight.py
+          bash -n scripts/ci/sf-incident-sandbox-cleanup.sh
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar Salesforce CLI
+        run: npm install --global @salesforce/cli
+      - name: Verificar aba original, dry-run e remover somente duplicata
+        run: bash scripts/ci/sf-incident-sandbox-cleanup.sh

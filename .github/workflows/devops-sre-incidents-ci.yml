@@ -21,6 +21,11 @@ on:
       - 'scripts/ci/verify-incident-sandbox-scope.py'
       - 'scripts/ci/sf-incident-sandbox-validate.sh'
       - 'scripts/ci/sf-incident-original-tab-report.py'
+      - 'manifest/incidents-cleanup/**'
+      - 'scripts/ci/sf-incident-cleanup-preflight.py'
+      - 'scripts/ci/sf-incident-sandbox-cleanup.sh'
+      - '.github/workflows/sf-devsrefeat-incidents-cleanup.yml'
+      - 'tests/test_sf_incident_cleanup_preflight.py'
       - 'tests/test_sf_incident_original_tab_report.py'
       - '.github/workflows/sf-devsrefeat-incidents-validate.yml'
       - 'scripts/ci/sf-incident-chatops-intent.py'
@@ -60,6 +65,8 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_sf_incident_original_tab_report.py' -v
           bash -n scripts/ci/sf-incident-sandbox-validate.sh
           bash -n scripts/ci/sf-incident-sandbox-deploy.sh
+          bash -n scripts/ci/sf-incident-sandbox-cleanup.sh
+          python3 -m unittest discover -s tests -p 'test_sf_incident_cleanup_preflight.py' -v
           python3 -m unittest discover -s tests -p 'test_sf_incident_explicit_deploy.py' -v
       - name: Set up Node
         uses: actions/setup-node@v4
