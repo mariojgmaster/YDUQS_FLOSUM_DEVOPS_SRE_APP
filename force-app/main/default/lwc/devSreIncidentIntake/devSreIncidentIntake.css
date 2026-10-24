@@ -1,0 +1,12 @@
+.incident-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+.incident-panel { min-width: 0; }
+.loading-zone { min-height: 7rem; }
+.action-form { border: 1px solid var(--slds-g-color-border-base-1, #d8dde6); border-radius: .5rem; padding: 1rem; }
+@media (max-width: 1050px) {
+  .incident-layout { grid-template-columns: minmax(0, 1fr); }
+}
