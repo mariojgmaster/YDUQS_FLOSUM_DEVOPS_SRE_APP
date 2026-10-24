@@ -2,7 +2,7 @@
   "schema": 1,
   "kit": "sdoa-salesforce-metadata-four-ops",
   "version": "1.0.0",
-  "status": "candidate",
+  "status": "approved",
   "operations": [
     "retrieve",
     "compare",
@@ -64,5 +64,22 @@
       "destination": "tests/test_sf_kit_contract.py",
       "git_blob_sha": "270dc778f74304dfc1eb8b8e353c625e191b6ea3"
     }
-  ]
+  ],
+  "acceptance": {
+    "ci": "M4 Policy Checks #35: 66 Python tests passed; GitGuardian success",
+    "retrieve": {
+      "issue": 60,
+      "run_id": 40117896799,
+      "conclusion": "success",
+      "reviewed_components": 2
+    },
+    "compare": {
+      "issue": 61,
+      "run_id": 40117990136,
+      "conclusion": "success",
+      "different_files": 1,
+      "reviewed_metadata_part": "ApexClass:ClonePipelineControllerTest:metadata"
+    },
+    "write_operation": "M4.2 manual deploy homologated previously; GitHub Issue deploy remains not independently homologated"
+  }
 }

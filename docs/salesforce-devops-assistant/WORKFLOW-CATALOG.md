@@ -2,15 +2,15 @@
 
 ## Atualização técnica — Kit Universal v1 (piloto de homologação)
 
-Há uma implementação candidata para as quatro operações no **mesmo workflow M5**, sem utilizar os workflows de Incidentes:
+Há uma implementação **homologada no piloto para as operações de leitura** no mesmo workflow M5, sem reutilizar os workflows de Incidentes:
 
 - `retrieve` e `compare`: novo `scripts/ci/sf-kit-read.sh` (consulta Metadata API em ZIP temporário), com `scripts/ci/sf-kit-read-report.py` para relatório seguro por membro do manifesto. Compare v1 significa **Git↔org**, não org↔org.
 - `validate`: mantém operação ChatOps `plan`, testada e homologada anteriormente, sem gravação.
 - `deploy`: mantém confirmação explícita, SHA exato, novo dry-run com Apex tests e somente depois escrita.
-- `templates/salesforce-devops-kit/v1/`: conjunto de arquivos congelados com hashes Git Blob SHA-1 em `manifest.json`; `sf-kit-install.py` cria apenas os arquivos faltantes no destino, após aprovação do pacote e com catálogo do target configurado. **Não usar `--apply` enquanto o manifest estiver `candidate`.**
+- `templates/salesforce-devops-kit/v1/`: templates **aprovados** por hash Git Blob SHA-1 em `manifest.json`; `sf-kit-install.py` só instala arquivos faltantes no destino, após verificar catálogo do target, compatibilidade e digests. A instalação deve ocorrer em branch/PR autorizada.
 - Retorno bruto integral: somente repositório privado + `SDOA_EXPORT_RAW=true` (opção de admin, retenção 1 dia); logs e artifacts públicos permanecem sanitizados.
 
-A presença dos arquivos nesta branch não prova homologação Salesforce de Retrieve/Compare. Após merge e CI, executar apenas leituras reais e só então aprovar o manifest dos templates em PR separada. A instalação em outros repositórios continua bloqueada até essa aprovação.
+**Aceite Retrieve/Compare:** Issue #60 → GitHub Actions #16 (Retrieve) SUCCESS, 2 componentes; Issue #61 → GitHub Actions #17 (Compare) SUCCESS, 1 diferença de metadata em ClonePipelineControllerTest; nenhuma escrita em org/Git. CI: 66 testes aprovados. Instalação v1 liberada apenas em repos compatíveis com ApexClass/LightningComponentBundle, API 67.0, branch master e sandbox cadastrada. A rota ChatOps de DEPLOY real permanece aguardando homologação específica, embora o M4.2 manual já esteja aprovado.
 
 
 > **Domínio do plugin: Salesforce Metadata API/CLI, não o negócio da aplicação.**

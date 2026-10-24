@@ -35,6 +35,11 @@ class InstallationTests(unittest.TestCase):
         manifest.write_text(json.dumps(data), encoding="utf8")
 
     def test_preview_and_approval_gate(self):
+        # Test the rejection path explicitly, regardless of official release status.
+        manifest = self.source/module.MANIFEST
+        data = json.loads(manifest.read_text("utf8"))
+        data["status"] = "candidate"
+        manifest.write_text(json.dumps(data), encoding="utf8")
         preview = module.install(self.source, self.dest)
         self.assertEqual(len(preview), 9)
         self.assertTrue(all(state=="missing" for _, state in preview))

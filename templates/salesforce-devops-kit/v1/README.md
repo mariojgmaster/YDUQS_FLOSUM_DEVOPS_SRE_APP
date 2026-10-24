@@ -44,4 +44,4 @@ O instalador não sobrescreve arquivos existentes divergentes; se um deles confl
 
 ## Homologação
 
-CI: sintaxe Bash, compilação Python, contrato das quatro operações, snapshots de comparação, injeções, hashes e instalação idempotente. Após merge, testar no piloto apenas Retrieve e Compare, sem real deploy. Só marcar o manifest aprovado e instalar em terceiros depois do teste de ponta a ponta.
+CI: sintaxe Bash, compilação Python, contrato das quatro operações, snapshots de comparação, injeções, hashes e instalação idempotente. Homologação do piloto concluída: Retrieve GitHub Actions #16 (Issue #60) e Compare #17 (Issue #61), ambos SUCCESS e sem gravação. Uma diferença de metadata foi identificada em ClonePipelineControllerTest, conforme relatório seguro. Kit v1 aprovado para repositórios compatíveis, com instalação por PR; rota ChatOps de DEPLOY real ainda requer homologação específica.
