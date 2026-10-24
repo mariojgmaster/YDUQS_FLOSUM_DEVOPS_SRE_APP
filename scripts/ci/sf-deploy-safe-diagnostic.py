@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Print bounded, privacy-safe diagnostic facts from a Salesforce CLI deploy JSON.
+"""Print bounded facts plus safe enumerated failure records from a Salesforce CLI JSON.
 
 Only literal enumerations, booleans and bounded counts reach public Actions logs.
 Never print input values, org identifiers, Apex names, stack traces or raw errors.
@@ -106,11 +106,118 @@ def summarize(payload, cli_exit, phase):
     )
 
 
+
+def _items(entry):
+    """Salesforce may encode a single failure as a dict, or many as a list."""
+    if isinstance(entry, list):
+        return [x for x in entry if isinstance(x, dict)]
+    if isinstance(entry, dict):
+        return [entry]
+    return []
+
+
+def _positive_integer(entry):
+    return entry if type(entry) is int and 0 <= entry <= 1000000 else None
+
+
+def _safe_enum(value, allowed):
+    return value if isinstance(value, str) and value in allowed else "unspecified"
+
+
+def _allowed_names(package, catalog_path, manifest_base):
+    """Only source-controlled package members/test classes may appear by name."""
+    import xml.etree.ElementTree as ET
+    try:
+        catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+        config = catalog["packages"][package]
+        tests = set(config["tests"])
+        manifest = manifest_base / config["manifest"]
+        root = ET.parse(manifest).getroot()
+        members = set()
+        for node in root.iter():
+            if node.tag.endswith("members") and node.text and "*" not in node.text:
+                members.add(node.text.strip())
+        return members | tests
+    except (OSError, ValueError, KeyError, TypeError, ET.ParseError):
+        return set()
+
+
+def detailed_report(payload, cli_exit, phase, allowed_names):
+    """Full *enumeration* of failure records, not full raw org data.
+
+    No messages, stack traces, org URLs, IDs, arbitrary names, file paths,
+    Apex source, tokens, record values, or unreviewed component names survive.
+    """
+    report = {
+        "schema": "SDOA-SAFE-DIAG/1", "phase": phase,
+        "cli_exit": cli_exit, "status": "unknown",
+        "summary": summarize(payload, cli_exit, phase),
+        "failures": [], "coverage_warning_count": 0,
+        "raw_salesforce_payload_included": False,
+    }
+    try:
+        data = json.loads(payload)
+    except (ValueError, UnicodeDecodeError):
+        report["status"] = "invalid-json"
+        return report
+    if not isinstance(data, dict):
+        report["status"] = "unexpected-json"
+        return report
+    result = data.get("result") if isinstance(data.get("result"), dict) else {}
+    report["status"] = _safe_enum(result.get("status"), STATUSES)
+    details = result.get("details") if isinstance(result.get("details"), dict) else {}
+    tests = details.get("runTestResult") if isinstance(details.get("runTestResult"), dict) else {}
+    warnings = _items(tests.get("codeCoverageWarnings"))
+    report["coverage_warning_count"] = len(warnings)
+    kinds = [
+        ("component", _items(details.get("componentFailures"))),
+        ("apex_test", _items(tests.get("failures"))),
+    ]
+    for kind, failures in kinds:
+        for index, item in enumerate(failures, 1):
+            # The "problem" and "message" strings are never copied to any report.
+            original = item.get("fullName") if kind == "component" else item.get("name")
+            if not isinstance(original, str):
+                original = ""
+            candidate = original.strip()
+            if candidate not in allowed_names:
+                candidate = "<unlisted>"
+            record = {
+                "category": kind, "ordinal": index,
+                "reviewed_component_or_test_class": candidate,
+                "line": _positive_integer(item.get("lineNumber")),
+                "column": _positive_integer(item.get("columnNumber")),
+            }
+            if kind == "component":
+                record["problem_type"] = _safe_enum(
+                    item.get("problemType"), {"Error", "Warning", "error", "warning"}
+                )
+            report["failures"].append(record)
+    report["enumerated_failures"] = len(report["failures"])
+    report["component_error_count"] = _positive_integer(result.get("numberComponentErrors"))
+    report["test_error_count"] = _positive_integer(result.get("numberTestErrors"))
+    report["tests_completed"] = _positive_integer(result.get("numberTestsCompleted"))
+    return report
+
+
+def write_report(payload, cli_exit, phase, output_path, package, catalog, root):
+    allowed = _allowed_names(package, catalog, root)
+    report = detailed_report(payload, cli_exit, phase, allowed)
+    # No append to arbitrary paths; caller places report in RUNNER_TEMP.
+    output_path.write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8")
+    print(f"SDOA_M53_DETAIL_REPORT: phase={phase} enumerated_failures="
+          f"{report.get('enumerated_failures', 0)} report_format=SDOA-SAFE-DIAG/1 "
+          "raw_payload_included=false")
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--file", type=Path, required=True)
     parser.add_argument("--exit", type=int, required=True)
     parser.add_argument("--phase", choices=["DRY_RUN", "REAL_DEPLOY"], required=True)
+    parser.add_argument("--report", type=Path)
+    parser.add_argument("--package")
+    parser.add_argument("--catalog", type=Path, default=Path("config/salesforce-devops/catalog.json"))
+    parser.add_argument("--root", type=Path, default=Path("."))
     args = parser.parse_args()
     if not 0 <= args.exit <= 255:
         print(f"SDOA_M42_{args.phase}_DIAG: invalid_exit")
@@ -120,6 +227,8 @@ def main():
             raise ValueError("size")
         payload = args.file.read_bytes()
         print(summarize(payload, args.exit, args.phase))
+        if args.report and args.package:
+            write_report(payload, args.exit, args.phase, args.report, args.package, args.catalog, args.root)
     except (OSError, ValueError, TypeError):
         print(f"SDOA_M42_{args.phase}_DIAG: json=unavailable cli_exit={args.exit} failure_kind=CLI_OR_JSON")
 
