@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Read-only Flosum evidence. Raw evidence is emitted ONLY as CMS ciphertext."""
 import argparse
+import base64
 import hashlib
 import json
 import os
@@ -8,6 +9,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -42,7 +44,8 @@ def authorize(event, context):
 
 def sf(args):
     """No auth display, no stdout/stderr forwarding, no mutation commands."""
-    allowed = (args[:2] == ['sobject', 'describe'] or args[:2] == ['data', 'query'])
+    allowed = (args[:2] == ['sobject', 'describe'] or args[:2] == ['data', 'query']
+               or args[:3] == ['org', 'list', 'metadata'] or args[:3] == ['project', 'retrieve', 'start'])
     if not allowed:
         raise EvidenceError('command denied')
     try:
@@ -154,6 +157,35 @@ def seal(evidence, cert, output):
         raise EvidenceError('encryption failed')
 
 
+def navigation():
+    """Metadata only, bounded app/tab candidates; XML travels encrypted."""
+    result = {'catalog': {}, 'selected': [], 'zip_base64': None}
+    members = []
+    for kind in ('CustomApplication', 'CustomTab'):
+        entries = sf(['org', 'list', 'metadata', '--metadata-type', kind])
+        if not isinstance(entries, list) or len(entries) > 2000:
+            raise EvidenceError('navigation catalog outside reviewed scope')
+        names = [x['fullName'] for x in entries if isinstance(x, dict) and isinstance(x.get('fullName'), str)]
+        result['catalog'][kind] = names
+        pattern = r'devops|sre|dora' if kind == 'CustomApplication' else r'pipeline|incident|dora|leadtime'
+        selected = [name for name in names if re.search(pattern, name, re.I) and re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*', name)]
+        if len(selected) > 20:
+            raise EvidenceError('navigation candidates require narrower selector')
+        members += [kind+':'+name for name in selected]
+    result['selected'] = members
+    if members:
+        with tempfile.TemporaryDirectory() as tmp:
+            args = ['project', 'retrieve', 'start', '--target-metadata-dir', tmp, '--zip-file-name', 'navigation.zip', '--wait', '5']
+            for member in members:
+                args += ['--metadata', member]
+            sf(args)
+            archive = Path(tmp)/'navigation.zip'
+            if not archive.is_file() or archive.stat().st_size > 5_000_000:
+                raise EvidenceError('navigation archive unavailable')
+            result['zip_base64'] = base64.b64encode(archive.read_bytes()).decode('ascii')
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--verify-only', action='store_true')
@@ -165,6 +197,7 @@ def main():
             return
         scope = json.loads((ROOT/'config/salesforce-devops/flosum-evidence-scope.json').read_text())
         evidence = collect(scope)
+        evidence['navigation'] = navigation()
         output = Path(os.environ['RUNNER_TEMP'])/'flosum-integral-evidence.cms'
         seal(evidence, ROOT/'config/salesforce-devops/flosum-collector-cert.pem', output)
         print('PASS: FLOSUM_EVIDENCE_ENCRYPTED_READ_ONLY')
