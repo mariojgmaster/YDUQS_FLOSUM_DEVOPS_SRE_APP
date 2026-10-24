@@ -11,6 +11,7 @@ on:
       - 'force-app/main/default/permissionsets/DevSreIncident_*'
       - 'force-app/main/default/tabs/DevSre_Incident_Intake.tab-meta.xml'
       - 'manifest/sf-devops-sre-incident-intake.xml'
+      - 'scripts/ci/verify-incident-metadata.py'
   workflow_dispatch:
 
 permissions:
@@ -24,6 +25,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Validar XML e guardrails de segurança
+        run: python3 scripts/ci/verify-incident-metadata.py
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
