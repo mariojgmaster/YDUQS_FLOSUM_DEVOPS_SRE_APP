@@ -1,0 +1,20 @@
+.monitor-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.monitor-panel {
+  min-width: 0;
+}
+
+.loading-area {
+  min-height: 7rem;
+}
+
+@media (max-width: 960px) {
+  .monitor-layout {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,157 @@
+<template>
+  <div class="slds-p-around_medium">
+    <header class="slds-page-header slds-m-bottom_medium">
+      <div class="slds-page-header__row">
+        <div class="slds-page-header__col-title">
+          <div class="slds-media">
+            <div class="slds-media__figure">
+              <lightning-icon icon-name="standard:flow" size="medium" alternative-text="Pipeline"></lightning-icon>
+            </div>
+            <div class="slds-media__body">
+              <p class="slds-text-title_caps">DevOps &amp; SRE Analytics · Operacional</p>
+              <h1 class="slds-page-header__title">Pipeline Monitor</h1>
+              <p class="slds-text-body_small slds-m-top_xx-small">
+                Configuração dos Pipelines Flosum. Esta tela ainda não mostra resultados de execução.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="slds-page-header__col-actions">
+          <lightning-button
+            label="Atualizar"
+            icon-name="utility:refresh"
+            onclick={handleRefresh}
+            disabled={isLoading}>
+          </lightning-button>
+        </div>
+      </div>
+    </header>
+
+    <div class="monitor-layout">
+      <section class="monitor-panel" aria-label="Pesquisar Pipelines">
+        <lightning-card title="Pipelines" icon-name="standard:flow">
+          <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+            <div class="slds-grid slds-gutters_x-small slds-grid_vertical-align-end">
+              <div class="slds-col slds-grow">
+                <lightning-input
+                  type="search"
+                  label="Pesquisar pelo nome"
+                  value={searchTerm}
+                  maxlength="80"
+                  onchange={handleSearchChange}>
+                </lightning-input>
+              </div>
+              <div class="slds-col slds-grow-none">
+                <lightning-button
+                  variant="brand"
+                  label="Pesquisar"
+                  disabled={isSearchDisabled}
+                  onclick={handleSearch}>
+                </lightning-button>
+              </div>
+            </div>
+            <div class="slds-text-body_small slds-text-color_weak slds-m-top_small" role="status">
+              {listCountLabel}
+            </div>
+            <template lwc:if={listHasMore}>
+              <div class="slds-notify slds-notify_alert slds-alert_warning slds-m-top_small" role="status">
+                Mais de 50 Pipelines encontrados. Refine a pesquisa para localizar outros registros.
+              </div>
+            </template>
+            <template lwc:if={listError}>
+              <div class="slds-notify slds-notify_alert slds-alert_error slds-m-top_small" role="alert">{listError}</div>
+            </template>
+            <template lwc:if={isLoading}>
+              <div class="slds-is-relative loading-area">
+                <lightning-spinner size="small" alternative-text="Carregando Pipelines"></lightning-spinner>
+              </div>
+            </template>
+            <template lwc:elseif={hasPipelines}>
+              <lightning-datatable
+                data-name="pipelines"
+                key-field="id"
+                data={pipelines}
+                columns={pipelineColumns}
+                onrowaction={handleRowAction}
+                hide-checkbox-column
+                show-row-number-column>
+              </lightning-datatable>
+            </template>
+            <template lwc:elseif={listError}>
+              <p class="slds-m-top_medium">Revise o acesso ou tente atualizar a consulta.</p>
+            </template>
+            <template lwc:else>
+              <div class="slds-p-vertical_large slds-text-align_center" role="status">
+                Nenhum Pipeline encontrado para esta pesquisa.
+              </div>
+            </template>
+          </div>
+        </lightning-card>
+      </section>
+
+      <section class="monitor-panel" aria-label="Etapas do Pipeline">
+        <lightning-card title="Estrutura do Pipeline" icon-name="standard:flow">
+          <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+            <template lwc:if={hasSelection}>
+              <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                <div>
+                  <p class="slds-text-title_bold">{selectedName}</p>
+                  <p class="slds-text-body_small slds-text-color_weak">{stepCountLabel}</p>
+                </div>
+                <lightning-button
+                  label="Abrir no Flosum"
+                  icon-name="utility:new_window"
+                  onclick={handleOpenSelected}
+                  disabled={isLoadingSteps}>
+                </lightning-button>
+              </div>
+              <template lwc:if={detailHasMore}>
+                <div class="slds-notify slds-notify_alert slds-alert_warning slds-m-top_small" role="status">
+                  Mais de 100 Steps encontrados. A lista foi limitada.
+                </div>
+              </template>
+              <template lwc:if={detailError}>
+                <div class="slds-notify slds-notify_alert slds-alert_error slds-m-top_small" role="alert">{detailError}</div>
+              </template>
+              <template lwc:if={isLoadingSteps}>
+                <div class="slds-is-relative loading-area">
+                  <lightning-spinner size="small" alternative-text="Carregando Steps"></lightning-spinner>
+                </div>
+              </template>
+              <template lwc:elseif={hasSteps}>
+                <template lwc:if={hasStepColumns}>
+                  <lightning-datatable
+                    data-name="steps"
+                    class="slds-m-top_medium"
+                    key-field="id"
+                    data={steps}
+                    columns={stepColumns}
+                    hide-checkbox-column>
+                  </lightning-datatable>
+                </template>
+                <template lwc:else>
+                  <p class="slds-m-top_medium" role="status">
+                    Você possui acesso aos registros, mas os campos de detalhes não estão disponíveis para leitura.
+                  </p>
+                </template>
+              </template>
+              <template lwc:elseif={detailError}>
+                <p class="slds-m-top_medium">Não foi possível apresentar os Steps deste Pipeline.</p>
+              </template>
+              <template lwc:else>
+                <p class="slds-p-vertical_large slds-text-align_center" role="status">
+                  Este Pipeline não possui Steps acessíveis.
+                </p>
+              </template>
+            </template>
+            <template lwc:else>
+              <div class="slds-p-vertical_large slds-text-align_center">
+                Selecione “Visualizar etapas” no menu de um Pipeline para consultar sua configuração.
+              </div>
+            </template>
+          </div>
+        </lightning-card>
+      </section>
+    </div>
+  </div>
+</template>
