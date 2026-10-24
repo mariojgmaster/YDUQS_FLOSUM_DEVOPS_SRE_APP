@@ -82,3 +82,5 @@ O workflow de `issues.opened` somente executa se o autor, ator e emissor da Issu
 Se a integração do conector não produzir uma Issue como o proprietário ou se não houver run, usar o `workflow_dispatch` manual já existente; nunca inferir sucesso.
 
 **Diagnóstico:** em falhas de dry-run, emitir `SDOA_M42_DRY_RUN_DIAG` com contagens agregadas e categorias enumeradas de erro; nenhum erro bruto ou identificador da org em logs de repositório público. O prefixo é do utilitário genérico M4 reutilizado, embora a operação seja a validação de incidentes. O diagnóstico mais detalhado segue disponível exclusivamente no Deployment Status da DevSreFeat.
+
+O diagnóstico categórico também emite `INCIDENT_COMPONENT_DIAG: type=... category=... count=N`, onde o tipo vem de uma allowlist de metadados e a categoria é uma enumeração estática. **Nunca** expõe componentes de outras partes da org, erros brutos ou IDs de cliente; resultados detalhados ficam no Deployment Status da sandbox.
