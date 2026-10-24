@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+<deploymentStatus>Deployed</deploymentStatus>
+<description
+  >Classificação temporal de organizações Flosum; não certifica métricas.</description>
+<enableHistory>true</enableHistory><enableReports>true</enableReports>
+<label>Ambiente DevOps SRE</label>
+<nameField><displayFormat>ENV-{000000}</displayFormat><label>Número</label><type
+    >AutoNumber</type></nameField>
+<pluralLabel>Ambientes DevOps SRE</pluralLabel><sharingModel>Read</sharingModel>
+</CustomObject>
