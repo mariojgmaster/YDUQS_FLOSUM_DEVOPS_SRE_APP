@@ -31,3 +31,25 @@ Fonte incompleta ou desconhecida → **Não mensurável**. Não criar custom obj
 A [Issue #89](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/issues/89) disparou o run [#40130022909](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/actions/runs/40130022909), que terminou `cancelled` sem iniciar job. A hipótese técnica é colisão na fila compartilhada com os workflows `M5 ChatOps` e `Incident Validation`, também disparados pelo evento de Issue. O diagnóstico **somente leitura** passa a usar grupo de concorrência distinto `sf-devsrefeat-read-diagnostics` e `queue: max`, sem tocar nas filas de escrita/Metadata API.
 
 Nova Issue e novo run devem comprovar a hipótese; a execução cancelada **não representa** inventário nem consulta Salesforce.
+
+## Evidência objetiva da primeira execução — 24/10/2026
+
+O [PR #88](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/pull/88) incorporou a descoberta limitada ao workflow de diagnóstico já existente. O [PR #90](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/pull/90) isolou a fila read-only, evitando cancelamento por eventos simultâneos de Issue.
+
+**Run REAL:** [#40130263390](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/actions/runs/40130263390), gatilho owner Issue [#91](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/issues/91), sandbox `DevSreFeat`, SHA `4007c34aeed6f6cca9875ad342932114fb3fd856`. Final `SUCCESS`, `PASS: FLOSUM_SCHEMA_OWNER_ISSUE_INTENT`, autenticação JWT confirmada, `PASS: FLOSUM_SCHEMA_READ_ONLY_INVENTORY`. Sem consulta de registros nem escrita de metadata.
+
+| Papel heurístico | Candidatos no namespace Flosum/git | Schemas inspecionados | Falhas de describe |
+| --- | ---: | ---: | ---: |
+| Deployment | 8 | 6 | 0 |
+| Release | 0 | 0 | 0 |
+| Commit | 2 | 2 | 0 |
+| Ambiente | 0 | 0 | 0 |
+| Mudança/PR | 3 | 3 | 0 |
+| Branch | 3 | 3 | 0 |
+| **Total** | **16** | **14** | **0** |
+
+**Sinais técnicos:** entre os seis schemas selecionados de deployment, o slot `deployment-03` apresenta campos indicativos de status/lifecycle, destino e referência a commit, **mas não apresenta sinal detectado de timestamp de execução/conclusão**. Outros slots possuem sinais incompletos. O inventário não inclui APIs de terceiros não prefixadas, nem objetos com nomes fora das heurísticas, não confirma cardinalidade dos registros, ambientes efetivos ou cobertura de produção. `Release=0` e `Ambiente=0` **não significam** ausência dessas entidades na organização; somente ausência de correspondência nos critérios deste inventário.
+
+**Veredito vinculante:** `metric_status=NOT_MEASURABLE`. Não há justificativa para contar pipelines, steps, incidentes de teste ou demais configurações como deployments de produção.
+
+**Próximo incremento mínimo (ainda pendente):** mapear de maneira controlada a identidade exata do candidato de execução, relações com ambiente/commit/release e o carimbo temporal de fim (ou fonte alternativa auditável), sem publicar nomes internos, payloads ou registros em logs do repo público. Confirmar com equipe Flosum a semântica dos campos e o conjunto elegível de deploys PROD; só então especificar a correlação com incidentes/serviços. Não criar indicadores prematuramente.
