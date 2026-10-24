@@ -34,6 +34,6 @@ jobs:
       - name: Check bash syntax
         run: bash -n scripts/ci/sf-general-deploy.sh scripts/ci/sf-kit-read.sh
       - name: Check Python syntax
-        run: python3 -m py_compile scripts/ci/sf-deploy-policy.py scripts/ci/sf-deploy-safe-diagnostic.py tests/test_sf_deploy_policy.py tests/test_sf_m42_contract.py tests/test_sf_m42_diagnostics.py tests/test_sf_clone_pipeline_apex_integrity.py scripts/ci/sf-m5-chatops-intent.py tests/test_sf_m5_chatops_intent.py tests/test_sf_m53_detailed_report.py scripts/ci/sf-kit-read-report.py tests/test_sf_kit_read.py
+        run: python3 -m py_compile scripts/ci/sf-deploy-policy.py scripts/ci/sf-deploy-safe-diagnostic.py tests/test_sf_deploy_policy.py tests/test_sf_m42_contract.py tests/test_sf_m42_diagnostics.py tests/test_sf_clone_pipeline_apex_integrity.py scripts/ci/sf-m5-chatops-intent.py tests/test_sf_m5_chatops_intent.py tests/test_sf_m53_detailed_report.py scripts/ci/sf-kit-read-report.py scripts/ci/sf-kit-install.py tests/test_sf_kit_read.py tests/test_sf_kit_install.py tests/test_sf_kit_contract.py
       - name: Test package policy and M4.2 workflow contract
         run: python3 -m unittest discover -s tests -p 'test_sf_*.py' -v
