@@ -155,3 +155,12 @@ Existe workflow separado `Salesforce DevSreFeat - Remover Aba Duplicada Incident
 5. O workflow é **destrutivo e separado** do deploy normal. Não utilizar Issue ChatOps para este tipo de operação. Não repetir run ambíguo; verificar o Deployment Status.
 
 Status até essa execução: remoção física não foi feita, apenas a definição duplicada foi removida do repositório.
+
+
+## Pós-deploy — validação repetível da navegação (24/10/2026)
+
+- O deploy real do host no commit `bf4cbbab5d0d239b8873eda5087464b96d7788a3` foi confirmado no [run #40124487168](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/actions/runs/40124487168) (5 Apex, zero erros). O RM confirmou visualmente `Visão original`, `Gestão de incidentes` e `Novo incidente`.
+- A validação owner-only sem escrita [#40126052491](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/actions/runs/40126052491) recuperou `incidentsRollbacks → devSreIncidentsHost` e `DevSre_Incident_Intake → devSreIncidentIntake`; source tracking reportou **3 conflitos** nos três membros já implantados. O verificador anterior aceitava apenas host novo/2 conflitos, e falhava indevidamente *antes* do dry-run.
+- O verificador agora distingue `MIGRATION_PENDING` (host novo + dois conflitos conhecidos) de `INSTALLED` (os três em conflicts), com **todos** os nomes estáticos allowlisted; não aceita componentes adicionais/ausentes, excluídos ou ignorados.
+- Em modo `INSTALLED`, o XML obtido **diretamente da sandbox** deve comprovar a ligação `incidentsRollbacks.lwcComponent=devSreIncidentsHost`; qualquer divergência impede a operação. O teste Apex remoto continua sujeito à comparação com fontes aprovadas.
+- O processo de limpeza continua em workflow separado e só poderá excluir `DevSre_Incident_Intake` após teste funcional do cadastro e autorização inequívoca de exclusão. Nenhum delete é feito por esta correção.
