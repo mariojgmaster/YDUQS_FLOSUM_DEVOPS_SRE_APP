@@ -62,6 +62,14 @@ class ValidationTests(unittest.TestCase):
         self.assertIn('spec004-validation.cms',y)
         self.assertIn('retention-days: 1',y)
 
+    def test_history_layout_uses_metadata_related_list_identifier(self):
+        layout=m.ET.parse(ROOT/'force-app/main/default/layouts/DevSre_EnvironmentMapping__c-Environment Mapping.layout-meta.xml').getroot()
+        names=[x.text for x in layout.findall('m:relatedLists/m:relatedList',m.NS)]
+        self.assertNotIn('Histories',names)
+        self.assertIn('RelatedEntityHistoryList',names)
+        obj=m.ET.parse(ROOT/'force-app/main/default/objects/DevSre_EnvironmentMapping__c/DevSre_EnvironmentMapping__c.object-meta.xml').getroot()
+        self.assertEqual(obj.findtext('m:enableHistory',namespaces=m.NS),'true')
+
     def test_xml_is_parseable_and_config_is_not_seeded_with_ids(self):
         paths=list((ROOT/'force-app/main/default/objects/DevSre_EnvironmentMapping__c').rglob('*.xml'))
         for path in paths:m.ET.parse(path)

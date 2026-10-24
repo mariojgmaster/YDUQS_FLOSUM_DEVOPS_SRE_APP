@@ -14,5 +14,5 @@
         >Edit</behavior><field
         >Reason__c</field></layoutItems></layoutColumns><style
     >OneColumn</style></layoutSections>
-<relatedLists><relatedList>Histories</relatedList></relatedLists>
+<relatedLists><relatedList>RelatedEntityHistoryList</relatedList></relatedLists>
 </Layout>
