@@ -83,3 +83,26 @@ Verificar também referências de organização no próprio Metadata Log, inclui
 **Correção de privacidade:** a primeira execução exibiu o input do registro no ambiente dos steps do runner, embora o script sanitizasse sua própria saída. Remover o input do ambiente/comando do workflow e lê-lo internamente de `GITHUB_EVENT_PATH`. A correção protege futuras execuções; não remove o conteúdo dos logs anteriores. Não copiar o ID para documentação, PR ou fixtures.
 
 **Aceite seguinte:** CI PASS, revisão e merge; nova execução manual da mesma operação com o ID já fornecido; analisar slots/organização e obter confirmação semântica dos campos/status/horários em canal adequado antes de especificar o adaptador. Nenhum novo workflow, ambiente ou privilégio, e nenhum deploy.
+
+## Segunda inspeção: amostra real por relacionamento — 24/10/2026
+
+[Run #40136690923](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/actions/runs/40136690923), job `120999592530`, SHA `dd49427b054fca247307205e2476f199adfc5553`: **SUCCESS**, ECA/JWT e operação `flosum-branch-inspect` confirmadas na DevSreFeat. Somente leitura; nenhuma escrita/deploy.
+
+| Evidência | Slot 1 | Slot 2 |
+| --- | ---: | ---: |
+| Linhas recuperadas | 8 | 0 |
+| Linhas com referência de organização preenchida | 7 | 0 |
+| Campos lifecycle com algum valor na amostra | 2 | 0 |
+| Campos temporais candidatos com algum valor na amostra | 3 | 0 |
+| Linhas com CreatedDate | 8 | 0 |
+| Limite de amostragem atingido | Sim | Não |
+
+O describe identificou dois lookups para Branch, uma referência candidata de organização, dois campos candidatos de lifecycle e quatro temporais. As duas consultas foram executadas separadamente; oito IDs distintos na amostra, sem sobreposição. Os slots são posições na ordenação dos API names do schema, não nomes de relacionamentos nem papéis funcionais. O slot sem linhas vale somente para esta Branch, sob a visibilidade desse usuário.
+
+**Conclusão permitida:** existem Metadata Logs associados à Branch por um dos vínculos, e uma referência candidata a organização está preenchida em sete das oito linhas. Investigar essa referência no evento como origem do mapeamento de ambientes. A Branch não apresentou referência de organização pela heurística; não concluir inexistência absoluta.
+
+**Não demonstrado:** API names/labels dos dois vínculos, organização realmente sendo destino, quais linhas são deployments versus validações, significado dos status, timestamp final, organizações classificadas como PROD e cobertura do período. Os oito registros são amostra limitada; uma linha sem organização constitui lacuna a explicar. `CreatedDate` não foi certificado como conclusão de deploy. A ausência de valores em um dos quatro candidatos temporais não identifica qual campo está vazio nem sua função.
+
+**Próxima evidência mínima:** lista de campos/relacionamentos do Metadata Log (label, API name, tipo e objeto referenciado), restrita aos dois vínculos Branch, organização, status/operação e datas de início/conclusão, e detalhes mínimos de um log conhecido como deployment concluído. Compartilhar diretamente na conversa/exportação privada, sem inserir dados corporativos em logs, Issues ou commits públicos. Não repetir a mesma amostragem: ela já cumpriu seu objetivo.
+
+T008 continua parcial e as métricas permanecem **Não mensuráveis**. O contrato de ambientes permanece proposto até confirmação semântica; não implementar adaptador por associação heurística.

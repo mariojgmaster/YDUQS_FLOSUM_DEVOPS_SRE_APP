@@ -2,7 +2,7 @@
 
 **Estado:** proposta de domínio; NOT_READY_FOR_IMPLEMENTATION.
 **Data:** 24/10/2026.
-**Origem:** solicitação do responsável para configurar quais organizações representam PROD, UAT, SIT e DEV. A inspeção da Branch/Metadata Log preparada no PR #93 ainda não possui execução observada.
+**Origem:** solicitação do responsável para configurar quais organizações representam PROD, UAT, SIT e DEV. As inspeções #40135475770 e #40136690923 foram executadas na DevSreFeat; a segunda comprovou amostra de logs e referência candidata de organização. A semântica dos campos e o destino PROD continuam pendentes.
 
 ## Objetivo e limites
 
@@ -50,7 +50,7 @@ Alterações retroativas na configuração invalidam a certificação dos perío
 
 ## Pendências antes de plan/tasks de implementação
 
-- Executar o diagnóstico existente, operação manual `flosum-branch-inspect`, em `master`, usando privadamente o ID fornecido pelo responsável.
+- Diagnóstico executado: [#40136690923](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/actions/runs/40136690923), SUCCESS. Uma referência candidata de organização no Metadata Log, preenchida em sete de oito linhas do slot 1; slot 2 sem linhas. Não repetir a mesma amostragem para tentar inferir semântica.
 - Comprovar relacionamento Metadata Log → Branch e referência de organização/destino, incluindo cardinalidade e semântica histórica.
 - Confirmar quais logs representam tentativas, validações ou deployments reais; identificar status terminal, timestamp de conclusão, unidade e timezone.
 - Confirmar a chave autoritativa da organização e os registros que correspondem a cada classe, sem publicar IDs ou valores corporativos no repositório público.
