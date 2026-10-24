@@ -42,6 +42,23 @@ if ! sf org login jwt \
   exit 1
 fi
 echo "PASS: DEV_SRE_FEAT_AUTHENTICATED"
+# Read-only inspection: find the ORIGINAL "Incidents & Rollbacks" navigation tab.
+# Never print the full org metadata ZIP or retrieve it into the Git repo.
+mkdir -p "$work_dir/navigation"
+navigation_exit=0
+sf project retrieve start --metadata CustomTab \
+  --target-org devsrefeat-incidents \
+  --target-metadata-dir "$work_dir/navigation" \
+  --zip-file-name customtabs.zip \
+  --wait 60 --json > "$work_dir/navigation-retrieve.json" 2> "$work_dir/navigation-retrieve.err" || navigation_exit=$?
+if [[ "$navigation_exit" -ne 0 ]] ||
+  ! jq -e '.status==0' "$work_dir/navigation-retrieve.json" >/dev/null 2>&1 ||
+  [[ ! -s "$work_dir/navigation/customtabs.zip" ]]; then
+  echo "::error title=INCIDENT_NAV_RETRIEVE_FAILED::Nao foi possivel recuperar definicoes de CustomTab sem escrever na org."
+  exit 1
+fi
+python3 scripts/ci/sf-incident-original-tab-report.py --zip "$work_dir/navigation/customtabs.zip"
+
 
 sf_exit=0
 sf project deploy start \

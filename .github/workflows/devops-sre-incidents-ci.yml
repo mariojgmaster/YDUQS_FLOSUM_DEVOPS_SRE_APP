@@ -18,6 +18,8 @@ on:
       - 'manifest/sf-devops-sre-incidents-sandbox-validate.xml'
       - 'scripts/ci/verify-incident-sandbox-scope.py'
       - 'scripts/ci/sf-incident-sandbox-validate.sh'
+      - 'scripts/ci/sf-incident-original-tab-report.py'
+      - 'tests/test_sf_incident_original_tab_report.py'
       - '.github/workflows/sf-devsrefeat-incidents-validate.yml'
       - 'scripts/ci/sf-incident-chatops-intent.py'
       - 'tests/test_sf_incident_chatops_intent.py'
@@ -53,6 +55,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_sf_incident_chatops_intent.py' -v
           python3 -m unittest discover -s tests -p 'test_sf_incident_component_diagnostics.py' -v
           python3 -m unittest discover -s tests -p 'test_sf_incident_apex_test_diagnostics.py' -v
+          python3 -m unittest discover -s tests -p 'test_sf_incident_original_tab_report.py' -v
           bash -n scripts/ci/sf-incident-sandbox-validate.sh
           bash -n scripts/ci/sf-incident-sandbox-deploy.sh
           python3 -m unittest discover -s tests -p 'test_sf_incident_explicit_deploy.py' -v
