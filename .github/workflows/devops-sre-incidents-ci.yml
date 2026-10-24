@@ -28,6 +28,7 @@ on:
       - '.github/workflows/sf-devsrefeat-incidents-deploy.yml'
       - 'scripts/ci/sf-incident-sandbox-deploy.sh'
       - 'tests/test_sf_incident_explicit_deploy.py'
+      - 'scripts/ci/incident-preview-counts.jq'
   workflow_dispatch:
 
 permissions:

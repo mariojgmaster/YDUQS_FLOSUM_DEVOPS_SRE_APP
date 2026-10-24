@@ -135,3 +135,11 @@ O controller compilou e 3 testes Apex passaram; os dois testes de consulta falha
 **Validação técnica anterior conhecida:** [Incident Validation #40055639545](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/actions/runs/40055639545) — PASS, SHA `de63f8224b6151f14a40b19cdf4a4917ebd431ac`. Não usar este sucesso como substituto do novo dry-run obrigatório **no mesmo run de deploy**.
 
 Nenhum workflow `push`, `issues`, `workflow_run`, PR ou agendamento pode acionar esta implantação real.
+
+## Hotfix do preview do deploy — erro `jq: Cannot index number with string "result"`
+
+O segundo acionamento de deploy explícito na DevSreFeat ([run #40061863199](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/actions/runs/40061863199)) falhou depois do login ECA/JWT e do preview, antes do dry-run, devido a precedência dos operadores do jq. O JSON era parseável, mas `[.result.toDeploy|length, .result.conflicts|length, ...]` passava o valor numérico anterior ao filtro de `.result` seguinte.
+
+Corrigimos extraindo o filtro em `scripts/ci/incident-preview-counts.jq` e isolando os quatro `( ... | length )` com parênteses. O script faz captura do retorno de jq (falha fechada), valida que todas as quatro contagens são numéricas, e mantém o bloqueio a conflitos, exclusões e itens ignorados. Testes de regressão **executam o filtro jq real** com cenários com e sem pendências.
+
+O run #40061863199 terminou FAIL, e **não realizou dry-run nem deploy persistente**. A correção deve ser mesclada mediante CI antes de novo `workflow_dispatch` com SHA atual, confirmação literal, proteção master e testes no mesmo run. **Nunca usar rerun do job de escrita.**

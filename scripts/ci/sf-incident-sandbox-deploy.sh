@@ -53,9 +53,14 @@ if [[ "$preview_exit" != "0" ]] || ! jq -e \
    (.result.ignored|type)=="array"' "$tmp_dir/preview.json" >/dev/null 2>&1; then
   fail INCIDENT_PREVIEW_FAILED "Preview Salesforce nao confirmou estrutura/estado sem conflitos."
 fi
-read -r deploy_count conflict_count delete_count ignored_count < <(jq -r \
-  '[.result.toDeploy|length, .result.conflicts|length,
-    .result.toDelete|length, .result.ignored|length] | @tsv' "$tmp_dir/preview.json")
+# Each jq expression is parenthesized inside the versioned jq filter.
+# Check jq exit explicitly rather than process substitution (which hides failure).
+preview_summary="$(jq -erf scripts/ci/incident-preview-counts.jq "$tmp_dir/preview.json")" ||
+  fail INCIDENT_PREVIEW_PARSE_FAILED "JSON de preview nao pode ser interpretado com seguranca."
+read -r deploy_count conflict_count delete_count ignored_count <<< "$preview_summary"
+for amount in "$deploy_count" "$conflict_count" "$delete_count" "$ignored_count"; do
+  [[ "$amount" =~ ^[0-9]+$ ]] || fail INCIDENT_PREVIEW_PARSE_FAILED "Contagem de preview invalida."
+done
 echo "INFO: INCIDENT_PREVIEW_SUMMARY to_deploy=$deploy_count conflicts=$conflict_count to_delete=$delete_count ignored=$ignored_count"
 [[ "$conflict_count" == "0" && "$delete_count" == "0" && "$ignored_count" == "0" ]] ||
   fail INCIDENT_PREVIEW_UNSAFE "Conflito, exclusao ou componente ignorado. Nenhuma escrita tentada."
