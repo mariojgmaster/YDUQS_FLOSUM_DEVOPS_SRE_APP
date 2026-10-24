@@ -24,6 +24,22 @@ class ApexFailurePrivacyTests(unittest.TestCase):
         for forbidden in ("DoNotPublishTestClass", "sensitiveMethod", "SECRET_TOKEN_TEXT", "private username", "PRIVATE_SFID"):
             self.assertNotIn(forbidden, output)
 
+    def test_dml_status_enum_only(self):
+        self.assertEqual(mod.dml_status(
+            "System.DmlException: Insert failed. First exception on row 0; first error: "
+            "INSUFFICIENT_ACCESS_OR_READONLY, something secret"),
+            "INSUFFICIENT_ACCESS_OR_READONLY")
+        self.assertEqual(mod.dml_status(
+            "first error: LEAK_PRIVATE_VALUE_TOKEN, secret user id"), "OTHER")
+        self.assertEqual(mod.dml_status("no known status"), "UNAVAILABLE")
+        payload={"result":{"details":{"runTestResult":{"failures":[
+            {"message":"System.DmlException: Insert failed; first error: "
+                       "INVALID_FIELD_FOR_INSERT_UPDATE, private record 00ZZZ"}
+        ]}}}}
+        output="\\n".join(mod.summarize(json.dumps(payload)))
+        self.assertIn("dml_code=INVALID_FIELD_FOR_INSERT_UPDATE",output)
+        self.assertNotIn("private record",output)
+
     def test_setup_and_invalid_cases(self):
         data={"result":{"details":{"runTestResult":{"failures":[
             {"message":"System.DmlException: FIELD_CUSTOM_VALIDATION_EXCEPTION", "stackTrace":"Class.X.@TestSetup: line 4"}
