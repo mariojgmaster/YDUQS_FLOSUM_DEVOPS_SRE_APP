@@ -1,5 +1,7 @@
 # Inventário Flosum — descoberta controlada das fontes de deployment
 
+**Estado atual:** coleta integral executada e analisada nos runs #40138960350 e #40139152470. A identificação de campos, fórmulas e valores foi concluída para a Branch selecionada; consultar [contrato técnico observado](flosum-source-contract.md). As seções abaixo preservam o histórico dos diagnósticos anteriores, não o estado atual das lacunas.
+
 **Situação inicial (24/10/2026):** o Pipeline Monitor conhece apenas `Flosum__Pipeline__c` e `Flosum__PipelineStep__c`, que são **configuração**, não execuções. A fundação de incidentes está homologada na `DevSreFeat` (deploy #40124487168 e limpeza #40128322847), mas não há contrato validado para métricas DORA.
 
 ## Incremento atual: descoberta sem leitura de registros
