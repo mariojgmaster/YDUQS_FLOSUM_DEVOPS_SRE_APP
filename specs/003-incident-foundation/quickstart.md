@@ -93,3 +93,7 @@ O diagnóstico categórico também emite `INCIDENT_COMPONENT_DIAG: type=... cate
 - Os erros subsequentes no LWC e na classe de teste eram consequência provável da classe Apex inválida; validar novamente o conjunto antes de encerrar.
 - Reforçado o CI com assertivas específicas que evitam essas regressões.
 - A alteração fica em PR separado, sem deploy real. Após merge, solicitar novo dry-run via Issue ChatOps do proprietário e inspecionar o run Salesforce.
+
+## Debug de falhas Apex: após component_errors=0
+
+No dry-run #40054058870, todos os metadados passaram (`component_errors=0`), porém os testes Apex retornaram `test_errors=5`. O diagnóstico de componentes não pode revelar a causa dos testes. Foi acrescentado parser de `runTestResult.failures` que publica só categorias enumeradas e contagens agregadas (`INCIDENT_APEX_TEST_DIAG`) e nunca expõe usernames, IDs, mensagens/stack traces ou nomes de métodos em logs públicos.
