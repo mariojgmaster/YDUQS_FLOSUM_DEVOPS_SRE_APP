@@ -1,0 +1,33 @@
+# Portable, no Salesforce credentials used. Validates the installed universal kit.
+name: Salesforce DevOps - Kit Policy CI
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/sf-m5-chatops-plan.yml'
+      - '.github/workflows/sf-kit-policy-ci.yml'
+      - 'scripts/ci/sf-*.py'
+      - 'scripts/ci/sf-*.sh'
+      - 'tests/test_sf_kit_contract.py'
+      - 'config/salesforce-devops/catalog.json'
+      - 'manifest/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify Bash/Python syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n scripts/ci/sf-general-deploy.sh scripts/ci/sf-kit-read.sh
+          python3 -m py_compile scripts/ci/sf-deploy-policy.py scripts/ci/sf-m5-chatops-intent.py scripts/ci/sf-deploy-safe-diagnostic.py scripts/ci/sf-kit-read-report.py
+      - name: Test approved four-operation kit contract
+        run: python3 -m unittest discover -s tests -p 'test_sf_kit_contract.py' -v
