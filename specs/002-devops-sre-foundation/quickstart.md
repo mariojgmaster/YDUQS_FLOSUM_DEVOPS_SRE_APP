@@ -3,7 +3,7 @@
 ## Pré-requisitos
 
 - Org Salesforce com Flosum; usuário autorizado a ler `Flosum__Pipeline__c`, `Name`, `Flosum__PipelineStep__c`, lookup de Pipeline e campos opcionais exibidos.
-- Autorização de acesso à Apex class `DevSrePipelineMonitorController` concedida à persona adequada.
+- Atribuir o Permission Set `DevSrePipelineMonitor_Read` às personas autorizadas para conceder acesso à classe Apex. A permissão de leitura dos objetos Flosum continua dependendo das permissões Flosum existentes.
 - Repositório com Salesforce CLI/ECA JWT homologado; não compartilhar segredos.
 - Configuração do App e da tab SLDS 2 validada na org.
 
@@ -12,7 +12,7 @@
 ```sh
 npm ci --ignore-scripts --no-audit --no-fund
 npx eslint force-app/main/default/lwc/devSrePipelineMonitor/devSrePipelineMonitor.js
-npm run test:unit -- --runInBand --runTestsByPath force-app/main/default/lwc/devSrePipelineMonitor/__tests__/devSrePipelineMonitor.test.js
+npm run test:unit -- -- --runInBand --runTestsByPath force-app/main/default/lwc/devSrePipelineMonitor/__tests__/devSrePipelineMonitor.test.js
 ```
 
 ## Para validação posterior na DevSreFeat (não executar por este PR)

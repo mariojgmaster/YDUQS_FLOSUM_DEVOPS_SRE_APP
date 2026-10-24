@@ -108,7 +108,7 @@ describe("c-dev-sre-pipeline-monitor", () => {
   it("reissues the current query when the user selects Atualizar", async () => {
     const component = mount();
     await flushPromises();
-    const updateButton = component.shadowRoot.querySelector('lightning-button[label="Atualizar"]');
+    const updateButton = component.shadowRoot.querySelector('header lightning-button');
     updateButton.click();
     await flushPromises();
     expect(listPipelines).toHaveBeenCalledTimes(2);

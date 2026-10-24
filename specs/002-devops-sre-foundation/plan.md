@@ -23,6 +23,7 @@ Usar `lightning-card`, `lightning-datatable`, `lightning-input`, `lightning-butt
 - Entregar via branch + PR, sem merge/deploy implícito.
 - Manifesto específico: `manifest/sf-devops-sre-pipeline-monitor.xml`, somente novas classes e LWC.
 - **Não** adicionar este pacote à allowlist de deploy existente sem revisão e autorização posterior.
+- Incluir o Permission Set `DevSrePipelineMonitor_Read` com **somente acesso à classe Apex**, sem elevação de acesso a objetos Flosum.
 - Após merge e aprovação explícita: planejar validação na DevSreFeat, com Apex tests; criar aba Lightning e adicionar a Lightning App por procedimento controlado ou metadata validada.
 - `DevSreFeat` mapeado no catálogo existente para GitHub Environment `sf-devsrefeat-read`; configuração de secrets NÃO é inspecionável pelo conector e não será presumida, nem reutilizada implicitamente para produção.
 

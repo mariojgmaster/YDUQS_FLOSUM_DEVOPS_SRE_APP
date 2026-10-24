@@ -9,5 +9,9 @@
         <members>devSrePipelineMonitor</members>
         <name>LightningComponentBundle</name>
     </types>
+    <types>
+        <members>DevSrePipelineMonitor_Read</members>
+        <name>PermissionSet</name>
+    </types>
     <version>67.0</version>
 </Package>
