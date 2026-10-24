@@ -49,3 +49,13 @@ npm run test:unit -- -- --runInBand --runTestsByPath force-app/main/default/lwc/
 - Validar casos: operador tenta alterar causa via API (falha), incidente novo com causa não-pendente (falha), RM confirma `Other` com justificativa (sucesso), sem justificativa (falha), qualquer usuário confirma `DeploymentRelated` (falha).
 - Confirmar que o objeto continua `Private`, e providenciar compartilhamento controlado para RMs conforme a política a aprovar; Permission Set não cria sharing.
 - O manifesto novo `manifest/sf-devops-sre-rm-review.xml` é candidato a **validate** posterior. Não está na allowlist M4; nenhum deploy foi realizado.
+
+## Homologação mandatória para cada incremento
+
+1. Antes de alegar compilação/homologação, executar **Salesforce DevSreFeat - Incident Validation** em Actions → Run workflow → branch `master`; este workflow faz apenas dry-run e Apex tests, e não faz deploy.
+2. Publicar o URL/ID da execução e o SHA de origem; analisar as falhas sem divulgar payloads protegidos (repositório público).
+3. Uma implantação real na sandbox, quando autorizada separadamente, precisa atribuir `DevSreIncident_Operator` aos RMs e adicionar esses usuários ao Public Group `DevSre_Incident_RMs` (a associação de usuários não viaja em metadata).
+4. Testar acesso a incidentes de outro membro e recusa de um não-membro; checar FLS de causa, histórico e status `DeploymentRelated + Confirmed` bloqueado.
+5. Nenhuma aprovação do COE é exigida neste MVP.
+
+**Status até haver execução de run:** código em GitHub não é validação Salesforce. Não declarar concluído.

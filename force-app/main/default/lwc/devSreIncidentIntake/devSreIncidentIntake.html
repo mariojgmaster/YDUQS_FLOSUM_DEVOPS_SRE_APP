@@ -111,12 +111,12 @@
               <div class="slds-m-bottom_small">
                 <lightning-button variant="brand-outline" label="Adicionar ação" onclick={toggleActionForm}></lightning-button>
                 <template lwc:if={canReview}>
-                  <lightning-button class="slds-m-left_x-small" label="Revisar causa (RM)" icon-name="utility:check" onclick={toggleReviewForm}></lightning-button>
+                  <lightning-button class="slds-m-left_x-small" label="Revisar causa" icon-name="utility:check" onclick={toggleReviewForm}></lightning-button>
                 </template>
               </div>
               <template lwc:if={isReviewFormOpen}>
                 <section class="action-form slds-m-bottom_medium" aria-label="Revisão causal do RM">
-                  <p class="slds-text-title_bold slds-m-bottom_x-small">Revisão de causa — RM DevOps</p>
+                  <p class="slds-text-title_bold slds-m-bottom_x-small">Revisão de causa — DevOps/SRE</p>
                   <p class="slds-text-body_small slds-m-bottom_small">
                     A confirmação de causa por deployment está bloqueada até a vinculação com uma implantação real do Flosum. Justifique qualquer conclusão.
                   </p>

@@ -41,3 +41,9 @@ Qualquer contagem dessa fila pode ser exibida como **volumetria operacional da f
 - `CauseType=DeploymentRelated` e `CauseReviewStatus=Confirmed` estão expressamente bloqueados para **todos**, inclusive RMs, até uma SPEC que confira vínculo real com implantação concluída em produção.
 - Após mudança de revisão, a interface recarrega a consulta; alteração fica sujeita a auditoria do objeto.
 - Confirmações do COE não são exigidas por este MVP.
+
+## Retificação — RMs são toda a equipe DevOps/SRE
+
+A mesma equipe registra, gere e revisa. Conceder `DevSreIncident_Operator` e pertencer ao `DevSre_Incident_RMs` são as duas condições necessárias para acesso operacional ao conjunto de incidentes, sem uma permissão de revisor separada. A Custom Permission `DevSre_ReviewIncidentCausality` está no permission set de Operador; regras no servidor protegem as alterações. COE não aprova nessa etapa. `DeploymentRelated + Confirmed` segue bloqueado.
+
+`DevSreIncident_Reader` não recebe Custom Permission nem CRUD de escrita. Membership do grupo é gerenciada em Setup → Public Groups e não é codificada como usuário em metadata. É obrigatório testar sharing com pelo menos dois membros distintos e um não-membro. Sem membros, o sharing rule não concede visibilidade cruzada.

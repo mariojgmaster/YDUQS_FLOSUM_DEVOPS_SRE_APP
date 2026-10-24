@@ -81,3 +81,10 @@ Toda mudança que reabra ou corrija uma evidência pode invalidar uma certifica�
 - Revisão da **causa por outros fatores** pode ser confirmada ou rejeitada com justificativa. **Confirmação de `DeploymentRelated` permanece bloqueada**, inclusive pela API, até existir vínculo auditável com deployment real; criar essa associação é fase posterior.
 - Alterações manuais ao campo causal são impedidas para não RMs por regra de validação com `$Permission`. As regras exigem novos incidentes `Unconfirmed/Pending` e justificativa para conclusões.
 - **Nada nesta decisão libera cálculos DORA**. Fonte de deployments, vínculo causal, reconciliação e cobertura por serviço/período continuam gates obrigatórios.
+
+## Retificação de estrutura organizacional e homologação
+
+- O termo **RMs** designa a **equipe DevOps/SRE**, e não uma equipe ou nível gerencial acima dos operadores. Toda a equipe autorizada pode registrar, gerir e revisar incidentes.
+- Permissão única de operação: `DevSreIncident_Operator`, com custom permission de revisão; `DevSreIncident_Reader` para usuários somente de consulta. Não há perfil de aprovação extra. COE futuro.
+- Incidentes e ações seguem `Private` e são compartilhados exclusivamente com membros aprovados do grupo público `DevSre_Incident_RMs`, sem `View All` nem compartilhar com toda a org. A administração de membros do grupo é uma etapa pós-deploy da sandbox.
+- Toda implementação Salesforce deverá ser validada via Metadata API no **DevSreFeat** antes de marcar como homologada, além de CI e testes de permissão. Usar deploy dry-run; deploy real somente com autorização específica.

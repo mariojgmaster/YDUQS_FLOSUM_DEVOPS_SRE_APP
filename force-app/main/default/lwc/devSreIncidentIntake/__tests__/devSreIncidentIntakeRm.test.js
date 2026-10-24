@@ -10,7 +10,7 @@ jest.mock("@salesforce/customPermission/DevSre_ReviewIncidentCausality", () => (
 const flush = async () => { await Promise.resolve(); await Promise.resolve(); };
 const INCIDENT_ID = "a01000000000001AAA";
 
-describe("review do RM de DevOps", () => {
+describe("revisao pela equipe DevOps/SRE", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     listIncidents.mockResolvedValue({ incidents: [{ id: INCIDENT_ID, number: "INC-000001", title: "Análise RM", status: "Open" }], hasMore: false });
@@ -22,13 +22,13 @@ describe("review do RM de DevOps", () => {
     const component = createElement("c-dev-sre-incident-intake", { is: DevSreIncidentIntake });
     document.body.appendChild(component);
     await flush();
-    expect(component.shadowRoot.querySelector('lightning-button[label="Revisar causa (RM)"]')).toBeNull();
+    expect(component.shadowRoot.querySelector('lightning-button[label="Revisar causa"]')).toBeNull();
     component.shadowRoot.querySelector('lightning-datatable[data-name="incidents"]').dispatchEvent(
       new CustomEvent("rowaction", { detail: { action: { name: "view_actions" }, row: { id: INCIDENT_ID, number: "INC-000001" } } })
     );
     await flush();
     const buttons = [...component.shadowRoot.querySelectorAll("lightning-button")];
-    const btn = buttons.find(x => x.label === "Revisar causa (RM)");
+    const btn = buttons.find(x => x.label === "Revisar causa");
     expect(btn).toBeDefined();
     btn.click();
     await flush();

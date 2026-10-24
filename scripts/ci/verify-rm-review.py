@@ -10,7 +10,7 @@ def read(path):
 def v(e,tag):
     el=e.find(N+tag)
     return el.text if el is not None else None
-rm = read(root/"permissionsets/DevSreIncident_RMReviewer.permissionset-meta.xml")
+rm = read(root/"permissionsets/DevSreIncident_Operator.permissionset-meta.xml")
 grant=rm.find(N+"customPermissions")
 assert v(grant, "name")=="DevSre_ReviewIncidentCausality"
 assert v(grant,"enabled")=="true"
@@ -19,7 +19,7 @@ for k in ("CauseType__c","CauseReviewStatus__c","CauseJustification__c"):
     key="DevSre_Incident__c."+k
     assert key in perm and v(perm[key],"editable")=="true",key
 for x in rm.findall(N+"objectPermissions"):
-    for tag in ("allowDelete","allowCreate","viewAllRecords","modifyAllRecords"):
+    for tag in ("allowDelete","viewAllRecords","modifyAllRecords"):
         assert v(x,tag)=="false",(tag,x)
 for name,required in {
     "CauseFieldsRequireRM":"$Permission.DevSre_ReviewIncidentCausality",
@@ -31,9 +31,11 @@ for name,required in {
     obj=read(root/("objects/DevSre_Incident__c/validationRules/"+name+".validationRule-meta.xml"))
     assert v(obj,"active")=="true",name
     assert required in v(obj,"errorConditionFormula"),name
-for name in ("DevSreIncident_Operator","DevSreIncident_Reader"):
-    data=read(root/("permissionsets/"+name+".permissionset-meta.xml"))
-    for fp in data.findall(N+"fieldPermissions"):
-        if v(fp,"field") in perm:
-            assert v(fp,"editable")=="false",name
-print("PASS: RM_REVIEW_GUARDS_DEFINED")
+reader=read(root/"permissionsets/DevSreIncident_Reader.permissionset-meta.xml")
+for fp in reader.findall(N+"fieldPermissions"):
+    if v(fp,"field") in perm:
+        assert v(fp,"editable")=="false","Reader nao pode alterar causa"
+for item in rm.findall(N+"objectPermissions"):
+    for tag in ("allowDelete", "viewAllRecords", "modifyAllRecords"):
+        assert v(item,tag)=="false",tag
+print("PASS: DEVOPS_TEAM_REVIEW_GUARDS_DEFINED")
