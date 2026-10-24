@@ -38,4 +38,15 @@ for fp in reader.findall(N+"fieldPermissions"):
 for item in rm.findall(N+"objectPermissions"):
     for tag in ("allowDelete", "viewAllRecords", "modifyAllRecords"):
         assert v(item,tag)=="false",tag
-print("PASS: DEVOPS_TEAM_REVIEW_GUARDS_DEFINED")
+group=read(root/"groups/DevSre_Incident_RMs.group-meta.xml")
+assert v(group,"doesIncludeBosses")=="false"
+for name,prefix in (("DevSre_Incident__c","INC-"),("DevSre_RecoveryAction__c","REC-")):
+    rules=read(root/("sharingRules/"+name+".sharingRules-meta.xml"))
+    rows=rules.findall(N+"sharingCriteriaRules")
+    assert len(rows)==1,name
+    rule=rows[0]
+    assert v(rule,"accessLevel")=="Edit",name
+    assert v(rule.find(N+"sharedTo"),"group")=="DevSre_Incident_RMs",name
+    item=rule.find(N+"criteriaItems")
+    assert v(item,"field")=="Name" and v(item,"operation")=="startsWith" and v(item,"value")==prefix,name
+print("PASS: DEVOPS_TEAM_REVIEW_AND_SHARING_GUARDS_DEFINED")
