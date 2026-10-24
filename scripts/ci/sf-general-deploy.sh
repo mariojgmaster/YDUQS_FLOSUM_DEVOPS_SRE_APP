@@ -7,11 +7,11 @@ abort() { echo "::error title=$1::$2"; exit 1; }
 
 : "${OPERATION:?}" "${TARGET:?}" "${PACKAGE_ID:?}"
 [[ "$OPERATION" == plan || "$OPERATION" == deploy ]] || abort SDOA_OPERATION_DENIED 'Only plan/deploy supported.'
-# Two audited entrypoints: manual M4.2 plan/deploy or owner-authored M5 Issue PLAN.
-# M5 can NEVER deploy. The event payload is verified again in this privileged job.
+# M4.2 manual or M5 owner-authored Issue intent (PLAN or explicit SHA-pinned DEPLOY).
+# Validate twice: in resolve and with secrets present, before touching Salesforce.
 if [[ "$GITHUB_EVENT_NAME" == issues ]]; then
-  [[ "$GITHUB_REF" == refs/heads/master && "$OPERATION" == plan && -z "${CONFIRMATION:-}" ]] || abort SDOA_M5_PLAN_ONLY 'Issue ChatOps is restricted to plan on master.'
-  python3 scripts/ci/sf-m5-chatops-intent.py --event "$GITHUB_EVENT_PATH" --owner "$GITHUB_REPOSITORY_OWNER" --repository "$GITHUB_REPOSITORY" --target "$TARGET" --package "$PACKAGE_ID" || abort SDOA_M5_INTENT_DENIED 'Issue intent could not be verified.'
+  [[ "$GITHUB_REF" == refs/heads/master ]] || abort SDOA_M5_MASTER_ONLY 'ChatOps requires master.'
+  python3 scripts/ci/sf-m5-chatops-intent.py --event "$GITHUB_EVENT_PATH" --owner "$GITHUB_REPOSITORY_OWNER" --repository "$GITHUB_REPOSITORY" --target "$TARGET" --package "$PACKAGE_ID" --operation "$OPERATION" --commit-sha "$GITHUB_SHA" || abort SDOA_M5_INTENT_DENIED 'Owner issue, exact target/package, operation or revision could not be verified.'
 else
   [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && "$GITHUB_REF" == refs/heads/master ]] || abort SDOA_TRIGGER_DENIED 'Manual master dispatch required.'
 fi
@@ -53,6 +53,13 @@ openssl pkey -in "$TEMP/key.pem" -noout -passin pass: >/dev/null 2>&1 || abort S
 sf org login jwt --client-id "$SF_CLIENT_ID" --username "$SF_USERNAME" --jwt-key-file "$TEMP/key.pem" --instance-url "$SF_INSTANCE_URL" --alias sdoa-universal --json > "$TEMP/auth.json" 2> "$TEMP/auth.err" || abort SDOA_JWT_LOGIN_FAILED 'JWT login failed.'
 jq -e '.status==0' "$TEMP/auth.json" >/dev/null 2>&1 || abort SDOA_JWT_UNCONFIRMED 'Salesforce JWT authorization unconfirmed.'
 echo "SDOA_M42_AUTH_OK: JWT login completed."
+# Reports contain only allowlisted identifiers/counts; no raw JSON may escape
+# ephemeral runner. Artifact upload runs after this script, including on failure.
+SAFE_REPORT="$RUNNER_TEMP/sdoa-safe-report.json"
+write_safe_report() {
+  python3 scripts/ci/sf-deploy-safe-diagnostic.py --file "$1" --exit "$2" --phase "$3" --report "$SAFE_REPORT" --package "$PACKAGE_ID"
+}
+
 
 # Apex tests remain mandatory for both plan and deploy, including LWC-only packages.
 mapfile -t TESTS < <(python3 - "$PACKAGE_ID" <<'PY'
@@ -72,9 +79,10 @@ echo "SDOA_M42_DRY_RUN_STARTING: Salesforce validation with specified Apex tests
 dry_exit=0
 sf project deploy start --dry-run --metadata-dir "$TEMP/candidate-mdapi" "${test_args[@]}" --target-org sdoa-universal --wait 60 --json > "$TEMP/dry.json" 2> "$TEMP/dry.err" || dry_exit=$?
 if [[ "$dry_exit" != 0 ]] || ! jq -e '.status==0 and .result.success==true and (.result.done==true or .result.status=="Succeeded") and ((.result.numberComponentErrors // 0)==0) and ((.result.numberTestErrors // 0)==0)' "$TEMP/dry.json" >/dev/null 2>&1; then
-  python3 scripts/ci/sf-deploy-safe-diagnostic.py --file "$TEMP/dry.json" --exit "$dry_exit" --phase DRY_RUN
+  write_safe_report "$TEMP/dry.json" "$dry_exit" DRY_RUN
   abort SDOA_M42_DRY_RUN_FAILED 'Salesforce rejected dry-run, Apex tests failed, or response was not confirmed. See sanitized diagnostic and Salesforce Deployment Status; no real deployment attempted.'
 fi
+write_safe_report "$TEMP/dry.json" "$dry_exit" DRY_RUN
 echo 'SDOA_M42_DRY_RUN_PASSED: Salesforce validation succeeded; specified Apex tests passed.'
 if [[ "$OPERATION" == plan ]]; then
   echo 'SDOA_M42_PLAN_OK: Salesforce dry-run validated this exact package. No real deployment was submitted.'
@@ -88,7 +96,8 @@ echo "SDOA_M42_REAL_DEPLOY_STARTING: authorized write to $TARGET using SHA $GITH
 real_exit=0
 sf project deploy start --metadata-dir "$TEMP/candidate-mdapi" "${test_args[@]}" --target-org sdoa-universal --wait 60 --json > "$TEMP/deploy.json" 2> "$TEMP/deploy.err" || real_exit=$?
 if [[ "$real_exit" != 0 ]] || ! jq -e '.status==0 and .result.success==true and (.result.done==true or .result.status=="Succeeded") and ((.result.numberComponentErrors // 0)==0) and ((.result.numberTestErrors // 0)==0)' "$TEMP/deploy.json" >/dev/null 2>&1; then
-  python3 scripts/ci/sf-deploy-safe-diagnostic.py --file "$TEMP/deploy.json" --exit "$real_exit" --phase REAL_DEPLOY
+  write_safe_report "$TEMP/deploy.json" "$real_exit" REAL_DEPLOY
   abort SDOA_M42_DEPLOY_UNCONFIRMED 'Real deploy failed or outcome uncertain; inspect Salesforce Deployment Status before retrying. Do not rerun this job.'
 fi
+write_safe_report "$TEMP/deploy.json" "$real_exit" REAL_DEPLOY
 echo 'SDOA_REAL_DEPLOY_SUCCEEDED: Salesforce confirmed persistent deployment.'

@@ -108,3 +108,11 @@ jobs:
       - name: Validate on Salesforce and optionally deploy
         shell: bash
         run: bash scripts/ci/sf-general-deploy.sh
+      - name: Upload sanitized Salesforce report (NO RAW JSON)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdoa-safe-report-${{ github.run_id }}
+          path: ${{ runner.temp }}/sdoa-safe-report.json
+          if-no-files-found: ignore
+          retention-days: 7
