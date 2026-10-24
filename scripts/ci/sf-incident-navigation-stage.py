@@ -40,10 +40,22 @@ def check_preview(data):
         # Print only already-allowlisted member identifiers, never arbitrary org metadata.
         print(f"INFO: INCIDENT_STRICT_PREVIEW_GROUP_OK group={key} members={','.join(sorted(names)) or 'none'}",flush=True)
     assert not values["toDelete"] and not values["ignored"]
-    assert values["toDeploy"].issubset({"devSreIncidentsHost"})
-    assert values["conflicts"].issubset({"incidentsRollbacks","DevSreIncidentControllerTest"})
-    assert values["toDeploy"]|values["conflicts"]==ALLOWED
+    # Before migration: host new, original tab/test known source-tracking conflicts.
+    # After successful migration: all three members can be marked as conflicts.
+    # No other combination or unrecognized component is authorized.
+    pending = (
+        values["toDeploy"] == {"devSreIncidentsHost"}
+        and values["conflicts"] == {"incidentsRollbacks", "DevSreIncidentControllerTest"}
+    )
+    installed = (
+        not values["toDeploy"]
+        and values["conflicts"] == ALLOWED
+    )
+    assert pending or installed, "unexpected source-tracking state"
+    mode = "INSTALLED" if installed else "MIGRATION_PENDING"
+    print(f"INFO: INCIDENT_STRICT_PREVIEW_MODE={mode}",flush=True)
     print("INFO: INCIDENT_STRICT_PREVIEW_FINAL_MATCH_OK",flush=True)
+    return mode
 
 def zip_member(zipname,filename):
     with ZipFile(zipname) as z:
@@ -56,7 +68,7 @@ def norm(s):
 
 def stage(tabs,klass,candidate,preview):
     print("INFO: INCIDENT_MDAPI_STAGE_BEGIN",flush=True)
-    check_preview(json.loads(Path(preview).read_text(encoding="utf-8")))
+    mode = check_preview(json.loads(Path(preview).read_text(encoding="utf-8")))
     print("INFO: INCIDENT_MDAPI_STAGE_PREVIEW_OK",flush=True)
     source=Path("force-app/main/default/classes/DevSreIncidentControllerTest.cls").read_text(encoding="utf-8-sig")
     a=source.index(START); b=source.index(END,a)
@@ -70,6 +82,10 @@ def stage(tabs,klass,candidate,preview):
     assert root.tag==N+"CustomTab"
     refs=root.findall(N+"lwcComponent")
     assert len(refs)==1 and refs[0].text in ("incidentsRollbacks","devSreIncidentsHost")
+    # If the preview reports the host as already installed, its original tab
+    # MUST already reference that host. Otherwise this is unreviewed org drift.
+    if mode == "INSTALLED":
+        assert refs[0].text == "devSreIncidentsHost", "installed-state tab drift"
     assert not root.findall(N+"auraComponent") and not root.findall(N+"flexiPage")
     refs[0].text="devSreIncidentsHost"
     candidate=Path(candidate)

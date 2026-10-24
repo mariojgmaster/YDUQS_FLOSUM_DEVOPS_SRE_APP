@@ -17,6 +17,27 @@ class Tests(unittest.TestCase):
         # report source tracking conflicts, not metadata deployment failure.
         m.check_preview({"status":1,"result":{"toDeploy":[{"name":"devSreIncidentsHost"}],"conflicts":[{"name":"incidentsRollbacks"},{"name":"DevSreIncidentControllerTest"}],"toDelete":[],"ignored":[]}})
 
+    def test_preview_after_successful_deploy(self):
+        payload={"status":0,"result":{
+            "toDeploy":[],
+            "conflicts":[
+                {"apiName":"incidentsRollbacks"},
+                {"apiName":"DevSreIncidentControllerTest"},
+                {"apiName":"devSreIncidentsHost"}
+            ],
+            "toDelete":[],"ignored":[]
+        }}
+        self.assertEqual(m.check_preview(payload),"INSTALLED")
+
+    def test_preview_rejects_missing_or_extra_members(self):
+        for conflicts in (
+            [{"name":"incidentsRollbacks"},{"name":"DevSreIncidentControllerTest"}],
+            [{"name":"incidentsRollbacks"},{"name":"DevSreIncidentControllerTest"},{"name":"AnotherComponent"}],
+        ):
+            with self.assertRaises(AssertionError):
+                m.check_preview({"result":{"toDeploy":[],"conflicts":conflicts,
+                                           "toDelete":[],"ignored":[]}})
+
     def test_preview_refuses_extra_conflicts(self):
         with self.assertRaises(AssertionError):
             m.check_preview({"status":0,"result":{"toDeploy":[{"apiName":"devSreIncidentsHost"}],"conflicts":[{"apiName":"Secret"}],"toDelete":[],"ignored":[]}})
