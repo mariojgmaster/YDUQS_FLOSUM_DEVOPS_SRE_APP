@@ -85,4 +85,45 @@ for name in ["DevSreIncident_Reader", "DevSreIncident_Operator"]:
             expected = "false" if name.endswith("_Reader") else "true"
             assert value(field_permission, "editable") == expected, f"Acesso causal incorreto: {name} / {field}"
 
+
+# Guard against the exact errors reported in DevSreFeat Deployment Details.
+rules_checked = 0
+for object_name in OBJECTS:
+    directory = ROOT / "objects" / object_name / "validationRules"
+    for rule_path in sorted(directory.glob("*.validationRule-meta.xml")):
+        rule = read(rule_path)
+        expected_name = rule_path.name.removesuffix(".validationRule-meta.xml")
+        assert value(rule, "fullName") == expected_name, f"ValidationRule.fullName invalid: {rule_path}"
+        assert value(rule, "active") == "true", f"ValidationRule inactive: {rule_path}"
+        rules_checked += 1
+assert rules_checked == 10, f"Unexpected number of incident validation rules: {rules_checked}"
+
+# Salesforce forbids assigning field-level permission on a universally required custom field.
+universally_required = set()
+for object_name in OBJECTS:
+    for field_path in (ROOT / "objects" / object_name / "fields").glob("*.field-meta.xml"):
+        field = read(field_path)
+        if value(field, "required") == "true":
+            universally_required.add(f"{object_name}.{value(field, 'fullName')}")
+assert {
+    "DevSre_Incident__c.Title__c", "DevSre_Incident__c.ServiceKey__c",
+    "DevSre_RecoveryAction__c.Incident__c"
+}.issubset(universally_required)
+for permission_name in ("DevSreIncident_Reader", "DevSreIncident_Operator"):
+    perm = read(ROOT / "permissionsets" / (permission_name + ".permissionset-meta.xml"))
+    configured = {value(x, "field") for x in perm.findall(NS + "fieldPermissions")}
+    assert not configured.intersection(universally_required), (
+        f"Required field appears in PermissionSet fieldPermissions: {permission_name}"
+    )
+
+# Apex keyword 'number' is reserved. LWC uses the new DTO field in both grids.
+apex = (ROOT / "classes/DevSreIncidentController.cls").read_text("utf-8")
+assert "public String number {" not in apex and "row.number" not in apex
+assert apex.count("public String recordNumber { get; set; }") == 2
+assert apex.count("row.recordNumber =") == 2
+lwc = (ROOT / "lwc/devSreIncidentIntake/devSreIncidentIntake.js").read_text("utf-8")
+assert lwc.count('fieldName: "recordNumber"') == 2
+assert "row.number" not in lwc and "row.recordNumber" in lwc
+print(f"PASS: INCIDENT_SF_DEPLOY_BLOCKERS_FIXED rules={rules_checked} required={len(universally_required)}")
+
 print(f"PASS: INCIDENT_XML_AND_SECURITY_GATES files={count}")
