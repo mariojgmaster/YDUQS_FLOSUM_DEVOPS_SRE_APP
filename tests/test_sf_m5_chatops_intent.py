@@ -11,6 +11,7 @@ spec.loader.exec_module(module)
 
 WORKFLOW = (ROOT / ".github/workflows/sf-m5-chatops-plan.yml").read_text("utf-8")
 DEPLOY = (ROOT / "scripts/ci/sf-general-deploy.sh").read_text("utf-8")
+SHA = "a" * 40
 OWNER = "mariojgmaster"
 REPO = f"{OWNER}/YDUQS_FLOSUM_DEVOPS_SRE_APP"
 
@@ -38,13 +39,35 @@ class M5IssueIntentTests(unittest.TestCase):
             "package_id": "clone-pipeline-apex", "issue_number": "86",
         })
 
-    def test_exact_intent_cannot_request_deploy(self):
-        with self.assertRaises(module.IntentError):
-            module.check(event(operation="deploy"), OWNER, REPO)
+    def test_deploy_needs_immutable_sha_and_exact_confirmation(self):
+        data = event(operation="deploy")
+        data["issue"]["body"] = (
+            "SDOA-CHATOPS/2\noperation=deploy\ntarget=DevSreFeat\n"
+            "package_id=clone-pipeline-apex\ncommit_sha=" + SHA + "\n"
+            "confirmation=DEPLOY DevSreFeat clone-pipeline-apex\n"
+        )
+        outcome = module.check(data, OWNER, REPO, expected_sha=SHA)
+        self.assertEqual(outcome["operation"], "deploy")
+        self.assertEqual(outcome["commit_sha"], SHA)
+        self.assertEqual(outcome["confirmation"], "DEPLOY DevSreFeat clone-pipeline-apex")
+        for changed_sha in (None, "b" * 40, ""):
+            with self.assertRaises(module.IntentError):
+                module.check(data, OWNER, REPO, expected_sha=changed_sha)
+        for injected in ("confirmation=DEPLOY OTHER", "commit_sha=INJECT", "package_id=INJECT"):
+            altered = dict(data, issue=dict(data["issue"]))
+            key = injected.split("=")[0] + "="
+            altered["issue"]["body"] = data["issue"]["body"].replace(key, injected + " ", 1)
+            with self.assertRaises(module.IntentError):
+                module.check(altered, OWNER, REPO, expected_sha=SHA)
+
+    def test_plan_remains_plan_only(self):
         data = event()
         data["issue"]["body"] += "confirmation=DEPLOY DevSreFeat clone-pipeline-apex\n"
         with self.assertRaises(module.IntentError):
             module.check(data, OWNER, REPO)
+        data = event(operation="deploy")  # version 1 is not authorized for deploy
+        with self.assertRaises(module.IntentError):
+            module.check(data, OWNER, REPO, expected_sha=SHA)
 
     def test_cross_repo_sender_and_author_denied(self):
         for key, value in [
@@ -94,21 +117,23 @@ class M5IssueIntentTests(unittest.TestCase):
         with self.assertRaises(module.IntentError):
             module.check(event(), OWNER, REPO, expected_package="security-apex")
 
-    def test_workflow_only_plan_and_existing_environment(self):
+    def test_workflow_explicit_deploy_and_existing_environment(self):
         for snippet in (
             "issues:", "types: [opened]", "github.actor == github.repository_owner",
             "github.event.issue.user.login == github.repository_owner",
             "github.event.sender.login == github.repository_owner",
-            "github.run_attempt == 1", "OPERATION: plan", "CONFIRMATION: ''",
+            "github.run_attempt == 1", "OPERATION: " + "$" + "{{ needs.resolve.outputs.operation }}",
+            "CONFIRMATION: " + "$" + "{{ needs.resolve.outputs.confirmation }}",
             "ref: ${{ github.sha }}", "sf-devsrefeat-read",
-            "bash scripts/ci/sf-general-deploy.sh"
+            "bash scripts/ci/sf-general-deploy.sh", "SDOA_M5_DEPLOY_SUCCEEDED", "upload-artifact@v4"
         ):
             self.assertIn(snippet, WORKFLOW)
         for forbidden in ("issue_comment:", "pull_request_target:", "OPERATION: deploy"):
             self.assertNotIn(forbidden, WORKFLOW)
         self.assertIn('[[ "$GITHUB_EVENT_NAME" == issues ]]', DEPLOY)
-        self.assertIn('[[ "$GITHUB_REF" == refs/heads/master && "$OPERATION" == plan', DEPLOY)
+        self.assertIn("SDOA_M5_INTENT_DENIED", DEPLOY)
         self.assertIn("--event \"$GITHUB_EVENT_PATH\"", DEPLOY)
+        self.assertIn("--operation \"$OPERATION\" --commit-sha \"$GITHUB_SHA\"", DEPLOY)
 
 
 if __name__ == "__main__":
