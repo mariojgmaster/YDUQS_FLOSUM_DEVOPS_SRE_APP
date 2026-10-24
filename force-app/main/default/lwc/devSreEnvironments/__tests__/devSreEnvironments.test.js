@@ -237,13 +237,11 @@ describe("vigências de ambientes", () => {
     button(el, "Cancelar").click();
     change(el, "view", "all");
     await flush();
-    el.shadowRoot
-      .querySelector("lightning-datatable")
-      .dispatchEvent(
-        new CustomEvent("rowaction", {
-          detail: { action: { name: "edit" }, row }
-        })
-      );
+    el.shadowRoot.querySelector("lightning-datatable").dispatchEvent(
+      new CustomEvent("rowaction", {
+        detail: { action: { name: "edit" }, row }
+      })
+    );
     await flush();
     expect(
       [...el.shadowRoot.querySelectorAll("lightning-input")].find(
