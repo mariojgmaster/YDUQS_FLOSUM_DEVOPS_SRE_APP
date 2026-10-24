@@ -135,7 +135,10 @@ assert "Database.insert(new List<DevSre_RecoveryAction__c>{" in test_apex
 assert test_apex.count("AccessLevel.SYSTEM_MODE") >= 4
 assert "WHERE Name = 'DevSreIncident_Operator'" in test_apex
 assert "new PermissionSetAssignment(" in test_apex
-assert "System.runAs(new User(Id = UserInfo.getUserId()))" in test_apex
+assert "private static User operatorContext()" in test_apex
+assert "System.runAs(new User(Id = runningUser))" in test_apex
+assert test_apex.count("User actor = operatorContext();") == 3
+assert test_apex.count("System.runAs(actor)") == 3
 assert test_apex.count("WITH SYSTEM_MODE") >= 5
 controller = (ROOT / "classes/DevSreIncidentController.cls").read_text("utf-8")
 assert controller.count("WITH USER_MODE") >= 3
