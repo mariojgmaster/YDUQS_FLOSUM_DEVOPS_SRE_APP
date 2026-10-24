@@ -8,7 +8,7 @@ public with sharing class DevSreIncidentController {
 
   public class IncidentSummary {
     @AuraEnabled public Id id { get; set; }
-    @AuraEnabled public String number { get; set; }
+    @AuraEnabled public String recordNumber { get; set; }
     @AuraEnabled public String title { get; set; }
     @AuraEnabled public String serviceKey { get; set; }
     @AuraEnabled public String severity { get; set; }
@@ -25,7 +25,7 @@ public with sharing class DevSreIncidentController {
 
   public class RecoverySummary {
     @AuraEnabled public Id id { get; set; }
-    @AuraEnabled public String number { get; set; }
+    @AuraEnabled public String recordNumber { get; set; }
     @AuraEnabled public String actionType { get; set; }
     @AuraEnabled public String status { get; set; }
     @AuraEnabled public DateTime startedAt { get; set; }
@@ -78,7 +78,7 @@ public with sharing class DevSreIncidentController {
         DevSre_Incident__c recordValue = records[i];
         IncidentSummary row = new IncidentSummary();
         row.id = recordValue.Id;
-        row.number = recordValue.Name;
+        row.recordNumber = recordValue.Name;
         row.title = recordValue.Title__c;
         row.serviceKey = recordValue.ServiceKey__c;
         row.severity = recordValue.Severity__c;
@@ -131,7 +131,7 @@ public with sharing class DevSreIncidentController {
         DevSre_RecoveryAction__c recordValue = records[i];
         RecoverySummary row = new RecoverySummary();
         row.id = recordValue.Id;
-        row.number = recordValue.Name;
+        row.recordNumber = recordValue.Name;
         row.actionType = recordValue.ActionType__c;
         row.status = recordValue.Status__c;
         row.startedAt = recordValue.StartedAt__c;

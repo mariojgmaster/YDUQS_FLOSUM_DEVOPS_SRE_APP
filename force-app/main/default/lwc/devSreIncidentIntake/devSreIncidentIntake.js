@@ -6,7 +6,7 @@ import canReviewIncidents from "@salesforce/customPermission/DevSre_ReviewIncide
 import listRecoveryActions from "@salesforce/apex/DevSreIncidentController.listRecoveryActions";
 
 const INCIDENT_COLUMNS = [
-  { label: "Número", fieldName: "number", type: "text", initialWidth: 130 },
+  { label: "Número", fieldName: "recordNumber", type: "text", initialWidth: 130 },
   { label: "Incidente", fieldName: "title", type: "text" },
   { label: "Serviço", fieldName: "serviceKey", type: "text" },
   { label: "Severidade", fieldName: "severity", type: "text", initialWidth: 115 },
@@ -23,7 +23,7 @@ const INCIDENT_COLUMNS = [
 ];
 
 const RECOVERY_COLUMNS = [
-  { label: "Número", fieldName: "number", type: "text" },
+  { label: "Número", fieldName: "recordNumber", type: "text" },
   { label: "Tipo", fieldName: "actionType", type: "text" },
   { label: "Situação", fieldName: "status", type: "text" },
   {
@@ -130,7 +130,7 @@ export default class DevSreIncidentIntake extends NavigationMixin(LightningEleme
   async loadActions(row) {
     const request = ++this._actionsRequest;
     this.selectedId = row.id;
-    this.selectedNumber = row.number;
+    this.selectedNumber = row.recordNumber;
     this.isLoadingActions = true;
     this.actionsError = undefined;
     this.actions = [];

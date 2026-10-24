@@ -19,7 +19,7 @@ describe("c-dev-sre-incident-intake", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     listIncidents.mockResolvedValue({
-      incidents: [{ id: INCIDENT_ID, number: "INC-000001", title: "Interrupção de serviço", status: "Open", serviceKey: "A", severity: "SEV2" }],
+      incidents: [{ id: INCIDENT_ID, recordNumber: "INC-000001", title: "Interrupção de serviço", status: "Open", serviceKey: "A", severity: "SEV2" }],
       hasMore: false
     });
   });
@@ -31,7 +31,7 @@ describe("c-dev-sre-incident-intake", () => {
     expect(listIncidents).toHaveBeenCalledWith({ searchTerm: "" });
     const table = component.shadowRoot.querySelector('lightning-datatable[data-name="incidents"]');
     expect(table.data).toHaveLength(1);
-    expect(table.data[0].number).toBe("INC-000001");
+    expect(table.data[0].recordNumber).toBe("INC-000001");
   });
 
   it("mostra estado vazio sem sintetizar incidentes", async () => {
@@ -42,11 +42,11 @@ describe("c-dev-sre-incident-intake", () => {
   });
 
   it("permite visualizar ações somente quando seleciona incidente", async () => {
-    listRecoveryActions.mockResolvedValue({ actions: [{ id: "a02000000000001AAA", number: "REC-000001", actionType: "Rollback", status: "Planned" }], hasMore: false });
+    listRecoveryActions.mockResolvedValue({ actions: [{ id: "a02000000000001AAA", recordNumber: "REC-000001", actionType: "Rollback", status: "Planned" }], hasMore: false });
     const component = mount();
     await flush();
     component.shadowRoot.querySelector('lightning-datatable[data-name="incidents"]').dispatchEvent(
-      new CustomEvent("rowaction", { detail: { action: { name: "view_actions" }, row: { id: INCIDENT_ID, number: "INC-000001" } } })
+      new CustomEvent("rowaction", { detail: { action: { name: "view_actions" }, row: { id: INCIDENT_ID, recordNumber: "INC-000001" } } })
     );
     await flush();
     expect(listRecoveryActions).toHaveBeenCalledWith({ incidentId: INCIDENT_ID });
