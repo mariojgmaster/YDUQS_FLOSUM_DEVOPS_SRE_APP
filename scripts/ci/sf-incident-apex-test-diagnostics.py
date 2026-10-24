@@ -25,6 +25,31 @@ CATEGORIES = (
 )
 
 
+KNOWN_DML_CODES = frozenset((
+    "FIELD_CUSTOM_VALIDATION_EXCEPTION", "REQUIRED_FIELD_MISSING",
+    "INVALID_OR_NULL_FOR_RESTRICTED_PICKLIST", "FIELD_INTEGRITY_EXCEPTION",
+    "INVALID_FIELD_FOR_INSERT_UPDATE", "INVALID_TYPE_ON_FIELD_IN_RECORD",
+    "INVALID_CROSS_REFERENCE_KEY", "INSUFFICIENT_ACCESS_OR_READONLY",
+    "INSUFFICIENT_ACCESS_ON_CROSS_REFERENCE_ENTITY", "MIXED_DML_OPERATION",
+    "DUPLICATE_VALUE", "DUPLICATES_DETECTED", "CANNOT_INSERT_UPDATE_ACTIVATE_ENTITY",
+    "UNKNOWN_EXCEPTION", "INVALID_OPERATION", "FIELD_FILTER_VALIDATION_EXCEPTION",
+    "STRING_TOO_LONG", "INVALID_FIELD", "ENTITY_IS_DELETED", "DATA_STORAGE_LIMIT_EXCEEDED",
+    "INVALID_ID_FIELD", "INVALID_USER_FOR_OPERATION", "UNABLE_TO_LOCK_ROW",
+    "UNABLE_TO_OBTAIN_EXCLUSIVE_ACCESS", "CANNOT_EXECUTE_FLOW_TRIGGER",
+))
+
+
+def dml_status(message):
+    """Return only an explicitly approved Salesforce enum, never raw message."""
+    if not isinstance(message, str):
+        return "UNAVAILABLE"
+    match = re.search(r"first error:\s*([A-Z][A-Z_]+)", message[:8000], re.I)
+    if not match:
+        return "UNAVAILABLE"
+    code = match.group(1).upper()
+    return code if code in KNOWN_DML_CODES else "OTHER"
+
+
 def summarize(payload):
     try:
         data = json.loads(payload)
@@ -47,6 +72,7 @@ def summarize(payload):
     if not isinstance(failures, list):
         return ["INCIDENT_APEX_TEST_DIAG: failure_details_unavailable"]
     categories = Counter()
+    dml_codes = Counter()
     setup_mentions = 0
     for failure in failures[:200]:
         if not isinstance(failure, dict):
@@ -64,9 +90,13 @@ def summarize(payload):
                 label = category
                 break
         categories[label] += 1
+        if label in ("DML_EXCEPTION", "FIELD_VALIDATION", "REQUIRED_FIELD_MISSING", "INVALID_PICKLIST"):
+            dml_codes[dml_status(message)] += 1
     out = [f"INCIDENT_APEX_TEST_DIAG: failures_reported={min(len(failures), 200)} setup_mentions={setup_mentions}"]
     out += [f"INCIDENT_APEX_TEST_DIAG: category={category} count={count}"
             for category, count in sorted(categories.items())]
+    out += [f"INCIDENT_APEX_TEST_DIAG: dml_code={code} count={count}"
+            for code, count in sorted(dml_codes.items())]
     if len(failures) > 200:
         out += ["INCIDENT_APEX_TEST_DIAG: entries_truncated=true"]
     return out
