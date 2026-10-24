@@ -3,7 +3,17 @@ set -euo pipefail
 umask 077
 [[ "${EXPECTED_REF:-}" == "refs/heads/master" ]] || { echo "::error title=SANDBOX_REF_DENIED::Run only from master."; exit 1; }
 [[ "${EXPECTED_ACTOR:-}" == "${EXPECTED_OWNER:-}" ]] || { echo "::error title=SANDBOX_ACTOR_DENIED::Only repository owner may run."; exit 1; }
-[[ "${EXPECTED_RUN_ATTEMPT:-}" == "1" ]] || { echo "::error title=SANDBOX_RERUN_DENIED::Start a fresh manual run."; exit 1; }
+[[ "${EXPECTED_RUN_ATTEMPT:-}" == "1" ]] || { echo "::error title=SANDBOX_RERUN_DENIED::Start a fresh owner-authored request."; exit 1; }
+case "${EXPECTED_EVENT_NAME:-}" in
+  workflow_dispatch) ;;
+  issues)
+    python3 scripts/ci/sf-incident-chatops-intent.py \
+      --event "$GITHUB_EVENT_PATH" \
+      --owner "$GITHUB_REPOSITORY_OWNER" \
+      --repository "$GITHUB_REPOSITORY" || exit 1
+    ;;
+  *) echo "::error title=SANDBOX_EVENT_DENIED::Only manual or owner-authored Issue intent supported."; exit 1 ;;
+esac
 [[ "$(git rev-parse HEAD)" == "${EXPECTED_COMMIT_SHA:-}" ]] || { echo "::error title=SANDBOX_SHA_MISMATCH::Unexpected checkout."; exit 1; }
 
 expected_url="https://yduqs--devsrefeat.sandbox.my.salesforce.com"
@@ -44,6 +54,7 @@ sf project deploy start \
   --json > "$work_dir/dry-run.json" 2> "$work_dir/dry-run.err" || sf_exit=$?
 
 if ! jq -e 'type=="object"' "$work_dir/dry-run.json" > /dev/null 2>&1; then
+  python3 scripts/ci/sf-deploy-safe-diagnostic.py --file "$work_dir/dry-run.json" --exit "$sf_exit" --phase DRY_RUN
   echo "::error title=INCIDENT_DRY_RUN_NO_RESULT::Metadata API gave no structured response."
   exit 1
 fi
@@ -52,7 +63,10 @@ success="$(jq -r '.result.success // false' "$work_dir/dry-run.json")"
 result_status="$(jq -r '.result.status // "Unknown"' "$work_dir/dry-run.json")"
 done="$(jq -r '.result.done // false' "$work_dir/dry-run.json")"
 if [[ "$sf_exit" -ne 0 || "$status" != "0" || "$success" != "true" || ( "$done" != "true" && "$result_status" != "Succeeded" ) ]]; then
-  echo "::error title=INCIDENT_DRY_RUN_FAILED::Salesforce did not confirm validation success; details withheld for public repository. Review Deployment Status in DevSreFeat."
+  # Existing M4 privacy-safe diagnostic exposes only bounded counts / enums,
+  # never org identifiers, Apex names, component bodies or raw Salesforce errors.
+  python3 scripts/ci/sf-deploy-safe-diagnostic.py --file "$work_dir/dry-run.json" --exit "$sf_exit" --phase DRY_RUN
+  echo "::error title=INCIDENT_DRY_RUN_FAILED::Salesforce rejected the dry-run. See privacy-safe category/counts above and DevSreFeat Deployment Status for details."
   exit 1
 fi
 echo "PASS: DEV_SRE_FEAT_INCIDENT_DRY_RUN"
