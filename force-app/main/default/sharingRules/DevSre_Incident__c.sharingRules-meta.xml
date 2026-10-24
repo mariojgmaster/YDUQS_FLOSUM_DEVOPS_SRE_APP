@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SharingRules xmlns="http://soap.sforce.com/2006/04/metadata">
+  <sharingCriteriaRules>
+    <fullName>ShareIncidentRMs</fullName>
+    <accessLevel>Edit</accessLevel>
+    <criteriaItems>
+      <field>Name</field>
+      <operation>startsWith</operation>
+      <value>INC-</value>
+    </criteriaItems>
+    <description>Compartilhamento controlado com os RMs DevOps/SRE. Membros do grupo sao atribuidos explicitamente na org.</description>
+    <label>Equipe DevOps SRE - Leitura e escrita</label>
+    <sharedTo><group>DevSre_Incident_RMs</group></sharedTo>
+  </sharingCriteriaRules>
+</SharingRules>

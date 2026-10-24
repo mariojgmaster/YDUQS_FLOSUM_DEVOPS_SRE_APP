@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomPermission xmlns="http://soap.sforce.com/2006/04/metadata">
+  <description>Permite aos RMs DevOps revisar a classificacao de incidentes. Nao certifica deployment nem DORA.</description>
+  <isLicensed>false</isLicensed>
+  <label>Revisar causalidade de incidentes DevOps</label>
+</CustomPermission>

@@ -82,6 +82,7 @@ for name in ["DevSreIncident_Reader", "DevSreIncident_Operator"]:
     for field_permission in data.findall(NS + "fieldPermissions"):
         field = value(field_permission, "field")
         if field and (".CauseType__c" in field or ".CauseReviewStatus__c" in field or ".CauseJustification__c" in field):
-            assert value(field_permission, "editable") == "false", f"Operador nao pode editar causalidade: {field}"
+            expected = "false" if name.endswith("_Reader") else "true"
+            assert value(field_permission, "editable") == expected, f"Acesso causal incorreto: {name} / {field}"
 
 print(f"PASS: INCIDENT_XML_AND_SECURITY_GATES files={count}")

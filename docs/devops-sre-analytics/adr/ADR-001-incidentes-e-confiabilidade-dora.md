@@ -13,7 +13,7 @@
 4. O dashboard NÃO apresenta **0** incidentes, **0%** Change Fail Rate, tempo de recuperação ou qualquer métrica aparentemente válida quando a fonte estiver ausente ou incompleta. Exibir **Não mensurável**, com motivo, período, serviço e fontes faltantes.
 5. O registro de incidentes será preferencialmente alimentado por **formulário Lightning auditável no MVP**, com possibilidade futura de automação controlada, desde que o responsável pelo processo confirme o fluxo. Não inventar histórico retroativo.
 6. Ações de recuperação no app são **registros do que ocorreu**, e não botões de execução Flosum ou rollback automático.
-7. **Fluxo inicial aprovado em 23/10/2026:** DevOps/SRE cadastra incidentes manualmente; a atribuição de causalidade a deployments só poderá alimentar DORA após revisão de responsável autorizado, cujo papel exato continua pendente.
+7. **Fluxo inicial aprovado em 23/10/2026:** DevOps/SRE cadastra incidentes manualmente; a atribuição de causalidade a deployments só poderá alimentar DORA após revisão de responsável autorizado, com responsabilidade inicial definida para os **RMs de DevOps** (aceite posterior do proprietário). A confirmação adicional pelo COE fica fora do MVP.
 8. Não criar, alterar ou inferir registros de incidentes a partir de um deploy sem contrato de integração validado.
 
 ## Regras de ouro
@@ -68,7 +68,23 @@ Toda mudança que reabra ou corrija uma evidência pode invalidar uma certifica�
 
 ## Decisões ainda a confirmar
 
-- **Cadastro aprovado:** equipe DevOps/SRE manualmente. **Ainda decidir:** quem revisa causalidade, quem certifica cobertura e como compartilhar incidentes entre operadores e revisores.
+- **Cadastro aprovado:** DevOps/SRE, manual e auditável. **Revisão causal inicial aprovada:** equipe DevOps — RMs; COE é evolução futura, sem aprovação adicional agora. **Ainda decidir:** responsável pela certificação de cobertura, compartilhamento entre operadores e RMs, e inventário dos deployments.
 - Fonte oficial e API names dos **deployments executados em produção no Flosum**.
 - Catálogo oficial de serviços/aplicações afetados para impedir agrupamento de nomes livres.
 - Política de incidentes pré-existentes e início da janela mensurável. Não fabricar backfill.
+
+## Decisão complementar — revisão pela equipe DevOps (RMs)
+
+- Os **RMs de DevOps** são os responsáveis iniciais por **gerir e revisar** incidentes; cadastro permanece com operadores DevOps/SRE.
+- Não há aprovação obrigatória do COE neste ciclo. Sua futura participação exigirá nova especificação, sem incluir controles não solicitados agora.
+- A pessoa do RM recebe `DevSreIncident_Operator` conforme atribuição explícita. O próprio Permission Set de Operador concede `DevSre_ReviewIncidentCausality` e a FLS dos campos de revisão; não concede `View All` nem contorna o `Private`.
+- Revisão da **causa por outros fatores** pode ser confirmada ou rejeitada com justificativa. **Confirmação de `DeploymentRelated` permanece bloqueada**, inclusive pela API, até existir vínculo auditável com deployment real; criar essa associação é fase posterior.
+- Alterações manuais ao campo causal são impedidas para não RMs por regra de validação com `$Permission`. As regras exigem novos incidentes `Unconfirmed/Pending` e justificativa para conclusões.
+- **Nada nesta decisão libera cálculos DORA**. Fonte de deployments, vínculo causal, reconciliação e cobertura por serviço/período continuam gates obrigatórios.
+
+## Retificação de estrutura organizacional e homologação
+
+- O termo **RMs** designa a **equipe DevOps/SRE**, e não uma equipe ou nível gerencial acima dos operadores. Toda a equipe autorizada pode registrar, gerir e revisar incidentes.
+- Permissão única de operação: `DevSreIncident_Operator`, com custom permission de revisão; `DevSreIncident_Reader` para usuários somente de consulta. Não há perfil de aprovação extra. COE futuro.
+- Incidentes e ações seguem `Private` e são compartilhados exclusivamente com membros aprovados do grupo público `DevSre_Incident_RMs`, sem `View All` nem compartilhar com toda a org. A administração de membros do grupo é uma etapa pós-deploy da sandbox.
+- Toda implementação Salesforce deverá ser validada via Metadata API no **DevSreFeat** antes de marcar como homologada, além de CI e testes de permissão. Usar deploy dry-run; deploy real somente com autorização específica.

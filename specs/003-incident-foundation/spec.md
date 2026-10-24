@@ -33,7 +33,7 @@ Como operador, quero registrar uma ou mais ações tomadas (rollback, hotfix, fi
 
 ## US3 — Associar incidentes a deployments (P2; bloqueado por mapeamento Flosum)
 
-Como revisor COE, quero associar explicitamente um incidente a um ou mais deployments de produção, diferenciando `causador`, `corretivo` e `relacionado`, com justificativa e estado de verificação.
+Como RM DevOps, quero associar explicitamente um incidente a um ou mais deployments de produção, diferenciando `causador`, `corretivo` e `relacionado`, com justificativa e estado de verificação.
 
 **Aceite:**
 - Relação muitos-para-muitos; associação causal só entra em DORA após confirmação por papel autorizado.
@@ -43,7 +43,7 @@ Como revisor COE, quero associar explicitamente um incidente a um ou mais deploy
 
 ## US4 — Certificar cobertura e liberar métricas (P2; bloqueado por governança)
 
-Como revisor COE, quero atestar a completude das fontes por serviço/período, para impedir relatórios com números enganosos.
+Como responsável a definir pela certificação de cobertura (sem etapa COE neste MVP), quero atestar a completude das fontes por serviço/período, para impedir relatórios com números enganosos.
 
 **Aceite:**
 - Registro de cobertura identifica serviço, janela, escopo de ambientes, fontes, lacunas, verificador, data e versão da regra.
@@ -80,7 +80,7 @@ Como revisor COE, quero atestar a completude das fontes por serviço/período, p
 - Operadores **não podem editar campos de causalidade** por FLS; registros novos iniciam `CauseType=Unconfirmed` e `CauseReviewStatus=Pending`.
 - Permissões: Permission Sets `DevSreIncident_Reader` e `DevSreIncident_Operator`, OWD Private; compartilhamento entre operadores/revisores requer decisão posterior.
 - `ServiceKey__c` é texto **provisório**, sem autoridade como catálogo de serviços para DORA.
-- Revisão causal por responsável distinto, vínculos com deployments e certificação continuam **bloqueados** pelo inventário de Flosum e desenho de papel revisor.
+- **Revisão aprovada: RMs = equipe DevOps/SRE**. Não existem dois grupos funcionais distintos (operadores e revisores). A avaliação de causas não relacionadas a deployment pode ser feita com justificativa. A confirmação causal de deployments permanece **bloqueada** até inventário Flosum + vínculo confiável; certificação DORA continua fora de escopo.
 - Pacote específico sob `manifest/sf-devops-sre-incident-intake.xml`; nenhum deploy sem autorização posterior.
 
 ## DoD
@@ -89,3 +89,18 @@ Como revisor COE, quero atestar a completude das fontes por serviço/período, p
 - Metadados criados e testes implementados em PR distinto; lint/CI, validação Salesforce e autorização explícita antes de qualquer deploy.
 - Interface Lightning usável e homologada com dados de teste em sandbox, sem números sintéticos apresentados como produção.
 - Fluxo de registro→resposta→revisão causal→certificação verificado por personas reais.
+
+## MVP-02 — revisão causal por RMs (escopo aprovado)
+
+- **Quem revisa:** RMs da equipe de DevOps. COE não participa da aprovação neste incremento.
+- **Separação de poderes:** `DevSreIncident_Operator` cadastra; o mesmo `DevSreIncident_Operator` possui Custom Permission específica para editar `CauseType__c`, `CauseReviewStatus__c` e `CauseJustification__c`.
+- **Regras no servidor:** impedir alterações causais sem custom permission, exigir valores padrão na criação, justificativa ao confirmar/rejeitar, e **bloquear `DeploymentRelated + Confirmed` até vínculo verificado com deployment de produção**.
+- **UX SLDS2:** RM vê formulário condicional na tela Incidents & Rollbacks para revisar causas; a permissão de UI é apenas conveniência, pois as validações e CRUD/FLS determinam a autorização real.
+- **Compartilhamento:** OWD Private permanece; grupo público `DevSre_Incident_RMs` e sharing rules concedem leitura/escrita dos incidentes e ações para a equipe. A associação dos integrantes ao grupo é administrada **manualmente na org**, fora do package, e precisa de homologação. Nenhum acesso geral `View All` é introduzido.
+- Não implementar aprovação COE, integração de deployment, objetos de ligação ou indicadores DORA neste ciclo.
+
+### Retificação de papel (23/10/2026)
+
+O responsável esclareceu que **os RMs são a própria equipe DevOps/SRE**: todos os usuários aprovados para esse grupo recebem `DevSreIncident_Operator`, inclusive a revisão causal. Não implementar uma etapa/hierarquia de aprovação RM separada. COE fica para evolução futura.
+
+**Gate obrigatório para toda implementação:** validar o pacote via Metadata API **na sandbox DevSreFeat** (dry-run + testes Apex), anexar run ID e só então considerar aprovada a implementação técnica. Teste Jest/CI estático não substitui esse gate. Nenhuma implantação real é disparada pelo PR.

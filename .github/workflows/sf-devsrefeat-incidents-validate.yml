@@ -1,0 +1,61 @@
+# Manual-only check in the existing reviewed sandbox, no deployment persists.
+# This workflow MUST be triggered on master by the repository owner, never on PRs.
+name: Salesforce DevSreFeat - Incident Validation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sf-devsrefeat-read
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' && github.actor == github.repository_owner && github.run_attempt == 1 }}
+    name: Dry-run completo dos Incidentes na DevSreFeat
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    environment: sf-devsrefeat-read
+    env:
+      SF_CLIENT_ID: ${{ secrets.SF_CLIENT_ID }}
+      SF_USERNAME: ${{ secrets.SF_USERNAME }}
+      SF_JWT_KEY: ${{ secrets.SF_JWT_KEY }}
+      SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
+      EXPECTED_COMMIT_SHA: ${{ github.sha }}
+      EXPECTED_REF: ${{ github.ref }}
+      EXPECTED_ACTOR: ${{ github.actor }}
+      EXPECTED_OWNER: ${{ github.repository_owner }}
+      EXPECTED_RUN_ATTEMPT: ${{ github.run_attempt }}
+    steps:
+      - name: Checkout da master revisada no SHA exato
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verificar escopo e controles estaticos
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/verify-incident-metadata.py
+          python3 scripts/ci/verify-rm-review.py
+          python3 scripts/ci/verify-incident-sandbox-scope.py
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Validar testes LWC antes de autenticar na org
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx eslint force-app/main/default/lwc/devSreIncidentIntake/devSreIncidentIntake.js
+          npm run test:unit -- -- --runInBand --runTestsByPath force-app/main/default/lwc/devSreIncidentIntake/__tests__/devSreIncidentIntake.test.js force-app/main/default/lwc/devSreIncidentIntake/__tests__/devSreIncidentIntakeRm.test.js
+      - name: Instalar CLI Salesforce
+        run: npm install --global @salesforce/cli
+      - name: Dry-run Metadata API DevSreFeat
+        shell: bash
+        run: bash scripts/ci/sf-incident-sandbox-validate.sh

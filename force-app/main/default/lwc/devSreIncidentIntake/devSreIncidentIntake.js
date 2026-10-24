@@ -2,6 +2,7 @@ import { LightningElement } from "lwc";
 import { NavigationMixin } from "lightning/navigation";
 import { ShowToastEvent } from "lightning/platformShowToastEvent";
 import listIncidents from "@salesforce/apex/DevSreIncidentController.listIncidents";
+import canReviewIncidents from "@salesforce/customPermission/DevSre_ReviewIncidentCausality";
 import listRecoveryActions from "@salesforce/apex/DevSreIncidentController.listRecoveryActions";
 
 const INCIDENT_COLUMNS = [
@@ -52,6 +53,7 @@ export default class DevSreIncidentIntake extends NavigationMixin(LightningEleme
   isLoadingActions = false;
   isIncidentFormOpen = false;
   isActionFormOpen = false;
+  isReviewFormOpen = false;
   incidentsHasMore = false;
   actionsHasMore = false;
   errorMessage;
@@ -66,6 +68,7 @@ export default class DevSreIncidentIntake extends NavigationMixin(LightningEleme
   get hasIncidents() { return this.incidents.length > 0; }
   get hasActions() { return this.actions.length > 0; }
   get hasSelected() { return Boolean(this.selectedId); }
+  get canReview() { return Boolean(canReviewIncidents); }
   get searchDisabled() { return this.isLoading || this.searchTerm.trim().length > 80; }
   get listDescription() { return `${this.incidents.length} incidente(s) exibido(s)`; }
 
@@ -80,6 +83,14 @@ export default class DevSreIncidentIntake extends NavigationMixin(LightningEleme
   toggleIncidentForm() { this.isIncidentFormOpen = !this.isIncidentFormOpen; }
   toggleActionForm() {
     if (this.selectedId) this.isActionFormOpen = !this.isActionFormOpen;
+  }
+  toggleReviewForm() {
+    if (this.canReview && this.selectedId) this.isReviewFormOpen = !this.isReviewFormOpen;
+  }
+  handleReviewSaved() {
+    this.isReviewFormOpen = false;
+    this.dispatchEvent(new ShowToastEvent({ title: "Revisão registrada", message: "A conclusão foi salva. As métricas DORA continuam indisponíveis até certificação das fontes.", variant: "success" }));
+    this.loadIncidents();
   }
 
   async loadIncidents() {
@@ -96,6 +107,7 @@ export default class DevSreIncidentIntake extends NavigationMixin(LightningEleme
     this.selectedId = undefined;
     this.selectedNumber = undefined;
     this.isActionFormOpen = false;
+    this.isReviewFormOpen = false;
     try {
       const response = await listIncidents({ searchTerm: this.appliedSearch });
       if (request !== this._incidentsRequest) return;
@@ -124,6 +136,7 @@ export default class DevSreIncidentIntake extends NavigationMixin(LightningEleme
     this.actions = [];
     this.actionsHasMore = false;
     this.isActionFormOpen = false;
+    this.isReviewFormOpen = false;
     try {
       const response = await listRecoveryActions({ incidentId: row.id });
       if (request !== this._actionsRequest) return;
@@ -149,6 +162,7 @@ export default class DevSreIncidentIntake extends NavigationMixin(LightningEleme
 
   handleActionCreated() {
     this.isActionFormOpen = false;
+    this.isReviewFormOpen = false;
     this.dispatchEvent(new ShowToastEvent({
       title: "Ação registrada",
       message: "A ação foi documentada e não dispara operações no Flosum.",

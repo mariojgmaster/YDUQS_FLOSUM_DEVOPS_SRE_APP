@@ -12,6 +12,13 @@ on:
       - 'force-app/main/default/tabs/DevSre_Incident_Intake.tab-meta.xml'
       - 'manifest/sf-devops-sre-incident-intake.xml'
       - 'scripts/ci/verify-incident-metadata.py'
+      - 'scripts/ci/verify-rm-review.py'
+      - 'force-app/main/default/customPermissions/DevSre_ReviewIncidentCausality.customPermission-meta.xml'
+      - 'manifest/sf-devops-sre-rm-review.xml'
+      - 'manifest/sf-devops-sre-incidents-sandbox-validate.xml'
+      - 'scripts/ci/verify-incident-sandbox-scope.py'
+      - 'scripts/ci/sf-incident-sandbox-validate.sh'
+      - '.github/workflows/sf-devsrefeat-incidents-validate.yml'
   workflow_dispatch:
 
 permissions:
@@ -27,6 +34,10 @@ jobs:
           persist-credentials: false
       - name: Validar XML e guardrails de segurança
         run: python3 scripts/ci/verify-incident-metadata.py
+      - name: Validar controle de acesso dos RMs
+        run: python3 scripts/ci/verify-rm-review.py
+      - name: Validar allowlist da sandbox
+        run: python3 scripts/ci/verify-incident-sandbox-scope.py
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
@@ -37,4 +48,4 @@ jobs:
       - name: ESLint Incident Intake
         run: npx eslint force-app/main/default/lwc/devSreIncidentIntake/devSreIncidentIntake.js
       - name: Jest Incident Intake
-        run: npm run test:unit -- -- --runInBand --runTestsByPath force-app/main/default/lwc/devSreIncidentIntake/__tests__/devSreIncidentIntake.test.js
+        run: npm run test:unit -- -- --runInBand --runTestsByPath force-app/main/default/lwc/devSreIncidentIntake/__tests__/devSreIncidentIntake.test.js force-app/main/default/lwc/devSreIncidentIntake/__tests__/devSreIncidentIntakeRm.test.js

@@ -55,6 +55,6 @@ O modelo abaixo é a base para futuras Custom Objects Salesforce, **não é desc
 ## Decisões antes de gerar CustomObject XML
 
 1. O catálogo de serviços oficial existe em objeto Flosum/Salesforce ou precisamos do nosso?
-2. Quem mantém os incidentes, revisa o vínculo causal e atesta cobertura?
+2. Cadastro/gestão/revisão é da equipe DevOps/SRE (RMs), confirmado; resta definir quem certifica a cobertura e a política de composição do grupo público.
 3. Quais objetos Flosum representam **deployments efetivamente concluídos em produção** e quais campos guardam IDs/timestamps?
 4. Qual é a política de visibilidade/retention e campos obrigatórios no registro manual?
