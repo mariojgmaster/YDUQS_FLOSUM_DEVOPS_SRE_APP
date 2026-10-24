@@ -126,4 +126,20 @@ assert lwc.count('fieldName: "recordNumber"') == 2
 assert "row.number" not in lwc and "row.recordNumber" in lwc
 print(f"PASS: INCIDENT_SF_DEPLOY_BLOCKERS_FIXED rules={rules_checked} required={len(universally_required)}")
 
+
+# API 67 uses user mode by default. The test fixture must be explicit and
+# must NOT relax the production controller's WITH USER_MODE or CRUD/FLS checks.
+test_apex = (ROOT / "classes/DevSreIncidentControllerTest.cls").read_text("utf-8")
+assert test_apex.count("Database.insert(incidents, AccessLevel.SYSTEM_MODE)") == 1
+assert "Database.insert(new List<DevSre_RecoveryAction__c>{" in test_apex
+assert test_apex.count("AccessLevel.SYSTEM_MODE") >= 4
+assert "WHERE Name = 'DevSreIncident_Operator'" in test_apex
+assert "new PermissionSetAssignment(" in test_apex
+assert "System.runAs(new User(Id = UserInfo.getUserId()))" in test_apex
+assert test_apex.count("WITH SYSTEM_MODE") >= 5
+controller = (ROOT / "classes/DevSreIncidentController.cls").read_text("utf-8")
+assert controller.count("WITH USER_MODE") >= 3
+assert "with sharing class DevSreIncidentController" in controller
+print("PASS: INCIDENT_API67_TEST_FIXTURE_MODE_AND_CONTROLLER_SECURITY")
+
 print(f"PASS: INCIDENT_XML_AND_SECURITY_GATES files={count}")

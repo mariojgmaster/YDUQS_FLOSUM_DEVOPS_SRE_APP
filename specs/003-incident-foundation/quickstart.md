@@ -97,3 +97,12 @@ O diagnóstico categórico também emite `INCIDENT_COMPONENT_DIAG: type=... cate
 ## Debug de falhas Apex: após component_errors=0
 
 No dry-run #40054058870, todos os metadados passaram (`component_errors=0`), porém os testes Apex retornaram `test_errors=5`. O diagnóstico de componentes não pode revelar a causa dos testes. Foi acrescentado parser de `runTestResult.failures` que publica só categorias enumeradas e contagens agregadas (`INCIDENT_APEX_TEST_DIAG`) e nunca expõe usernames, IDs, mensagens/stack traces ou nomes de métodos em logs públicos.
+
+## Fix dos testes Apex — API 67.0 (Deployment Details 0AfV900000Eh9nx)
+
+- O `@TestSetup` falhava na linha de `insert incidents` com `fields being inaccessible` antes de qualquer método; por isso os cinco testes falhavam e a cobertura aparecia em 0%.
+- Desde Summer '26 / API 67.0, **DML e SOQL sem modo explícito usam USER_MODE**. A ECA/JWT conectou como usuário de integração sem FLS suficiente para construir as fixtures.
+- **Somente na classe de testes**: `Database.insert(..., AccessLevel.SYSTEM_MODE)` e `Database.update(..., false, AccessLevel.SYSTEM_MODE)`, com SOQL de preparação `WITH SYSTEM_MODE`. O teste preserva Validation Rules e verifica tanto o bloqueio da confirmação de deployment quanto a sequência temporal.
+- Para testar consultas do controller **em usuário autorizado**, `@TestSetup` atribui temporariamente a `DevSreIncident_Operator` ao usuário de teste dentro de `System.runAs`, isolando PermissionSetAssignment (setup-object DML) dos objetos de negócio; dados test-only são revertidos após execução.
+- O controller em produção não muda: `WITH USER_MODE`, `with sharing` e verificações CRUD/FLS seguem obrigatórios. Nenhuma permissão foi adicionada a usuários reais na org.
+- CI protege os modos e as permissões e o processo precisa do novo `--dry-run` com Apex tests na DevSreFeat antes de chamar homologado.
