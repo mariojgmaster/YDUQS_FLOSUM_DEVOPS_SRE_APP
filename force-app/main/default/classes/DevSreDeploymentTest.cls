@@ -51,16 +51,14 @@ private class DevSreDeploymentTest {
           Flosum__Is_Error__c = false,
           Flosum__Start_Date__c = at(2),
           Flosum__Completed_Date__c = at(2).addSeconds(10),
-          Flosum__Async_Request_Id__c = i < 2
-            ? 'SPEC004_REPEAT'
-            : 'SPEC004_' + i
+          Flosum__Async_Request_Id__c = 'SPEC004_' + i
         )
       );
     }
     Database.insert(logs, AccessLevel.SYSTEM_MODE);
   }
   @IsTest
-  static void listsRealLogsWithPagingFiltersAndRepeatedRequests() {
+  static void listsRealLogsWithPagingFiltersAndSourceIdentity() {
     System.runAs(grant()) {
       Id org = [SELECT Id FROM Flosum__Organisation__c WITH SYSTEM_MODE LIMIT 1]
       .Id;
@@ -99,16 +97,16 @@ private class DevSreDeploymentTest {
       );
       Assert.areEqual(4, next.rows.size());
       Assert.isFalse(next.hasMore);
-      Boolean duplicateFound = false;
+      Set<String> correlations = new Set<String>();
+      for (DevSreDeploymentController.DeploymentRow row : first.rows)
+        correlations.add(row.correlationKey);
       for (DevSreDeploymentController.DeploymentRow row : next.rows) {
         Assert.isFalse(ids.contains(row.id));
-        if (row.quality.contains('Requisição repetida'))
-          duplicateFound = true;
+        Assert.isFalse(correlations.contains(row.correlationKey));
+        correlations.add(row.correlationKey);
       }
-      for (DevSreDeploymentController.DeploymentRow row : first.rows)
-        if (row.quality.contains('Requisição repetida'))
-          duplicateFound = true;
-      Assert.isTrue(duplicateFound);
+      Assert.areEqual(54, correlations.size());
+      Assert.isFalse(first.correlationIncomplete);
       DevSreDeploymentController.DeploymentPage failed = DevSreDeploymentController.listDeployments(
         at(1),
         at(3),
