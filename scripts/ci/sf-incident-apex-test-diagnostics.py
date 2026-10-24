@@ -50,6 +50,38 @@ def dml_status(message):
     return code if code in KNOWN_DML_CODES else "OTHER"
 
 
+# Only names already present in the public test source are exposed. Never print
+# arbitrary Apex class/method names from the org, messages or stack traces.
+KNOWN_TEST_METHODS = frozenset((
+    "listsOnlySelectedIncidentsActions",
+    "listsRealIncidentsWithSearch",
+    "refusesPrematureDeploymentCausality",
+    "rejectsOtherObjectIdAndLongSearch",
+    "validatesRestorationTimeline",
+))
+SAFE_EXCEPTION_TYPES = {
+    "AuraHandledException": "AURA_HANDLED",
+    "SObjectException": "SOBJECT",
+    "SecurityException": "SECURITY",
+    "QueryException": "QUERY",
+    "DmlException": "DML",
+    "NullPointerException": "NULL_POINTER",
+    "AssertException": "ASSERT",
+    "UnexpectedException": "UNEXPECTED",
+    "TypeException": "TYPE",
+    "StringException": "STRING",
+    "LimitException": "LIMIT",
+    "NoAccessException": "NO_ACCESS",
+}
+def safe_exception_type(kind, message):
+    sample = (kind if isinstance(kind, str) else "") + " " + (message if isinstance(message, str) else "")
+    found = re.search(r"(?:System[.])?([A-Za-z]+Exception)\\b", sample[:3500])
+    if not found:
+        return "UNKNOWN"
+    return SAFE_EXCEPTION_TYPES.get(found.group(1), "OTHER")
+
+
+
 def summarize(payload):
     try:
         data = json.loads(payload)
@@ -73,6 +105,7 @@ def summarize(payload):
         return ["INCIDENT_APEX_TEST_DIAG: failure_details_unavailable"]
     categories = Counter()
     dml_codes = Counter()
+    public_method_failures = Counter()
     setup_mentions = 0
     for failure in failures[:200]:
         if not isinstance(failure, dict):
@@ -90,6 +123,9 @@ def summarize(payload):
                 label = category
                 break
         categories[label] += 1
+        method_name = failure.get("methodName")
+        safe_method_name = method_name if method_name in KNOWN_TEST_METHODS else "UNLISTED"
+        public_method_failures[(safe_method_name, safe_exception_type(kind, message))] += 1
         if label in ("DML_EXCEPTION", "FIELD_VALIDATION", "REQUIRED_FIELD_MISSING", "INVALID_PICKLIST"):
             dml_codes[dml_status(message)] += 1
     out = [f"INCIDENT_APEX_TEST_DIAG: failures_reported={min(len(failures), 200)} setup_mentions={setup_mentions}"]
@@ -97,6 +133,8 @@ def summarize(payload):
             for category, count in sorted(categories.items())]
     out += [f"INCIDENT_APEX_TEST_DIAG: dml_code={code} count={count}"
             for code, count in sorted(dml_codes.items())]
+    out += [f"INCIDENT_APEX_TEST_DIAG: method={method} exception={exception} count={count}"
+            for (method, exception), count in sorted(public_method_failures.items())]
     if len(failures) > 200:
         out += ["INCIDENT_APEX_TEST_DIAG: entries_truncated=true"]
     return out

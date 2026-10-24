@@ -40,6 +40,20 @@ class ApexFailurePrivacyTests(unittest.TestCase):
         self.assertIn("dml_code=INVALID_FIELD_FOR_INSERT_UPDATE",output)
         self.assertNotIn("private record",output)
 
+    def test_only_whitelisted_method_and_exception(self):
+        payload={"result":{"details":{"runTestResult":{"failures":[
+            {"methodName":"listsRealIncidentsWithSearch",
+             "message":"System.AuraHandledException: private SECRET_USER data"},
+            {"methodName":"unlistedUserSecretMethod",
+             "message":"System.SecretInternalException: secret TOKEN"}
+        ]}}}}
+        output="\\n".join(mod.summarize(json.dumps(payload)))
+        self.assertIn("method=listsRealIncidentsWithSearch exception=AURA_HANDLED count=1", output)
+        self.assertIn("method=UNLISTED exception=OTHER count=1", output)
+        self.assertNotIn("unlistedUserSecretMethod", output)
+        self.assertNotIn("SecretInternalException", output)
+        self.assertNotIn("SECRET_USER", output)
+
     def test_setup_and_invalid_cases(self):
         data={"result":{"details":{"runTestResult":{"failures":[
             {"message":"System.DmlException: FIELD_CUSTOM_VALIDATION_EXCEPTION", "stackTrace":"Class.X.@TestSetup: line 4"}
