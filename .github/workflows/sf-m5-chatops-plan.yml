@@ -1,6 +1,6 @@
-# M5.2: explicit owner-authored GitHub Issue -> Salesforce dry-run only.
-# This is NOT workflow_dispatch, does not use issue comments and cannot deploy.
-name: Salesforce DevOps - M5 ChatOps PLAN
+# M5.3: immutable owner-issued GitHub Issue -> Salesforce PLAN or SHA-pinned explicit DEPLOY.
+# Never accept comments, edits, re-runs or implicit deployment authorization.
+name: Salesforce DevOps - M5 ChatOps
 
 on:
   issues:
@@ -16,9 +16,12 @@ concurrency:
 
 jobs:
   resolve:
-    if: ${{ github.event_name == 'issues' && github.event.action == 'opened' && github.actor == github.repository_owner && github.event.issue.user.login == github.repository_owner && github.event.sender.login == github.repository_owner && startsWith(github.event.issue.title, 'SDOA PLAN ') && github.ref == 'refs/heads/master' && github.run_attempt == 1 }}
+    if: ${{ github.event_name == 'issues' && github.event.action == 'opened' && github.actor == github.repository_owner && github.event.issue.user.login == github.repository_owner && github.event.sender.login == github.repository_owner && (startsWith(github.event.issue.title, 'SDOA PLAN ') || startsWith(github.event.issue.title, 'SDOA DEPLOY ')) && github.ref == 'refs/heads/master' && github.run_attempt == 1 }}
     runs-on: ubuntu-latest
     outputs:
+      operation: ${{ steps.intent.outputs.operation }}
+      confirmation: ${{ steps.intent.outputs.confirmation }}
+      commit_sha: ${{ steps.intent.outputs.commit_sha }}
       target: ${{ steps.intent.outputs.target }}
       package_id: ${{ steps.intent.outputs.package_id }}
       issue_number: ${{ steps.intent.outputs.issue_number }}
@@ -40,7 +43,7 @@ jobs:
         env:
           OWNER: ${{ github.repository_owner }}
           REPOSITORY: ${{ github.repository }}
-        run: python3 scripts/ci/sf-m5-chatops-intent.py --event "$GITHUB_EVENT_PATH" --owner "$OWNER" --repository "$REPOSITORY" --output-file "$GITHUB_OUTPUT"
+        run: python3 scripts/ci/sf-m5-chatops-intent.py --event "$GITHUB_EVENT_PATH" --owner "$OWNER" --repository "$REPOSITORY" --commit-sha "$GITHUB_SHA" --output-file "$GITHUB_OUTPUT"
       - name: Resolve approved environment and manifest
         id: registry
         env:
@@ -62,7 +65,7 @@ jobs:
           set -euo pipefail
           npm run test:unit -- --runInBand --runTestsByPath force-app/main/default/lwc/clonePipelineAction/__tests__/clonePipelineAction.test.js
 
-  plan:
+  execute:
     needs: resolve
     if: ${{ needs.resolve.result == 'success' }}
     runs-on: ubuntu-latest
@@ -76,10 +79,10 @@ jobs:
       SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
       EXPECTED_INSTANCE_URL: ${{ needs.resolve.outputs.instance_url }}
       GITHUB_ENVIRONMENT_NAME: ${{ needs.resolve.outputs.github_environment }}
-      OPERATION: plan
+      OPERATION: ${{ needs.resolve.outputs.operation }}
       TARGET: ${{ needs.resolve.outputs.target }}
       PACKAGE_ID: ${{ needs.resolve.outputs.package_id }}
-      CONFIRMATION: ''
+      CONFIRMATION: ${{ needs.resolve.outputs.confirmation }}
     steps:
       - name: Checkout exact reviewed master SHA
         uses: actions/checkout@v4
@@ -95,9 +98,18 @@ jobs:
       - name: Reverify Issue intent and run M4.2 Salesforce PLAN
         shell: bash
         run: bash scripts/ci/sf-general-deploy.sh
-      - name: Publish fixed-shape PLAN outcome
+      - name: Publish verified operation outcome
         if: ${{ success() }}
         env:
           ISSUE: ${{ needs.resolve.outputs.issue_number }}
+          OPERATION: ${{ needs.resolve.outputs.operation }}
+        shell: bash
         run: |
-          echo "SDOA_M5_PLAN_SUCCEEDED: issue=$ISSUE operation=plan real_deploy=false"
+          set -euo pipefail
+          if [[ "$OPERATION" == plan ]]; then
+            echo "SDOA_M5_PLAN_SUCCEEDED: issue=$ISSUE operation=plan real_deploy=false"
+          elif [[ "$OPERATION" == deploy ]]; then
+            echo "SDOA_M5_DEPLOY_SUCCEEDED: issue=$ISSUE operation=deploy real_deploy=true"
+          else
+            exit 1
+          fi
