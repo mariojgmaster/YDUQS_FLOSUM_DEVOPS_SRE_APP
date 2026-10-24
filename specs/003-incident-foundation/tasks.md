@@ -12,7 +12,7 @@
 - [x] T006b Definir responsáveis pela **revisão causal**: equipe DevOps/SRE (RMs); COE fora do MVP.
 - [ ] T006c Definir quem certifica cobertura DORA, ainda não atribuída.
 - [ ] T007 Confirmar cadastro autoritativo de serviços/aplicações.
-- [ ] T008 Inventariar objetos Flosum de deployment PROD, campos e contratos temporais.
+- [ ] T008 Inventariar objetos Flosum de deployment PROD, campos e contratos temporais. **Parcial:** inventário de metadados da DevSreFeat executado no [run #40130263390](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/actions/runs/40130263390) — 8 candidatos de deployment, 6 descritos, 1 com sinais de status/destino/commit, sem timestamp de conclusão identificado. Ainda falta validar objeto/fonte exata, registros reais autorizados e contrato temporal/PROD. Não marcar concluído.
 - [ ] T009 Aprovar campos mínimos, compartilhamento e retenção de histórico.
 
 ## Implementação posterior, não concluída
