@@ -56,6 +56,7 @@ sf project deploy start \
 if ! jq -e 'type=="object"' "$work_dir/dry-run.json" > /dev/null 2>&1; then
   python3 scripts/ci/sf-deploy-safe-diagnostic.py --file "$work_dir/dry-run.json" --exit "$sf_exit" --phase DRY_RUN
   python3 scripts/ci/sf-incident-component-diagnostics.py --file "$work_dir/dry-run.json"
+  python3 scripts/ci/sf-incident-apex-test-diagnostics.py --file "$work_dir/dry-run.json"
   echo "::error title=INCIDENT_DRY_RUN_NO_RESULT::Metadata API gave no structured response."
   exit 1
 fi
@@ -68,6 +69,7 @@ if [[ "$sf_exit" -ne 0 || "$status" != "0" || "$success" != "true" || ( "$done" 
   # never org identifiers, Apex names, component bodies or raw Salesforce errors.
   python3 scripts/ci/sf-deploy-safe-diagnostic.py --file "$work_dir/dry-run.json" --exit "$sf_exit" --phase DRY_RUN
   python3 scripts/ci/sf-incident-component-diagnostics.py --file "$work_dir/dry-run.json"
+  python3 scripts/ci/sf-incident-apex-test-diagnostics.py --file "$work_dir/dry-run.json"
   echo "::error title=INCIDENT_DRY_RUN_FAILED::Salesforce rejected the dry-run. See privacy-safe category/counts above and DevSreFeat Deployment Status for details."
   exit 1
 fi
