@@ -28,7 +28,7 @@ class IncidentDeploySafety(unittest.TestCase):
             self.assertIn(x,S)
 
     def test_single_scoped_manifest_and_two_deploys(self):
-        target="manifest/sf-devops-sre-incidents-sandbox-validate.xml"
+        target="manifest/sf-devops-sre-incidents-navigation.xml"
         self.assertIn(target,S)
         self.assertEqual(S.count('sf project deploy start'),2)
         self.assertIn("--dry-run",S)
@@ -36,6 +36,8 @@ class IncidentDeploySafety(unittest.TestCase):
         self.assertIn('test_class="DevSreIncidentControllerTest"',S)
         self.assertIn("numberTestsCompleted",S)
         self.assertIn("sf project deploy preview",S)
+        self.assertIn('--metadata-dir "$tmp_dir/mdapi"', S)
+        self.assertIn('sf-incident-navigation-stage.py', S)
         for forbidden in ("--ignore-conflicts", "sf project deploy quick", "destructiveChanges",
                           "manifest/sf-devsrefeat-m3.xml", "https://login.salesforce.com", "--target-org production"):
             self.assertNotIn(forbidden,S)

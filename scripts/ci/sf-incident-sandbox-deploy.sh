@@ -3,7 +3,7 @@
 set -euo pipefail
 umask 077
 
-manifest="manifest/sf-devops-sre-incidents-sandbox-validate.xml"
+manifest="manifest/sf-devops-sre-incidents-navigation.xml"
 target_url="https://yduqs--devsrefeat.sandbox.my.salesforce.com"
 target_alias="devsrefeat-incidents-deploy"
 test_class="DevSreIncidentControllerTest"
@@ -23,7 +23,7 @@ for key in SF_CLIENT_ID SF_USERNAME SF_JWT_KEY; do
 done
 
 # Same exact approved package in DRY-RUN and REAL DEPLOY.
-python3 scripts/ci/verify-incident-sandbox-scope.py >/dev/null ||
+python3 scripts/ci/verify-incident-navigation-scope.py >/dev/null ||
   fail INCIDENT_MANIFEST_DENIED "Manifesto/config nao aprovado."
 [[ -f "$manifest" ]] || fail INCIDENT_MANIFEST_MISSING "Manifesto fixo ausente."
 tmp_dir="$(mktemp -d "$RUNNER_TEMP/incidents-deploy.XXXXXXXX")"
@@ -62,12 +62,35 @@ for amount in "$deploy_count" "$conflict_count" "$delete_count" "$ignored_count"
   [[ "$amount" =~ ^[0-9]+$ ]] || fail INCIDENT_PREVIEW_PARSE_FAILED "Contagem de preview invalida."
 done
 echo "INFO: INCIDENT_PREVIEW_SUMMARY to_deploy=$deploy_count conflicts=$conflict_count to_delete=$delete_count ignored=$ignored_count"
-[[ "$conflict_count" == "0" && "$delete_count" == "0" && "$ignored_count" == "0" ]] ||
-  fail INCIDENT_PREVIEW_UNSAFE "Conflito, exclusao ou componente ignorado. Nenhuma escrita tentada."
+gate() { fail "$1" "Falha na verificacao do pacote ou do estado original da sandbox."; }
+
+# Safely convert reviewed THREE components to Metadata API format.
+# Read live original tab and test class; reject drift, preserve all other tab settings.
+mkdir -p "$tmp_dir/remote-tabs" "$tmp_dir/remote-class" "$tmp_dir/mdapi"
+sf project retrieve start --metadata CustomTab:incidentsRollbacks \
+  --target-org "$target_alias" --target-metadata-dir "$tmp_dir/remote-tabs" \
+  --zip-file-name tabs.zip --wait 60 --json >"$tmp_dir/tabs.json" 2>"$tmp_dir/tabs.err" ||
+  gate INCIDENT_ORIGINAL_TAB_RETRIEVE_FAILED
+jq -e '.status==0' "$tmp_dir/tabs.json" >/dev/null || gate INCIDENT_ORIGINAL_TAB_READ_UNCONFIRMED
+sf project retrieve start --metadata ApexClass:DevSreIncidentControllerTest \
+  --target-org "$target_alias" --target-metadata-dir "$tmp_dir/remote-class" \
+  --zip-file-name class.zip --wait 60 --json >"$tmp_dir/class.json" 2>"$tmp_dir/class.err" ||
+  gate INCIDENT_TEST_CLASS_RETRIEVE_FAILED
+jq -e '.status==0' "$tmp_dir/class.json" >/dev/null || gate INCIDENT_TEST_CLASS_READ_UNCONFIRMED
+sf project convert source --manifest manifest/sf-devops-sre-incidents-navigation.xml \
+  --output-dir "$tmp_dir/mdapi" --json >"$tmp_dir/convert.json" 2>"$tmp_dir/convert.err" ||
+  gate INCIDENT_CONVERT_FAILED
+jq -e '.status==0' "$tmp_dir/convert.json" >/dev/null || gate INCIDENT_CONVERT_UNCONFIRMED
+python3 scripts/ci/sf-incident-navigation-stage.py \
+  --tabs "$tmp_dir/remote-tabs/tabs.zip" \
+  --klass "$tmp_dir/remote-class/class.zip" \
+  --candidate "$tmp_dir/mdapi" --preview "$tmp_dir/preview.json" ||
+  gate INCIDENT_DELTA_SECURITY_FAILED
+
 
 # Mandatory new dry-run in the SAME workflow, same checkout/org/tests.
 dry_exit=0
-sf project deploy start --dry-run --manifest "$manifest" \
+sf project deploy start --dry-run --metadata-dir "$tmp_dir/mdapi" \
   --test-level RunSpecifiedTests --tests "$test_class" \
   --target-org "$target_alias" --wait 60 --json \
   >"$tmp_dir/dry.json" 2>"$tmp_dir/dry.err" || dry_exit=$?
@@ -89,7 +112,7 @@ echo "PASS: INCIDENT_SAME_RUN_DRY_RUN_AND_APEX_TESTS"
   fail INCIDENT_FINAL_AUTH_DENIED "Confirmacao/SHA/attempt nao autorizados."
 echo "INFO: INCIDENT_REAL_DEPLOY_STARTING target=DevSreFeat"
 real_exit=0
-sf project deploy start --manifest "$manifest" \
+sf project deploy start --metadata-dir "$tmp_dir/mdapi" \
   --test-level RunSpecifiedTests --tests "$test_class" \
   --target-org "$target_alias" --wait 60 --json \
   >"$tmp_dir/real.json" 2>"$tmp_dir/real.err" || real_exit=$?

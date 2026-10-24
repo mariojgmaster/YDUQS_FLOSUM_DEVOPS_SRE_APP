@@ -68,6 +68,43 @@ sf project deploy preview \
 python3 scripts/ci/sf-incident-navigation-preview-report.py --file "$work_dir/nav-preview.json"
 echo "INFO: INCIDENT_NAV_PREVIEW_EXIT=$nav_exit"
 
+gate() { echo "::error title=$1::A safe metadata preflight failed."; exit 1; }
+WORK="$work_dir"
+ORG="devsrefeat-incidents"
+
+# Safely convert reviewed THREE components to Metadata API format.
+# Read live original tab and test class; reject drift, preserve all other tab settings.
+mkdir -p "$WORK/remote-tabs" "$WORK/remote-class" "$WORK/mdapi"
+sf project retrieve start --metadata CustomTab:incidentsRollbacks \
+  --target-org "$ORG" --target-metadata-dir "$WORK/remote-tabs" \
+  --zip-file-name tabs.zip --wait 60 --json >"$WORK/tabs.json" 2>"$WORK/tabs.err" ||
+  gate INCIDENT_ORIGINAL_TAB_RETRIEVE_FAILED
+jq -e '.status==0' "$WORK/tabs.json" >/dev/null || gate INCIDENT_ORIGINAL_TAB_READ_UNCONFIRMED
+sf project retrieve start --metadata ApexClass:DevSreIncidentControllerTest \
+  --target-org "$ORG" --target-metadata-dir "$WORK/remote-class" \
+  --zip-file-name class.zip --wait 60 --json >"$WORK/class.json" 2>"$WORK/class.err" ||
+  gate INCIDENT_TEST_CLASS_RETRIEVE_FAILED
+jq -e '.status==0' "$WORK/class.json" >/dev/null || gate INCIDENT_TEST_CLASS_READ_UNCONFIRMED
+sf project convert source --manifest manifest/sf-devops-sre-incidents-navigation.xml \
+  --output-dir "$WORK/mdapi" --json >"$WORK/convert.json" 2>"$WORK/convert.err" ||
+  gate INCIDENT_CONVERT_FAILED
+jq -e '.status==0' "$WORK/convert.json" >/dev/null || gate INCIDENT_CONVERT_UNCONFIRMED
+python3 scripts/ci/sf-incident-navigation-stage.py \
+  --tabs "$WORK/remote-tabs/tabs.zip" \
+  --klass "$WORK/remote-class/class.zip" \
+  --candidate "$WORK/mdapi" --preview "$WORK/preview.json" ||
+  gate INCIDENT_DELTA_SECURITY_FAILED
+
+sf project deploy start --dry-run --metadata-dir "$work_dir/mdapi" \
+  --test-level RunSpecifiedTests --tests DevSreIncidentControllerTest \
+  --target-org devsrefeat-incidents --wait 60 --json \
+  >"$work_dir/mdapi-dry.json" 2>"$work_dir/mdapi-dry.err" ||
+  gate INCIDENT_SCOPED_DRY_RUN_FAILED
+jq -e '.status==0 and .result.success==true and (.result.numberTestErrors // 0)==0' "$work_dir/mdapi-dry.json" >/dev/null ||
+  gate INCIDENT_SCOPED_DRY_RUN_UNCONFIRMED
+echo "PASS: INCIDENT_SCOPED_MDAPI_DRY_RUN"
+
+
 
 
 sf_exit=0

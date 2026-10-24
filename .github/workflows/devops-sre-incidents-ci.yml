@@ -21,6 +21,8 @@ on:
       - 'manifest/sf-devops-sre-incidents-navigation.xml'
       - 'scripts/ci/verify-incident-navigation-scope.py'
       - 'scripts/ci/sf-incident-navigation-preview-report.py'
+      - 'scripts/ci/sf-incident-navigation-stage.py'
+      - 'tests/test_sf_incident_navigation_stage.py'
       - 'tests/test_sf_incident_navigation_preview.py'
       - 'scripts/ci/verify-incident-sandbox-scope.py'
       - 'scripts/ci/sf-incident-sandbox-validate.sh'
@@ -69,6 +71,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_sf_incident_original_tab_report.py' -v
           python3 scripts/ci/verify-incident-navigation-scope.py
           python3 -m unittest discover -s tests -p 'test_sf_incident_navigation_preview.py' -v
+          python3 -m unittest discover -s tests -p 'test_sf_incident_navigation_stage.py' -v
           bash -n scripts/ci/sf-incident-sandbox-validate.sh
           bash -n scripts/ci/sf-incident-sandbox-deploy.sh
           bash -n scripts/ci/sf-incident-sandbox-cleanup.sh
