@@ -13,7 +13,8 @@
 4. O dashboard NÃO apresenta **0** incidentes, **0%** Change Fail Rate, tempo de recuperação ou qualquer métrica aparentemente válida quando a fonte estiver ausente ou incompleta. Exibir **Não mensurável**, com motivo, período, serviço e fontes faltantes.
 5. O registro de incidentes será preferencialmente alimentado por **formulário Lightning auditável no MVP**, com possibilidade futura de automação controlada, desde que o responsável pelo processo confirme o fluxo. Não inventar histórico retroativo.
 6. Ações de recuperação no app são **registros do que ocorreu**, e não botões de execução Flosum ou rollback automático.
-7. Não criar, alterar ou inferir registros de incidentes a partir de um deploy sem contrato de integração validado.
+7. **Fluxo inicial aprovado em 23/10/2026:** DevOps/SRE cadastra incidentes manualmente; a atribuição de causalidade a deployments só poderá alimentar DORA após revisão de responsável autorizado, cujo papel exato continua pendente.
+8. Não criar, alterar ou inferir registros de incidentes a partir de um deploy sem contrato de integração validado.
 
 ## Regras de ouro
 
@@ -67,7 +68,7 @@ Toda mudança que reabra ou corrija uma evidência pode invalidar uma certifica�
 
 ## Decisões ainda a confirmar
 
-- Quem pode **registrar**, **revisar causalidade** e **certificar cobertura** (proposta: DevOps/SRE operacionais e revisor COE).
+- **Cadastro aprovado:** equipe DevOps/SRE manualmente. **Ainda decidir:** quem revisa causalidade, quem certifica cobertura e como compartilhar incidentes entre operadores e revisores.
 - Fonte oficial e API names dos **deployments executados em produção no Flosum**.
 - Catálogo oficial de serviços/aplicações afetados para impedir agrupamento de nomes livres.
 - Política de incidentes pré-existentes e início da janela mensurável. Não fabricar backfill.

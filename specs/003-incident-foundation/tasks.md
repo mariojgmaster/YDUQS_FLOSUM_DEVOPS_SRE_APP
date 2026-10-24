@@ -8,17 +8,21 @@
 - [x] T005 Versionar proposta em PR próprio, preservando escopo do PR #34.
 
 ## Dependências de descoberta/revisão
-- [ ] T006 Confirmar papéis que registram, revisam e certificam incidentes.
+- [x] T006a Confirmar responsáveis pelo cadastro manual: equipe DevOps/SRE (aprovado em 23/10/2026).
+- [ ] T006b Confirmar papéis que revisam causalidade e certificam cobertura; a revisão antes de DORA é mandatória.
 - [ ] T007 Confirmar cadastro autoritativo de serviços/aplicações.
 - [ ] T008 Inventariar objetos Flosum de deployment PROD, campos e contratos temporais.
 - [ ] T009 Aprovar campos mínimos, compartilhamento e retenção de histórico.
 
 ## Implementação posterior, não concluída
-- [ ] T010 Criar schema Salesforce, validações e Permission Sets em PR de código.
-- [ ] T011 Criar interface SLDS 2 operacional para incidentes e ações de recuperação.
+- [x] T010a Criar schema inicial para incidentes e ações, validações temporais e Permission Sets de operador/leitor em PR de código.
+- [ ] T010b Validar schema, regras, campos e acesso real na sandbox antes de marcar conclusão.
+- [x] T011a Criar LWC SLDS 2 operacional para cadastro e consulta manual.
+- [ ] T011b Homologar a interface com operadores reais.
 - [ ] T012 Implementar revisão causal e links para deployments reais.
 - [ ] T013 Implementar certificação da cobertura do período.
-- [ ] T014 Testes Apex/Jest/permissões e validação sem deploy na DevSreFeat.
+- [x] T014a Escrever testes Apex/Jest e CI de interface.
+- [ ] T014b Executar CI, testes Apex e testes de permissão na DevSreFeat, sem deploy.
 - [ ] T015 Homologar UX/fluxo de incidentes.
 - [ ] T016 Implementar fórmulas DORA por SPEC posterior com evidência suficiente.
 
