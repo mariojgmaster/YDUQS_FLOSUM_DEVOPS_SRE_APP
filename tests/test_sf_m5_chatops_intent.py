@@ -37,6 +37,7 @@ class M5IssueIntentTests(unittest.TestCase):
         self.assertEqual(module.check(event(), OWNER, REPO), {
             "operation": "plan", "target": "DevSreFeat",
             "package_id": "clone-pipeline-apex", "issue_number": "86",
+            "commit_sha": "", "confirmation": "",
         })
 
     def test_deploy_needs_immutable_sha_and_exact_confirmation(self):
