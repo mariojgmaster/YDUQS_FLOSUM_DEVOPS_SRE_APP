@@ -18,6 +18,11 @@ on:
           - tooling-apex-summary
           - apex-tests
           - flosum-schema-inventory
+          - flosum-branch-inspect
+      branch_id:
+        description: "ID da Branch Flosum (15 ou 18 caracteres), somente para flosum-branch-inspect"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -42,6 +47,7 @@ jobs:
       SF_JWT_KEY: ${{ secrets.SF_JWT_KEY }}
       SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
       OPERATION: ${{ github.event_name == 'issues' && 'flosum-schema-inventory' || inputs.operation }}
+      BRANCH_RECORD_ID: ${{ inputs.branch_id }}
     steps:
       - name: Validate target and required configuration
         shell: bash
@@ -210,6 +216,13 @@ jobs:
                 exit 1
               fi
               python3 scripts/ci/sf-flosum-schema-inventory.py --inventory
+              ;;
+            flosum-branch-inspect)
+              if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" || "$GITHUB_REF" != "refs/heads/master" || "$GITHUB_ACTOR" != "$GITHUB_REPOSITORY_OWNER" || "$GITHUB_RUN_ATTEMPT" != "1" ]]; then
+                echo "::error title=FLOSUM_BRANCH_INSPECT_DENIED::Owner manual inspection on master only."
+                exit 1
+              fi
+              python3 scripts/ci/sf-flosum-branch-inspect.py --branch-id "$BRANCH_RECORD_ID"
               ;;
             *)
               echo "::error::Operation not in allowlist"

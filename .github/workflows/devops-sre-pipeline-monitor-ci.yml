@@ -10,6 +10,8 @@ on:
       - '.github/workflows/sf-devsrefeat-diagnostics.yml'
       - 'scripts/ci/sf-flosum-schema-inventory.py'
       - 'tests/test_sf_fl_osum_schema_inventory.py'
+      - 'scripts/ci/sf-flosum-branch-inspect.py'
+      - 'tests/test_sf_fl_osum_branch_inspect.py'
   workflow_dispatch:
 
 permissions:
@@ -25,6 +27,8 @@ jobs:
           persist-credentials: false
       - name: Validate Flosum schema inventory security and parsing
         run: python3 -m unittest discover -s tests -p 'test_sf_fl_osum_schema_inventory.py' -v
+      - name: Verify bounded Branch and Metadata Log inspector
+        run: python3 -m unittest discover -s tests -p 'test_sf_fl_osum_branch_inspect.py' -v
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
