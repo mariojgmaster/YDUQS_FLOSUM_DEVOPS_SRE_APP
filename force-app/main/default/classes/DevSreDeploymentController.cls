@@ -97,12 +97,9 @@ public with sharing class DevSreDeploymentController {
         AccessLevel.USER_MODE
       );
       Set<Id> orgIds = new Set<Id>();
-      Set<String> requestIds = new Set<String>();
       for (Flosum__Metadata_Log__c item : source) {
         if (item.Flosum__Organisation__c != null)
           orgIds.add(item.Flosum__Organisation__c);
-        if (!String.isBlank(item.Flosum__Async_Request_Id__c))
-          requestIds.add(item.Flosum__Async_Request_Id__c);
       }
       List<DevSre_EnvironmentMapping__c> mappings = [
         SELECT
@@ -124,43 +121,22 @@ public with sharing class DevSreDeploymentController {
         throw new AuraHandledException(
           'Há muitas vigências. Refine a organização ou o período.'
         );
-      // Repeated requests outside the requested period/page must also be signalled.
-      List<Flosum__Metadata_Log__c> related = new List<Flosum__Metadata_Log__c>();
-      if (!requestIds.isEmpty() && !orgIds.isEmpty()) {
-        related = [
-          SELECT Id, Flosum__Organisation__c, Flosum__Async_Request_Id__c
-          FROM Flosum__Metadata_Log__c
-          WHERE
-            Flosum__Process_Type__c = 'Deployment'
-            AND Flosum__Organisation__c IN :orgIds
-            AND Flosum__Async_Request_Id__c IN :requestIds
-          WITH USER_MODE
-          LIMIT 501
-        ];
-      }
-      Map<String, Integer> counts = new Map<String, Integer>();
-      for (Flosum__Metadata_Log__c item : related) {
-        String key = correlation(item);
-        counts.put(key, (counts.containsKey(key) ? counts.get(key) : 0) + 1);
-      }
+      // The managed source enforces case-insensitive uniqueness for request IDs.
+      // Preserve separate attempts; warn if that source invariant changes.
       DeploymentPage page = new DeploymentPage();
       page.rows = new List<DeploymentRow>();
       page.hasMore = false;
       page.inspectedRows = 0;
-      page.correlationIncomplete = related.size() > 500;
+      page.correlationIncomplete = !Flosum__Metadata_Log__c.Flosum__Async_Request_Id__c.getDescribe()
+        .isUnique();
       for (Integer i = 0; i < Math.min(source.size(), 200); i++) {
         Flosum__Metadata_Log__c item = source[i];
         page.cursorCreated = item.CreatedDate;
         page.cursorId = item.Id;
         page.inspectedRows++;
         DeploymentRow row = evaluate(item, mappings);
-        if (
-          counts.containsKey(row.correlationKey) &&
-          counts.get(row.correlationKey) > 1
-        )
-          row.quality += ' Requisição repetida: revisar correlação.';
         if (page.correlationIncomplete)
-          row.quality += ' Verificação de duplicidade incompleta.';
+          row.quality += ' A fonte não garante unicidade da requisição; revisar correlação.';
         if (
           (String.isBlank(environmentClass) ||
           row.environmentClass == environmentClass) &&
