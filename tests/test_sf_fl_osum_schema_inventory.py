@@ -64,6 +64,8 @@ class SchemaInventoryTests(unittest.TestCase):
     def test_exact_workflow_does_not_expose_payload(self):
         yml = (ROOT / ".github/workflows/sf-devsrefeat-diagnostics.yml").read_text("utf-8")
         self.assertIn("flosum-schema-inventory", yml)
+        self.assertIn("group: sf-devsrefeat-read-diagnostics", yml)
+        self.assertIn("queue: max", yml)
         self.assertIn("github.event.issue.user.login == github.repository_owner", yml)
         self.assertIn('sf-flosum-schema-inventory.py --verify-issue', yml)
         self.assertIn('sf-flosum-schema-inventory.py --inventory', yml)
