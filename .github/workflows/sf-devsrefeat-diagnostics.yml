@@ -47,7 +47,6 @@ jobs:
       SF_JWT_KEY: ${{ secrets.SF_JWT_KEY }}
       SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
       OPERATION: ${{ github.event_name == 'issues' && 'flosum-schema-inventory' || inputs.operation }}
-      BRANCH_RECORD_ID: ${{ inputs.branch_id }}
     steps:
       - name: Validate target and required configuration
         shell: bash
@@ -222,7 +221,9 @@ jobs:
                 echo "::error title=FLOSUM_BRANCH_INSPECT_DENIED::Owner manual inspection on master only."
                 exit 1
               fi
-              python3 scripts/ci/sf-flosum-branch-inspect.py --branch-id "$BRANCH_RECORD_ID"
+              # Read branch_id from GITHUB_EVENT_PATH inside Python; do not
+              # expose it in the runner's public step environment/command log.
+              python3 scripts/ci/sf-flosum-branch-inspect.py
               ;;
             *)
               echo "::error::Operation not in allowlist"
