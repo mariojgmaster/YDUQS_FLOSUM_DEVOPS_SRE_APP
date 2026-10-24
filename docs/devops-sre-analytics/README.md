@@ -74,3 +74,13 @@
 - A documentação de `specs/001-clone-pipeline/` permanece isolada e preservada.
 
 Fontes oficiais: https://developer.salesforce.com/docs/platform/lwc/guide/use-config-custom-tab.html ; https://developer.salesforce.com/docs/platform/lwc/guide/create-components-css-slds1-slds2.html ; https://dora.dev/guides/dora-metrics/.
+
+## Integração na aba original (24/10/2026)
+
+A Metadata API da **DevSreFeat** confirmou a navegação existente `CustomTab incidentsRollbacks` associada ao LWC `incidentsRollbacks`. A aba duplicada `DevSre_Incident_Intake` não pertence à navegação original, e a URL exibiu `Page doesn't exist`.
+
+**Estratégia não destrutiva:** manter o LWC original intacto e criar `devSreIncidentsHost`, que apresenta a **visão original** (`c-incidents-rollbacks`) e a **gestão manual de incidentes** (`c-dev-sre-incident-intake`) em abas internas `lightning-tabset`. Atualizar **somente** a tab já existente `incidentsRollbacks` para hospedar o novo host. Esse design preserva o componente original e os dados, sem criar um novo item de navegação. O manifesto atual de validação/deploy passa a conter `CustomTab incidentsRollbacks`, `LightningComponentBundle devSreIncidentsHost` e o já instalado `devSreIncidentIntake`.
+
+A definição de `DevSre_Incident_Intake.tab-meta.xml` foi removida do **código e manifestos**. A exclusão **física na sandbox** é uma operação separada com `destructiveChangesPost.xml`, restrita ao nome duplicado e com dry-run e backup/inspeção do tab original: remover do Git **não apaga** metadados implantados. Não disparar delete até validar a integração original.
+
+O `@TestSetup` foi protegido contra `PermissionSetAssignment` já existente no usuário de integração, evitando `DUPLICATE_VALUE` observado no dry-run #40118655617. O controller do produto não foi alterado.

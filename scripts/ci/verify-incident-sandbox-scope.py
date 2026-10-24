@@ -15,12 +15,12 @@ for t in doc.findall(ns + "types"):
 expected = {
     "CustomObject": ["DevSre_Incident__c", "DevSre_RecoveryAction__c"],
     "ApexClass": ["DevSreIncidentController", "DevSreIncidentControllerTest"],
-    "LightningComponentBundle": ["devSreIncidentIntake"],
+    "LightningComponentBundle": ["devSreIncidentIntake", "devSreIncidentsHost"],
     "CustomPermission": ["DevSre_ReviewIncidentCausality"],
     "PermissionSet": ["DevSreIncident_Reader", "DevSreIncident_Operator"],
     "Group": ["DevSre_Incident_RMs"],
     "SharingRules": ["DevSre_Incident__c", "DevSre_RecoveryAction__c"],
-    "CustomTab": ["DevSre_Incident_Intake"]
+    "CustomTab": ["incidentsRollbacks"]
 }
 assert entries == expected, "Manifest nao corresponde a allowlist aprovada"
 assert doc.findtext(ns+"version") == "67.0"

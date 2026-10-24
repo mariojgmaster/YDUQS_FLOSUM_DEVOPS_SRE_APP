@@ -9,13 +9,22 @@ private class DevSreIncidentControllerTest {
         WITH SYSTEM_MODE
         LIMIT 1
       ];
-      Database.insert(
-        new PermissionSetAssignment(
-          AssigneeId = runningUser,
-          PermissionSetId = operatorAccess.Id
-        ),
-        AccessLevel.SYSTEM_MODE
-      );
+      // In a deployed sandbox, the running integration user may already
+      // have this permission set. Never create a duplicate assignment.
+      List<PermissionSetAssignment> assigned = [
+        SELECT Id FROM PermissionSetAssignment
+        WHERE AssigneeId = :runningUser AND PermissionSetId = :operatorAccess.Id
+        WITH SYSTEM_MODE LIMIT 1
+      ];
+      if (assigned.isEmpty()) {
+        Database.insert(
+          new PermissionSetAssignment(
+            AssigneeId = runningUser,
+            PermissionSetId = operatorAccess.Id
+          ),
+          AccessLevel.SYSTEM_MODE
+        );
+      }
     }
 
     return new User(Id = runningUser);
