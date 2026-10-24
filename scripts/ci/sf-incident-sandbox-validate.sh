@@ -67,6 +67,10 @@ sf project deploy preview \
   > "$work_dir/nav-preview.json" 2> "$work_dir/nav-preview.err" || nav_exit=$?
 python3 scripts/ci/sf-incident-navigation-preview-report.py --file "$work_dir/nav-preview.json"
 echo "INFO: INCIDENT_NAV_PREVIEW_EXIT=$nav_exit"
+if [[ "$nav_exit" -ne 0 ]]; then
+  echo "::error title=INCIDENT_NAV_PREVIEW_CLI_FAILED::Preview CLI exit diferente de zero."
+  exit 1
+fi
 
 gate() { echo "::error title=$1::A safe metadata preflight failed."; exit 1; }
 WORK="$work_dir"

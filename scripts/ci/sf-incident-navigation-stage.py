@@ -20,7 +20,7 @@ END="    }\n\n    return new User"
 ALLOWED={"DevSreIncidentControllerTest","incidentsRollbacks","devSreIncidentsHost"}
 
 def check_preview(data):
-    assert data["status"]==0
+    assert isinstance(data,dict) and data.get("status") in (0,"0",None)
     print("INFO: INCIDENT_STRICT_PREVIEW_STATUS_OK",flush=True)
     result=data["result"]
     values={}

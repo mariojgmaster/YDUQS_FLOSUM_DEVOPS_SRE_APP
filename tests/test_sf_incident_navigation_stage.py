@@ -11,6 +11,11 @@ def tab(ref):
 class Tests(unittest.TestCase):
     def test_preview_expected_conflicts(self):
         m.check_preview({"status":0,"result":{"toDeploy":[{"apiName":"devSreIncidentsHost"}],"conflicts":[{"apiName":"incidentsRollbacks"},{"apiName":"DevSreIncidentControllerTest"}],"toDelete":[],"ignored":[]}})
+    def test_preview_without_status_cli_exit_checked_in_workflows(self):
+        m.check_preview({"result":{"toDeploy":[{"name":"devSreIncidentsHost"}],"conflicts":[{"name":"incidentsRollbacks"},{"name":"DevSreIncidentControllerTest"}],"toDelete":[],"ignored":[]}})
+        with self.assertRaises(AssertionError):
+            m.check_preview({"status":1,"result":{"toDeploy":[{"name":"devSreIncidentsHost"}],"conflicts":[{"name":"incidentsRollbacks"},{"name":"DevSreIncidentControllerTest"}],"toDelete":[],"ignored":[]}})
+
     def test_preview_refuses_extra_conflicts(self):
         with self.assertRaises(AssertionError):
             m.check_preview({"status":0,"result":{"toDeploy":[{"apiName":"devSreIncidentsHost"}],"conflicts":[{"apiName":"Secret"}],"toDelete":[],"ignored":[]}})
