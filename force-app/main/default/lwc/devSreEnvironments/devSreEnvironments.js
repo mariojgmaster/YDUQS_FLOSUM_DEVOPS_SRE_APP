@@ -24,6 +24,7 @@ export default class DevSreEnvironments extends NavigationMixin(
   rows = [];
   view = "current";
   organizationQuery = "";
+  helpSections = [];
   asOf = Date.now();
   showForm = false;
   hasEnd = false;
@@ -132,7 +133,7 @@ export default class DevSreEnvironments extends NavigationMixin(
     return this.saving || Boolean(this.originalEnd);
   }
   get statusLabel() {
-    return `${this.visibleRows.length} classificações nesta consulta. Sem data final, a classificação continua valendo.`;
+    return `${this.visibleRows.length} classificações nesta consulta.`;
   }
   get emptyTitle() {
     return this.rows.length
@@ -247,6 +248,9 @@ export default class DevSreEnvironments extends NavigationMixin(
   }
   handleRefresh() {
     this.loadMappings();
+  }
+  handleHelpToggle(event) {
+    this.helpSections = event.detail.openSections;
   }
   handleCurrent() {
     this.view = "current";
