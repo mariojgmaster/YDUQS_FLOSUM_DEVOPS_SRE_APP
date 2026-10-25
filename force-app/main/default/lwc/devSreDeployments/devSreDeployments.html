@@ -20,7 +20,7 @@
           <lightning-input type="date" name="fromDate" label="De (UTC)" value={fromDate} required onchange={handleChange}></lightning-input>
           <lightning-input type="date" name="toDate" label="Até (UTC)" value={toDate} required onchange={handleChange}></lightning-input>
         </div>
-        <lightning-record-picker name="organizationId" object-api-name="Flosum__Organisation__c" label="Organização Flosum" placeholder="Todas as organizações" value={organizationId} onchange={handleOrganizationPicker}></lightning-record-picker>
+        <lightning-record-picker data-org="organizationId" object-api-name="Flosum__Organisation__c" label="Organização Flosum" placeholder="Todas as organizações" value={organizationId} onchange={handleOrganizationPicker}></lightning-record-picker>
         <lightning-combobox name="environmentClass" label="Ambiente" value={environmentClass} options={environmentOptions} onchange={handleChange}></lightning-combobox>
         <lightning-combobox name="outcome" label="Resultado" value={outcome} options={outcomeOptions} onchange={handleChange}></lightning-combobox>
         <lightning-button variant="brand" label="Aplicar filtros" onclick={handleSearch} disabled={loading}></lightning-button>
