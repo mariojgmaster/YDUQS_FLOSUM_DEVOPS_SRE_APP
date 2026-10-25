@@ -51,7 +51,7 @@
             <p class="ds-help" role="status">{statusLabel}</p>
             <p class="ds-help">Sem data final, a classificação continua válida.</p>
           </div>
-          <lightning-accordion class="environment-help">
+          <lightning-accordion class="environment-help" allow-multiple-sections-open active-section-name={helpSections} onsectiontoggle={handleHelpToggle}>
             <lightning-accordion-section name="dates" label="Por que informar desde quando?">
               <p>Se uma organização era UAT até junho e passou a PROD em julho, as entregas de junho devem continuar identificadas como UAT.</p>
               <p class="ds-help">O início é inclusivo e o término exclusivo: uma nova classificação pode começar no mesmo instante da anterior. Datas na lista em UTC; no formulário, o fuso é o do seu perfil Salesforce.</p>
