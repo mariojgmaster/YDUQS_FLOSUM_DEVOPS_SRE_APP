@@ -44,8 +44,6 @@ export default class DevSreDeployments extends NavigationMixin(
   searchTerm = "";
   selectedId = null;
   csvStatus = "";
-  advancedSection = "";
-  sourceSection = "";
   sortBy = "";
   sortDirection = "asc";
   error = "";
@@ -72,13 +70,13 @@ export default class DevSreDeployments extends NavigationMixin(
   organizationVersion = 0;
   correlationIncomplete = false;
   columns = [
-    { label: "Deployment / Branch", fieldName: "name", sortable: true, type: "button", typeAttributes: { label: { fieldName: "name" }, name: "details", variant: "base" } },
-    { label: "Organização", fieldName: "organizationName", sortable: true },
-    { label: "Ambiente", fieldName: "environmentLabel", sortable: true },
-    { label: "Resultado", fieldName: "outcomeLabel", sortable: true, cellAttributes: { class: { fieldName: "outcomeTone" } } },
-    { label: "Conclusão (UTC)", fieldName: "completionLabel", sortable: true },
-    { label: "Duração", fieldName: "durationLabel", sortable: true },
-    { type: "button-icon", initialWidth: 58, typeAttributes: { name: "details", iconName: "utility:chevronright", variant: "border", alternativeText: "Detalhes" } }
+    { label: "Deployment / Branch", fieldName: "name", sortable: true, type: "button", initialWidth: 215, typeAttributes: { label: { fieldName: "name" }, name: "details", variant: "base" } },
+    { label: "Organização", fieldName: "organizationName", sortable: true, wrapText: false, initialWidth: 145 },
+    { label: "Ambiente", fieldName: "environmentLabel", sortable: true, wrapText: false, initialWidth: 140 },
+    { label: "Resultado", fieldName: "outcomeLabel", sortable: true, wrapText: false, cellAttributes: { class: { fieldName: "outcomeTone" } } },
+    { label: "Conclusão (UTC)", fieldName: "completionLabel", sortable: true, wrapText: false },
+    { label: "Duração", fieldName: "durationLabel", sortable: true, wrapText: false },
+    { type: "button-icon", initialWidth: 54, typeAttributes: { name: "details", iconName: "utility:chevronright", variant: "border", alternativeText: "Detalhes" } }
   ];
   get environmentOptions() {
     return [
