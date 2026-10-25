@@ -309,3 +309,20 @@ h1 {
     white-space: normal;
   }
 }
+
+
+:host {
+  --ds-color-surface-primary: #ffffff;
+  --ds-color-surface-secondary: #f6f8fc;
+  --ds-color-border-default: #d8e0eb;
+  --ds-color-text-primary: #102548;
+  --ds-color-text-secondary: #526985;
+  --ds-color-info-surface: #edf5ff;
+  display: block;
+  background: #f6f8fc;
+}
+.monitor { background: #f6f8fc; }
+.monitor-toolbar, .quick-actions, .monitor-header, .summary-section, .delivery-panel {
+  background: #ffffff;
+  border-color: #d8e0eb;
+}

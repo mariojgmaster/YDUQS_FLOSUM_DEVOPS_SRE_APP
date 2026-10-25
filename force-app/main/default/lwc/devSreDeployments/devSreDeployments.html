@@ -26,7 +26,7 @@
         <lightning-button variant="brand" label="Aplicar filtros" onclick={handleSearch} disabled={loading}></lightning-button>
         <lightning-button label="Limpar" onclick={handleClear} disabled={loading}></lightning-button>
       </div>
-      <lightning-accordion>
+      <lightning-accordion active-section-name={advancedSection} onsectiontoggle={handleAdvancedToggle}>
         <lightning-accordion-section name="advanced" label="Mais filtros e busca de organizações">
           <div class="ds-filters">
             <lightning-input name="organizationSearch" type="search" label="Localizar organização" value={organizationSearch} maxlength="80" onchange={handleChange}></lightning-input>
@@ -97,7 +97,7 @@
           </aside>
         </div>
       </template>
-      <lightning-accordion>
+      <lightning-accordion active-section-name={sourceSection} onsectiontoggle={handleSourceToggle}>
         <lightning-accordion-section name="source" label="Sobre os dados e o período consultado">
           <p>Fonte: registros de Deployment do Metadata Log do Flosum. As métricas DORA permanecem não certificadas.</p>
           <p class="ds-help">A data final inclui o dia inteiro em UTC. Sem conclusão, o filtro usa início ou criação; a classificação fica Não identificado. A consulta é ordenada pela criação do log, não pela conclusão.</p>

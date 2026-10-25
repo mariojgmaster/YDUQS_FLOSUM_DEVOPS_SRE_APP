@@ -44,6 +44,8 @@ export default class DevSreDeployments extends NavigationMixin(
   searchTerm = "";
   selectedId = null;
   csvStatus = "";
+  advancedSection = "";
+  sourceSection = "";
   sortBy = "";
   sortDirection = "asc";
   error = "";
@@ -223,6 +225,12 @@ export default class DevSreDeployments extends NavigationMixin(
         : String(a).localeCompare(String(b), "pt-BR", { numeric: true, sensitivity: "base" });
       return compared * multiplier;
     });
+  }
+  handleAdvancedToggle(event) {
+    this.advancedSection = event.detail.openSections?.[0] || "";
+  }
+  handleSourceToggle(event) {
+    this.sourceSection = event.detail.openSections?.[0] || "";
   }
   handleCloseDetails() {
     this.selectedId = null;

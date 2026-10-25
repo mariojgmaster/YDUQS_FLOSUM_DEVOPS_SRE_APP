@@ -1,20 +1,50 @@
 <template>
-  <c-dev-sre-pipeline-overview></c-dev-sre-pipeline-overview>
-  <lightning-tabset active-tab-value="deployments">
-    <lightning-tab label="Deployments" value="deployments"
-      ><c-dev-sre-deployments></c-dev-sre-deployments
-    ></lightning-tab>
-    <lightning-tab label="Ambientes" value="environments"
-      ><c-dev-sre-environments
-        onmappingchange={handleMappingChange}
-      ></c-dev-sre-environments
-    ></lightning-tab>
-    <lightning-tab label="Pipeline" value="original"
-      ><p class="ds-help">
-        Visão operacional de pipelines. Consulte as entregas executadas na aba
-        Deployments e a classificação das organizações na aba Ambientes.
-      </p>
-      <c-pipeline-monitor></c-pipeline-monitor
-    ></lightning-tab>
-  </lightning-tabset>
+  <section class="pm-shell" aria-label="Pipeline Monitor">
+    <header class="pm-header">
+      <div class="pm-heading">
+        <span class="pm-heading-icon" aria-hidden="true">
+          <lightning-icon icon-name="utility:flow" variant="inverse" size="small"></lightning-icon>
+        </span>
+        <div class="pm-heading-copy">
+          <span class="pm-root-label">Pipeline Monitor</span>
+          <span class="pm-breadcrumb-separator" aria-hidden="true">›</span>
+          <span class="pm-breadcrumb-current">{activeTabLabel}</span>
+        </div>
+      </div>
+      <span class="pm-source-label">Dados Flosum</span>
+    </header>
+
+    <nav class="pm-tabs" role="tablist" aria-label="Seções do Pipeline Monitor">
+      <button type="button" role="tab" id="pm-tab-overview"
+        data-tab="overview" class={overviewTabClass}
+        aria-selected={isOverview} tabindex={overviewTabIndex}
+        onclick={handleTabChange} onkeydown={handleTabKeydown}>
+        Visão geral
+      </button>
+      <button type="button" role="tab" id="pm-tab-deployments"
+        data-tab="deployments" class={deploymentsTabClass}
+        aria-selected={isDeployments} tabindex={deploymentsTabIndex}
+        onclick={handleTabChange} onkeydown={handleTabKeydown}>
+        Deployments
+      </button>
+      <button type="button" role="tab" id="pm-tab-environments"
+        data-tab="environments" class={environmentsTabClass}
+        aria-selected={isEnvironments} tabindex={environmentsTabIndex}
+        onclick={handleTabChange} onkeydown={handleTabKeydown}>
+        Ambientes
+      </button>
+    </nav>
+
+    <div class="pm-content" role="tabpanel" aria-labelledby={activePanelLabel}>
+      <template lwc:if={isOverview}>
+        <c-dev-sre-pipeline-overview></c-dev-sre-pipeline-overview>
+      </template>
+      <template lwc:elseif={isDeployments}>
+        <c-dev-sre-deployments></c-dev-sre-deployments>
+      </template>
+      <template lwc:elseif={isEnvironments}>
+        <c-dev-sre-environments onmappingchange={handleMappingChange}></c-dev-sre-environments>
+      </template>
+    </div>
+  </section>
 </template>
