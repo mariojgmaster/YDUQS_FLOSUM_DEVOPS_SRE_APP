@@ -62,12 +62,13 @@ export default class DevSreDeployments extends NavigationMixin(
   organizationsHaveMore = false;
   environmentClass = "";
   outcome = "";
-  branchId = "";
+  branchId = ""; // Existing API contract: no manual Branch Id filter.
   hasMore = false;
   cursorCreated = null;
   cursorId = null;
   inspectedRows = 0;
   requestVersion = 0;
+  filterTimer;
   organizationVersion = 0;
   correlationIncomplete = false;
   columns = [
@@ -134,6 +135,7 @@ export default class DevSreDeployments extends NavigationMixin(
     this.load(false);
   }
   disconnectedCallback() {
+    clearTimeout(this.filterTimer);
     this.requestVersion++;
     this.organizationVersion++;
   }
@@ -141,12 +143,14 @@ export default class DevSreDeployments extends NavigationMixin(
     this.handleChange({ target: { name: "organizationId", value: event.detail.recordId || "" }, detail: { value: event.detail.recordId || "" } });
   }
   handleChange(event) {
-    this[event.target.name] = event.detail?.value ?? event.target.value;
-    if (event.target.name === "organizationSearch") return;
+    const field = event.target.name;
+    this[field] = event.detail?.value ?? event.target.value;
+    if (field === "organizationSearch") return;
+    clearTimeout(this.filterTimer);
     this.filtersDirty = true;
     this.error = "";
     this.correlationIncomplete = false;
-    this.requestVersion++;
+    ++this.requestVersion; // Discard any in-flight response for the previous filters.
     this.loading = false;
     this.rows = [];
     this.selectedId = null;
@@ -155,6 +159,13 @@ export default class DevSreDeployments extends NavigationMixin(
     this.cursorCreated = null;
     this.cursorId = null;
     this.inspectedRows = 0;
+    if (field === "searchTerm") {
+      // Debounce only free text; selectors and dates apply immediately.
+      // eslint-disable-next-line @lwc/lwc/no-async-operation
+      this.filterTimer = setTimeout(() => this.load(false), 350);
+    } else {
+      this.load(false);
+    }
   }
   async loadOrganizations() {
     const version = ++this.organizationVersion;
@@ -189,9 +200,11 @@ export default class DevSreDeployments extends NavigationMixin(
     this.loadOrganizations();
   }
   handleSearch() {
+    clearTimeout(this.filterTimer);
     this.load(false);
   }
   handleClear() {
+    clearTimeout(this.filterTimer);
     this.fromDate = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
     this.toDate = new Date().toISOString().slice(0, 10);
     this.organizationId = "";
@@ -227,9 +240,6 @@ export default class DevSreDeployments extends NavigationMixin(
         : String(a).localeCompare(String(b), "pt-BR", { numeric: true, sensitivity: "base" });
       return compared * multiplier;
     });
-  }
-  handleAdvancedToggle(event) {
-    this.advancedSection = event.detail.openSections?.[0] || "";
   }
   handleSourceToggle(event) {
     this.sourceSection = event.detail.openSections?.[0] || "";
@@ -268,6 +278,7 @@ export default class DevSreDeployments extends NavigationMixin(
     this.load(false);
   }
   handleNext() {
+    clearTimeout(this.filterTimer);
     this.load(true);
   }
   async load(next) {
@@ -279,7 +290,7 @@ export default class DevSreDeployments extends NavigationMixin(
     this.inspectedRows = 0;
     this.correlationIncomplete = false;
     const fields = [
-      ...this.template.querySelectorAll("lightning-input, lightning-combobox")
+      ...this.template.querySelectorAll("lightning-input, lightning-combobox, lightning-record-picker")
     ];
     if (!fields.every((input) => input.reportValidity())) {
       this.loading = false;
@@ -296,7 +307,7 @@ export default class DevSreDeployments extends NavigationMixin(
         fromUtc,
         toUtc,
         organizationId: this.organizationId || null,
-        branchId: this.branchId.trim() || null,
+        branchId: null,
         environmentClass: this.environmentClass || null,
         outcome: this.outcome || null,
         cursorCreated: next ? this.cursorCreated : null,
