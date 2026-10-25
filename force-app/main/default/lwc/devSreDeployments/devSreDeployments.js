@@ -1,6 +1,7 @@
 import { LightningElement, api } from "lwc";
 import { NavigationMixin } from "lightning/navigation";
 import listDeployments from "@salesforce/apex/DevSreDeploymentController.listDeployments";
+import listDeploymentsWithSearch from "@salesforce/apex/DevSreDeploymentController.listDeploymentsWithSearch";
 import searchOrganizations from "@salesforce/apex/DevSreEnvironmentController.searchOrganizations";
 
 const RESULTS = {
@@ -19,19 +20,30 @@ const ENVIRONMENTS = {
   UNKNOWN: "Não identificado",
   AMBIGUOUS: "Classificação conflitante"
 };
-const DATE = {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  timeZone: "UTC"
+const formatUTC = (value) =>
+  value
+    ? new Intl.DateTimeFormat("pt-BR", {
+        timeZone: "UTC",
+        day: "2-digit", month: "2-digit", year: "numeric",
+        hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false
+      }).format(new Date(value))
+    : "—";
+const durationLabel = (seconds) =>
+  seconds === null || seconds === undefined
+    ? "—"
+    : Math.floor(Number(seconds) / 60) + " min " + Math.round(Number(seconds) % 60) + " s";
+const csvCell = (value) => {
+  const raw = String(value ?? "");
+  const safe = /^[=+\-@\t\r]/.test(raw) ? "'" + raw : raw;
+  return '"' + safe.replace(/"/g, '""') + '"';
 };
 export default class DevSreDeployments extends NavigationMixin(
   LightningElement
 ) {
   rows = [];
+  searchTerm = "";
+  selectedId = null;
+  csvStatus = "";
   error = "";
   organizationError = "";
   organizationsLoading = false;
@@ -55,44 +67,13 @@ export default class DevSreDeployments extends NavigationMixin(
   organizationVersion = 0;
   correlationIncomplete = false;
   columns = [
-    {
-      label: "Deployment",
-      fieldName: "name",
-      type: "button",
-      typeAttributes: {
-        label: { fieldName: "name" },
-        name: "source",
-        variant: "base"
-      }
-    },
+    { label: "Deployment / Branch", fieldName: "name", type: "button", typeAttributes: { label: { fieldName: "name" }, name: "details", variant: "base" } },
     { label: "Organização", fieldName: "organizationName" },
     { label: "Ambiente", fieldName: "environmentLabel" },
-    {
-      label: "Branch",
-      fieldName: "branchName",
-      type: "button",
-      typeAttributes: {
-        label: { fieldName: "branchName" },
-        name: "branch",
-        variant: "base",
-        disabled: { fieldName: "noBranch" }
-      }
-    },
     { label: "Resultado", fieldName: "outcomeLabel" },
-    {
-      label: "Início (UTC)",
-      fieldName: "startedAt",
-      type: "date",
-      typeAttributes: DATE
-    },
-    {
-      label: "Conclusão (UTC)",
-      fieldName: "completedAt",
-      type: "date",
-      typeAttributes: DATE
-    },
-    { label: "Duração (s)", fieldName: "durationSeconds", type: "number" },
-    { label: "Observações", fieldName: "quality", wrapText: true }
+    { label: "Conclusão (UTC)", fieldName: "completionLabel" },
+    { label: "Duração", fieldName: "durationLabel" },
+    { type: "button-icon", initialWidth: 58, typeAttributes: { name: "details", iconName: "utility:chevronright", variant: "border", alternativeText: "Detalhes" } }
   ];
   get environmentOptions() {
     return [
@@ -111,6 +92,15 @@ export default class DevSreDeployments extends NavigationMixin(
   }
   get hasRows() {
     return this.rows.length > 0;
+  }
+  get selectedRow() {
+    return this.rows.find((row) => row.id === this.selectedId) || null;
+  }
+  get hasSelection() {
+    return Boolean(this.selectedRow);
+  }
+  get exportDisabled() {
+    return !this.hasRows || this.loading || this.filtersDirty || Boolean(this.error);
   }
   get statusLabel() {
     return `${this.rows.length} deployments nesta página · Página ${this.pageNumber}`;
@@ -153,6 +143,8 @@ export default class DevSreDeployments extends NavigationMixin(
     this.requestVersion++;
     this.loading = false;
     this.rows = [];
+    this.selectedId = null;
+    this.csvStatus = "";
     this.hasMore = false;
     this.cursorCreated = null;
     this.cursorId = null;
@@ -193,6 +185,48 @@ export default class DevSreDeployments extends NavigationMixin(
   handleSearch() {
     this.load(false);
   }
+  handleClear() {
+    this.fromDate = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+    this.toDate = new Date().toISOString().slice(0, 10);
+    this.organizationId = "";
+    this.environmentClass = "";
+    this.outcome = "";
+    this.branchId = "";
+    this.searchTerm = "";
+    this.filtersDirty = false;
+    this.csvStatus = "";
+    this.load(false);
+  }
+  handleCloseDetails() {
+    this.selectedId = null;
+  }
+  handleOpenSelected() {
+    if (this.selectedRow) this.openSource(this.selectedRow.id, false);
+  }
+  handleExport() {
+    if (this.exportDisabled) return;
+    const columns = [
+      ["Deployment", "name"], ["ID", "id"], ["Branch", "branchName"],
+      ["Organização", "organizationName"], ["Ambiente", "environmentLabel"],
+      ["Resultado", "outcomeLabel"], ["Início UTC", "startLabel"],
+      ["Conclusão UTC", "completionLabel"], ["Duração", "durationLabel"],
+      ["Observações", "quality"]
+    ];
+    const lines = [
+      columns.map(([title]) => csvCell(title)).join(";"),
+      ...this.rows.map((row) => columns.map(([, key]) => csvCell(row[key])).join(";"))
+    ];
+    const blob = new Blob(["\uFEFF", lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "deployments-pagina-" + this.pageNumber + ".csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    this.csvStatus = "Exportada somente a página exibida (" + this.rows.length + " registros).";
+  }
   @api refresh() {
     this.load(false);
   }
@@ -204,6 +238,7 @@ export default class DevSreDeployments extends NavigationMixin(
     this.loading = true;
     this.error = "";
     this.rows = [];
+    this.selectedId = null;
     this.inspectedRows = 0;
     this.correlationIncomplete = false;
     const fields = [
@@ -214,12 +249,13 @@ export default class DevSreDeployments extends NavigationMixin(
       return;
     }
     try {
-      if (!this.fromDate || !this.toDate) throw new Error("period");
+      if (!this.fromDate || !this.toDate || this.fromDate > this.toDate)
+        throw new Error("Informe um período válido: a data inicial deve ser anterior ou igual à final.");
       const fromUtc = `${this.fromDate}T00:00:00.000Z`;
       const toUtc = new Date(
         new Date(`${this.toDate}T00:00:00.000Z`).getTime() + 86400000
       ).toISOString();
-      const page = await listDeployments({
+      const args = {
         fromUtc,
         toUtc,
         organizationId: this.organizationId || null,
@@ -228,15 +264,24 @@ export default class DevSreDeployments extends NavigationMixin(
         outcome: this.outcome || null,
         cursorCreated: next ? this.cursorCreated : null,
         cursorId: next ? this.cursorId : null
-      });
+      };
+      const page = this.searchTerm.trim()
+        ? await listDeploymentsWithSearch({ ...args, searchTerm: this.searchTerm.trim() })
+        : await listDeployments(args);
       if (version !== this.requestVersion) return;
-      this.rows = page.rows.map((row) => ({
+      this.rows = (page.rows || []).map((row) => ({
         ...row,
         noBranch: !row.branchId,
-        environmentLabel:
-          ENVIRONMENTS[row.environmentClass] || "Não identificado",
-        outcomeLabel: RESULTS[row.outcome] || "Desconhecido"
+        branchName: row.branchName || "—",
+        organizationName: row.organizationName || "Não informada",
+        environmentLabel: ENVIRONMENTS[row.environmentClass] || "Não identificado",
+        outcomeLabel: RESULTS[row.outcome] || "Desconhecido",
+        outcomeClass: "delivery-pill delivery-pill-" + (row.outcome || "Unknown").toLowerCase(),
+        startLabel: formatUTC(row.startedAt),
+        completionLabel: formatUTC(row.completedAt),
+        durationLabel: durationLabel(row.durationSeconds)
       }));
+      this.selectedId = this.rows[0]?.id || null;
       this.filtersDirty = false;
       this.pageNumber = next ? this.pageNumber + 1 : 1;
       this.hasMore = page.hasMore;
@@ -247,7 +292,7 @@ export default class DevSreDeployments extends NavigationMixin(
     } catch (error) {
       if (version === this.requestVersion) {
         this.error =
-          error?.body?.message ||
+          error?.body?.message || error?.message ||
           "Não foi possível consultar. Verifique o período, os filtros e suas permissões.";
         this.hasMore = false;
       }
@@ -257,18 +302,22 @@ export default class DevSreDeployments extends NavigationMixin(
   }
   handleRowAction(event) {
     const row = event.detail.row;
-    const branch = event.detail.action.name === "branch";
-    const recordId = branch ? row.branchId : row.id;
-    if (recordId)
-      this[NavigationMixin.Navigate]({
-        type: "standard__recordPage",
-        attributes: {
-          recordId,
-          objectApiName: branch
-            ? "Flosum__Branch__c"
-            : "Flosum__Metadata_Log__c",
-          actionName: "view"
-        }
-      });
+    const action = event.detail.action.name;
+    if (action === "details") {
+      this.selectedId = row.id;
+      return;
+    }
+    this.openSource(action === "branch" ? row.branchId : row.id, action === "branch");
+  }
+  openSource(recordId, branch) {
+    if (!recordId) return;
+    this[NavigationMixin.Navigate]({
+      type: "standard__recordPage",
+      attributes: {
+        recordId,
+        objectApiName: branch ? "Flosum__Branch__c" : "Flosum__Metadata_Log__c",
+        actionName: "view"
+      }
+    });
   }
 }
