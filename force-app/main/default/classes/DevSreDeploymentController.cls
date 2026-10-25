@@ -56,6 +56,55 @@ public with sharing class DevSreDeploymentController {
     Datetime cursorCreated,
     Id cursorId
   ) {
+    return queryDeployments(
+      fromUtc,
+      toUtc,
+      organizationId,
+      branchId,
+      environmentClass,
+      outcome,
+      cursorCreated,
+      cursorId,
+      null
+    );
+  }
+
+  @AuraEnabled
+  public static DeploymentPage listMonitorDeployments(
+    Datetime fromUtc,
+    Datetime toUtc,
+    Id organizationId,
+    String environmentClass,
+    String outcome,
+    String searchTerm,
+    Datetime cursorCreated,
+    Id cursorId
+  ) {
+    return queryDeployments(
+      fromUtc,
+      toUtc,
+      organizationId,
+      null,
+      environmentClass,
+      outcome,
+      cursorCreated,
+      cursorId,
+      searchTerm
+    );
+  }
+
+  private static DeploymentPage queryDeployments(
+    Datetime fromUtc,
+    Datetime toUtc,
+    Id organizationId,
+    Id branchId,
+    String environmentClass,
+    String outcome,
+    Datetime cursorCreated,
+    Id cursorId,
+    String searchTerm
+  ) {
+    validateSearch(searchTerm);
     validateFilters(
       fromUtc,
       toUtc,
@@ -75,19 +124,8 @@ public with sharing class DevSreDeploymentController {
         'cursorCreated' => cursorCreated,
         'cursorId' => cursorId
       };
-      String queryText =
-        'SELECT Id, Name, CreatedDate, Flosum__Organisation__c, Flosum__Organisation__r.Name, ' +
-        'Flosum__Branch__c, Flosum__Branch__r.Name, Flosum__Process_Type__c, Flosum__Status__c, ' +
-        'Flosum__Job_Completed__c, Flosum__Succeed__c, Flosum__Is_Error__c, Flosum__Start_Date__c, ' +
-        'Flosum__Completed_Date__c, Flosum__Async_Request_Id__c, Flosum__Parent_Log__c ' +
-        'FROM Flosum__Metadata_Log__c WHERE Flosum__Process_Type__c = \'Deployment\' AND (' +
-        '(Flosum__Completed_Date__c >= :fromUtc AND Flosum__Completed_Date__c < :toUtc) OR ' +
-        '(Flosum__Completed_Date__c = null AND Flosum__Start_Date__c >= :fromUtc AND Flosum__Start_Date__c < :toUtc) OR ' +
-        '(Flosum__Completed_Date__c = null AND Flosum__Start_Date__c = null AND CreatedDate >= :fromUtc AND CreatedDate < :toUtc))';
-      if (organizationId != null)
-        queryText += ' AND Flosum__Organisation__c = :organizationId';
-      if (branchId != null)
-        queryText += ' AND Flosum__Branch__c = :branchId';
+      binds.put('searchPattern', searchPattern(searchTerm));
+      String queryText = sourceQuery(organizationId, branchId, searchTerm);
       if (cursorId != null)
         queryText += ' AND (CreatedDate < :cursorCreated OR (CreatedDate = :cursorCreated AND Id < :cursorId))';
       queryText += ' ORDER BY CreatedDate DESC, Id DESC LIMIT 201';
@@ -101,26 +139,11 @@ public with sharing class DevSreDeploymentController {
         if (item.Flosum__Organisation__c != null)
           orgIds.add(item.Flosum__Organisation__c);
       }
-      List<DevSre_EnvironmentMapping__c> mappings = [
-        SELECT
-          Id,
-          Organization__c,
-          EnvironmentClass__c,
-          ValidFrom__c,
-          ValidTo__c
-        FROM DevSre_EnvironmentMapping__c
-        WHERE
-          Organization__c IN :orgIds
-          AND ValidFrom__c < :toUtc
-          AND (ValidTo__c = NULL
-          OR ValidTo__c > :fromUtc)
-        WITH USER_MODE
-        LIMIT 2001
-      ];
-      if (mappings.size() > 2000)
-        throw new AuraHandledException(
-          'Há muitas vigências. Refine a organização ou o período.'
-        );
+      List<DevSre_EnvironmentMapping__c> mappings = loadMappings(
+        orgIds,
+        fromUtc,
+        toUtc
+      );
       // The managed source enforces case-insensitive uniqueness for request IDs.
       // Preserve separate attempts; warn if that source invariant changes.
       DeploymentPage page = new DeploymentPage();
@@ -158,6 +181,200 @@ public with sharing class DevSreDeploymentController {
         'Não foi possível consultar deployments com seu acesso atual.'
       );
     }
+  }
+
+  @TestVisible
+  private static Integer monitorLimit = 2000;
+  public class MonitorSummary {
+    @AuraEnabled
+    public Boolean complete { get; set; }
+    @AuraEnabled
+    public Integer total { get; set; }
+    @AuraEnabled
+    public Integer pending { get; set; }
+    @AuraEnabled
+    public Integer succeeded { get; set; }
+    @AuraEnabled
+    public Integer failed { get; set; }
+    @AuraEnabled
+    public Integer partial { get; set; }
+    @AuraEnabled
+    public Integer notRun { get; set; }
+    @AuraEnabled
+    public Integer unknown { get; set; }
+    @AuraEnabled
+    public Decimal successRate { get; set; }
+  }
+
+  /** Operational log counts for the full readable scope, never a certified DORA metric.
+   * Outcome filter applies only to the list so cards keep the context of all outcomes.
+   * Above the bound, return no partial counts as totals. */
+  @AuraEnabled
+  public static MonitorSummary getMonitorSummary(
+    Datetime fromUtc,
+    Datetime toUtc,
+    Id organizationId,
+    String environmentClass,
+    String searchTerm
+  ) {
+    validateFilters(
+      fromUtc,
+      toUtc,
+      organizationId,
+      null,
+      environmentClass,
+      null,
+      null,
+      null
+    );
+    validateSearch(searchTerm);
+    try {
+      Integer sourceLimit = monitorLimit + 1;
+      Map<String, Object> binds = new Map<String, Object>{
+        'fromUtc' => fromUtc,
+        'toUtc' => toUtc,
+        'organizationId' => organizationId,
+        'searchPattern' => searchPattern(searchTerm),
+        'sourceLimit' => sourceLimit
+      };
+      List<Flosum__Metadata_Log__c> source = Database.queryWithBinds(
+        sourceQuery(organizationId, null, searchTerm) +
+        ' ORDER BY CreatedDate DESC, Id DESC LIMIT :sourceLimit',
+        binds,
+        AccessLevel.USER_MODE
+      );
+      MonitorSummary summary = new MonitorSummary();
+      summary.complete = source.size() <= monitorLimit;
+      if (!summary.complete)
+        return summary;
+      Set<Id> organizations = new Set<Id>();
+      for (Flosum__Metadata_Log__c item : source)
+        if (item.Flosum__Organisation__c != null)
+          organizations.add(item.Flosum__Organisation__c);
+      Map<Id, List<DevSre_EnvironmentMapping__c>> byOrganization = new Map<Id, List<DevSre_EnvironmentMapping__c>>();
+      for (
+        DevSre_EnvironmentMapping__c mapping : loadMappings(
+          organizations,
+          fromUtc,
+          toUtc
+        )
+      ) {
+        if (!byOrganization.containsKey(mapping.Organization__c))
+          byOrganization.put(
+            mapping.Organization__c,
+            new List<DevSre_EnvironmentMapping__c>()
+          );
+        byOrganization.get(mapping.Organization__c).add(mapping);
+      }
+      summary.total = 0;
+      summary.pending = 0;
+      summary.succeeded = 0;
+      summary.failed = 0;
+      summary.partial = 0;
+      summary.notRun = 0;
+      summary.unknown = 0;
+      for (Flosum__Metadata_Log__c item : source) {
+        List<DevSre_EnvironmentMapping__c> mappings = byOrganization.get(
+          item.Flosum__Organisation__c
+        );
+        DeploymentRow row = evaluate(
+          item,
+          mappings == null ? new List<DevSre_EnvironmentMapping__c>() : mappings
+        );
+        if (
+          !String.isBlank(environmentClass) &&
+          row.environmentClass != environmentClass
+        )
+          continue;
+        summary.total++;
+        if (row.outcome == 'Pending')
+          summary.pending++;
+        else if (row.outcome == 'Success')
+          summary.succeeded++;
+        else if (row.outcome == 'Failed')
+          summary.failed++;
+        else if (row.outcome == 'Partial')
+          summary.partial++;
+        else if (row.outcome == 'NotRun')
+          summary.notRun++;
+        else
+          summary.unknown++;
+      }
+      Integer finished = summary.succeeded + summary.failed + summary.partial;
+      if (finished > 0)
+        summary.successRate = (Decimal.valueOf(
+            String.valueOf(summary.succeeded)
+          ) *
+          100 /
+          finished)
+          .setScale(1);
+      return summary;
+    } catch (AuraHandledException known) {
+      throw known;
+    } catch (Exception unexpected) {
+      throw new AuraHandledException(
+        'Não foi possível consultar o resumo com seu acesso atual.'
+      );
+    }
+  }
+
+  private static String sourceQuery(
+    Id organizationId,
+    Id branchId,
+    String searchTerm
+  ) {
+    String queryText =
+      'SELECT Id, Name, CreatedDate, Flosum__Organisation__c, Flosum__Organisation__r.Name, ' +
+      'Flosum__Branch__c, Flosum__Branch__r.Name, Flosum__Process_Type__c, Flosum__Status__c, ' +
+      'Flosum__Job_Completed__c, Flosum__Succeed__c, Flosum__Is_Error__c, Flosum__Start_Date__c, ' +
+      'Flosum__Completed_Date__c, Flosum__Async_Request_Id__c, Flosum__Parent_Log__c ' +
+      'FROM Flosum__Metadata_Log__c WHERE Flosum__Process_Type__c = \'Deployment\' AND (' +
+      '(Flosum__Completed_Date__c >= :fromUtc AND Flosum__Completed_Date__c < :toUtc) OR ' +
+      '(Flosum__Completed_Date__c = null AND Flosum__Start_Date__c >= :fromUtc AND Flosum__Start_Date__c < :toUtc) OR ' +
+      '(Flosum__Completed_Date__c = null AND Flosum__Start_Date__c = null AND CreatedDate >= :fromUtc AND CreatedDate < :toUtc))';
+    if (organizationId != null)
+      queryText += ' AND Flosum__Organisation__c = :organizationId';
+    if (branchId != null)
+      queryText += ' AND Flosum__Branch__c = :branchId';
+    if (!String.isBlank(searchTerm))
+      queryText += ' AND (Name LIKE :searchPattern OR Flosum__Branch__r.Name LIKE :searchPattern)';
+    return queryText;
+  }
+  private static void validateSearch(String value) {
+    if (value != null && value.trim().length() > 80)
+      throw new AuraHandledException('A busca permite até 80 caracteres.');
+  }
+  private static String searchPattern(String value) {
+    if (String.isBlank(value))
+      return null;
+    return '%' +
+      value.trim()
+        .replace('\\', '\\\\')
+        .replace('%', '\\%')
+        .replace('_', '\\_') +
+      '%';
+  }
+  private static List<DevSre_EnvironmentMapping__c> loadMappings(
+    Set<Id> orgIds,
+    Datetime fromUtc,
+    Datetime toUtc
+  ) {
+    List<DevSre_EnvironmentMapping__c> mappings = [
+      SELECT Id, Organization__c, EnvironmentClass__c, ValidFrom__c, ValidTo__c
+      FROM DevSre_EnvironmentMapping__c
+      WHERE
+        Organization__c IN :orgIds
+        AND ValidFrom__c < :toUtc
+        AND (ValidTo__c = NULL
+        OR ValidTo__c > :fromUtc)
+      WITH USER_MODE
+      LIMIT 2001
+    ];
+    if (mappings.size() > 2000)
+      throw new AuraHandledException(
+        'Há muitas vigências. Refine a organização ou o período.'
+      );
+    return mappings;
   }
 
   @TestVisible

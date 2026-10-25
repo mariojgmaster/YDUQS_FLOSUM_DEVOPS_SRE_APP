@@ -27,7 +27,8 @@
       "devSreDeliveryHub",
       "devSreDeployments",
       "devSreEnvironments",
-      "devSreDeliveryStyles"
+      "devSreDeliveryStyles",
+      "devSrePipelineOverview"
     ],
     "CustomTab": [
       "pipelineMonitor"
