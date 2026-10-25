@@ -54,8 +54,9 @@
             <div class="delivery-panel-heading"><h3>Entregas encontradas</h3><p class="ds-help" role="status">{statusLabel}</p></div>
             <template lwc:if={hasUnclassified}><p class="ds-banner">Há entregas sem ambiente identificado ou com classificação conflitante. Consulte a aba Ambientes.</p></template>
             <template lwc:if={hasRows}>
+              <p class="ds-help">A ordenação por coluna organiza apenas a página carregada.</p>
               <div class="ds-table">
-                <lightning-datatable data-name="deployments" key-field="id" data={rows} columns={columns} onrowaction={handleRowAction} hide-checkbox-column></lightning-datatable>
+                <lightning-datatable data-name="deployments" key-field="id" data={rows} columns={columns} onrowaction={handleRowAction} onsort={handleSort} sorted-by={sortBy} sorted-direction={sortDirection} hide-checkbox-column></lightning-datatable>
               </div>
             </template>
             <template lwc:else>
