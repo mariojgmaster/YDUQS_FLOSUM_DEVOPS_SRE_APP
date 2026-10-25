@@ -44,6 +44,8 @@ export default class DevSreDeployments extends NavigationMixin(
   searchTerm = "";
   selectedId = null;
   csvStatus = "";
+  sortBy = "";
+  sortDirection = "asc";
   error = "";
   organizationError = "";
   organizationsLoading = false;
@@ -67,12 +69,12 @@ export default class DevSreDeployments extends NavigationMixin(
   organizationVersion = 0;
   correlationIncomplete = false;
   columns = [
-    { label: "Deployment / Branch", fieldName: "name", type: "button", typeAttributes: { label: { fieldName: "name" }, name: "details", variant: "base" } },
-    { label: "Organização", fieldName: "organizationName" },
-    { label: "Ambiente", fieldName: "environmentLabel" },
-    { label: "Resultado", fieldName: "outcomeLabel" },
-    { label: "Conclusão (UTC)", fieldName: "completionLabel" },
-    { label: "Duração", fieldName: "durationLabel" },
+    { label: "Deployment / Branch", fieldName: "name", sortable: true, type: "button", typeAttributes: { label: { fieldName: "name" }, name: "details", variant: "base" } },
+    { label: "Organização", fieldName: "organizationName", sortable: true },
+    { label: "Ambiente", fieldName: "environmentLabel", sortable: true },
+    { label: "Resultado", fieldName: "outcomeLabel", sortable: true, cellAttributes: { class: { fieldName: "outcomeTone" } } },
+    { label: "Conclusão (UTC)", fieldName: "completionLabel", sortable: true },
+    { label: "Duração", fieldName: "durationLabel", sortable: true },
     { type: "button-icon", initialWidth: 58, typeAttributes: { name: "details", iconName: "utility:chevronright", variant: "border", alternativeText: "Detalhes" } }
   ];
   get environmentOptions() {
@@ -193,9 +195,34 @@ export default class DevSreDeployments extends NavigationMixin(
     this.outcome = "";
     this.branchId = "";
     this.searchTerm = "";
+    this.sortBy = "";
+    this.sortDirection = "asc";
     this.filtersDirty = false;
     this.csvStatus = "";
     this.load(false);
+  }
+  handleSort(event) {
+    this.sortBy = event.detail.fieldName;
+    this.sortDirection = event.detail.sortDirection;
+    this.sortCurrentPage();
+  }
+  sortCurrentPage() {
+    if (!this.sortBy) return;
+    const key = {
+      completionLabel: "completedAt",
+      durationLabel: "durationSeconds"
+    }[this.sortBy] || this.sortBy;
+    const multiplier = this.sortDirection === "desc" ? -1 : 1;
+    this.rows = [...this.rows].sort((left, right) => {
+      const a = left[key], b = right[key];
+      if (a == null && b == null) return 0;
+      if (a == null) return 1;
+      if (b == null) return -1;
+      const compared = typeof a === "number" && typeof b === "number"
+        ? a - b
+        : String(a).localeCompare(String(b), "pt-BR", { numeric: true, sensitivity: "base" });
+      return compared * multiplier;
+    });
   }
   handleCloseDetails() {
     this.selectedId = null;
@@ -277,10 +304,12 @@ export default class DevSreDeployments extends NavigationMixin(
         environmentLabel: ENVIRONMENTS[row.environmentClass] || "Não identificado",
         outcomeLabel: RESULTS[row.outcome] || "Desconhecido",
         outcomeClass: "delivery-pill delivery-pill-" + (row.outcome || "Unknown").toLowerCase(),
+        outcomeTone: row.outcome === "Success" ? "slds-text-color_success" : row.outcome === "Failed" ? "slds-text-color_error" : "slds-text-color_default",
         startLabel: formatUTC(row.startedAt),
         completionLabel: formatUTC(row.completedAt),
         durationLabel: durationLabel(row.durationSeconds)
       }));
+      this.sortCurrentPage();
       this.selectedId = this.rows[0]?.id || null;
       this.filtersDirty = false;
       this.pageNumber = next ? this.pageNumber + 1 : 1;
