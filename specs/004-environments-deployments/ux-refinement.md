@@ -36,4 +36,4 @@ Alteração limitada à UI, estilos compartilhados, manifesto, configuração Je
 
 Testes cobrem navegação entre classificações atuais/futuras/encerradas e limite temporal inclusivo/exclusivo, início explícito, cancelamento sem escrita, término opcional, identidade imutável, erro de sobreposição, recuperação de consultas, filtros/cursor e resposta obsoleta.
 
-A revisão ainda precisa de implantação como **atualização** e homologação na DevSreFeat. O workflow de primeira instalação não é reutilizável para esse fim: ele recusa componentes já existentes. Nenhuma nova implantação foi disparada por esta revisão.
+A revisão foi implantada como atualização pelo kit universal na DevSreFeat: run #40145262180, nove testes Apex e zero erros. O workflow de primeira instalação foi preservado. Relatório, escopo e verificação pós-deploy em `ui-deployment.md`. Homologação visual/funcional ainda pendente.

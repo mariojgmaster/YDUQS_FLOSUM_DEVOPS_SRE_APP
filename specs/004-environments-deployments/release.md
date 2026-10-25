@@ -29,3 +29,11 @@ A consulta é operacional e não certifica métricas DORA. Até 50 resultados po
 - Leitura de retorno [#40142581375](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/actions/runs/40142581375): `pipelineMonitor.lwcComponent=devSreDeliveryHub`; aplicação mantém `devopsSreAnalytics`, `pipelineMonitor`, `leadTimeTracker` e `incidentsRollbacks`, na mesma ordem.
 - O kit M5 genérico também respondeu ao título da Issue e rejeitou o protocolo específico antes de resolver Environment/autenticar; seu job de execução foi skipped. Não houve segunda escrita. A implantação válida é exclusivamente o run SPEC004 citado acima.
 - Homologação funcional, atribuições de acesso e cadastro das vigências continuam pendentes. Não foi feito seed de dados ou atribuição automática de Permission Sets.
+
+## Revisão de interface e clareza
+
+PR #114 implantado na DevSreFeat pelo pacote universal `spec004-delivery-ui`, SHA `67d1b981ba5483457aff47bcba7108ea836abe69`, [run #40145262180](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/actions/runs/40145262180). Quatro bundles de interface: Deployments, Ambientes, Delivery Hub e módulo CSS compartilhado. Nove testes Apex, zero erros e confirmação de deploy persistente. Nenhum objeto, campo, Apex, Permission Set ou dado foi alterado nesta atualização.
+
+Aba Ambientes abre nas classificações atuais, separa histórico/futuras e apresenta cadastro sob demanda com “vale desde”/“vale até”. Deployments prioriza filtros operacionais e orienta lacunas de classificação. A visão anterior permanece na aba Pipeline.
+
+Ver `ui-deployment.md` para evidências, limites do relatório sanitizado e próximos passos. Homologação visual/funcional continua pendente.
