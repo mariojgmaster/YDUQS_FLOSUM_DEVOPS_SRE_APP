@@ -1,81 +1,79 @@
 <template>
-  <section class="ds-page environment-page" aria-label="Ambientes">
-    <header class="ds-header environment-hero">
-      <div class="ds-heading">
-        <lightning-icon icon-name="standard:environment_hub" size="medium" alternative-text=""></lightning-icon>
+  <section class="insights" aria-label="Ambientes e organizações Flosum">
+    <header class="hero">
+      <div class="hero-copy">
+        <span class="hero-icon"><lightning-icon icon-name="standard:environment_hub" size="small" alternative-text=""></lightning-icon></span>
         <div>
-          <p class="environment-eyebrow">AMBIENTES</p>
-          <h2 class="ds-title">Ambientes</h2>
-          <p class="ds-subtitle">Defina o uso de cada organização Flosum nas análises.</p>
+          <p class="eyebrow">OPERAÇÕES POR ORGANIZAÇÃO</p>
+          <h2>Ambientes</h2>
+          <p class="subtitle">Acompanhe as operações Flosum por organização, sem cadastros ou vigências.</p>
         </div>
       </div>
-      <div class="ds-actions">
-        <lightning-button label="Atualizar lista" icon-name="utility:refresh" onclick={handleRefresh} disabled={busy}></lightning-button>
-        <template lwc:if={canManage}>
-          <lightning-button data-create variant="brand" label="Classificar organização" icon-name="utility:add" onclick={handleNew} disabled={busy}></lightning-button>
-        </template>
+      <div class="hero-actions">
+        <lightning-button-icon icon-name="utility:refresh" variant="border-filled" alternative-text="Atualizar dados" title="Atualizar dados" onclick={handleRefresh} disabled={loading}></lightning-button-icon>
       </div>
     </header>
-    <div class="ds-section ds-stack">
-      <template lwc:if={error}><p class="ds-error" role="alert">{error}</p></template>
-      <template lwc:if={organizationError}><p class="ds-error" role="alert">{organizationError}</p></template>
-      <template lwc:if={notice}><p class="ds-banner" role="status">{notice}</p></template>
-      <div class={layoutClass}>
-        <section class="environment-table-panel" aria-label="Classificações de organizações">
-          <div class="environment-toolbar">
-            <div class="environment-tabs" role="group" aria-label="Visão das classificações">
-              <lightning-button label="Classificações atuais" variant={currentVariant} onclick={handleCurrent}></lightning-button>
-              <lightning-button label="Histórico" variant={historyVariant} onclick={handleHistory}></lightning-button>
-            </div>
-            <lightning-input name="organizationQuery" variant="label-hidden" type="search" label="Pesquisar organização" placeholder="Pesquisar organização..." value={organizationQuery} maxlength="80" onchange={handleChange}></lightning-input>
-          </div>
-          <template lwc:if={isHistory}>
-            <div class="environment-history-filters">
-              <lightning-combobox name="view" label="Período do histórico" value={view} options={historyOptions} onchange={handleChange} disabled={busy}></lightning-combobox>
-              <lightning-record-picker data-org="organizationFilter" object-api-name="Flosum__Organisation__c" label="Organização Flosum" placeholder="Todas as organizações" value={organizationFilter} onchange={handleHistoryOrganisationPicker} disabled={busy}></lightning-record-picker>
-              <lightning-button label="Todas as organizações" onclick={handleClearHistoryFilter}></lightning-button>
-            </div>
-          </template>
-          <template lwc:if={busy}>
-            <div class="ds-loading"><lightning-spinner size="small" alternative-text="Atualizando ambientes"></lightning-spinner></div>
-          </template>
-          <template lwc:elseif={hasVisibleRows}>
-            <div class="ds-table">
-              <lightning-datatable data-name="environmentMappings" key-field="id" data={visibleRows} columns={columns} onrowaction={handleRowAction} hide-checkbox-column></lightning-datatable>
-            </div>
-          </template>
-          <template lwc:elseif={showEmpty}>
-            <div class="ds-empty" role="status"><h3>{emptyTitle}</h3><p>{emptyDescription}</p></div>
-          </template>
-        </section>
-        <template lwc:if={showEditor}>
-          <aside class="environment-editor" aria-label="Classificar organização">
-            <div class="environment-panel-heading">
-              <div class="ds-heading"><lightning-icon icon-name="utility:description" size="small" alternative-text=""></lightning-icon><h3>{formTitle}</h3></div>
-              <lightning-button-icon icon-name="utility:close" alternative-text="Fechar painel sem salvar" title="Fechar painel" onclick={handleCancel} disabled={saving}></lightning-button-icon>
-            </div>
-            <div class="environment-form">
 
-              <template lwc:if={formError}><p class="ds-error" role="alert">{formError}</p></template>
-              <lightning-record-picker data-form data-focus data-org="organizationId" object-api-name="Flosum__Organisation__c" label="Organização Flosum" placeholder="Pesquisar organização..." value={organizationId} required disabled={identityDisabled} onchange={handleFormOrganisationPicker}></lightning-record-picker>
-              <lightning-combobox data-form name="environmentClass" label="Uso da organização" value={environmentClass} options={environmentOptions} required disabled={identityDisabled} onchange={handleChange}></lightning-combobox>
-              <lightning-input data-form name="validFrom" type="datetime" label="Esta classificação vale desde" value={validFrom} required disabled={identityDisabled} onchange={handleChange} field-level-help="Use o início real para classificar corretamente entregas antigas."></lightning-input>
-              <p class="ds-help">Informe o início do uso real. Horário no fuso do perfil Salesforce.</p>
-              <lightning-input name="hasEnd" type="checkbox" label="Definir data final" checked={hasEnd} disabled={endToggleDisabled} onchange={handleChange}></lightning-input>
-              <template lwc:if={hasEnd}>
-                <lightning-input data-form data-end-focus name="validTo" type="datetime" label="Esta classificação vale até" value={validTo} required disabled={saving} onchange={handleChange} field-level-help="Este instante não está incluído no período."></lightning-input>
-              </template>
-              <lightning-textarea data-form data-reason-focus name="reason" label="Motivo da classificação" placeholder="Descreva o motivo desta configuração" maxlength="255" value={reason} required disabled={saving} onchange={handleChange}></lightning-textarea>
-              <div class="environment-actions">
-                <lightning-button label="Cancelar" onclick={handleCancel} disabled={saving}></lightning-button>
-                <lightning-button variant="brand" label="Salvar classificação" onclick={handleSave} disabled={busy}></lightning-button>
-              </div>
+    <div class="filters" role="group" aria-label="Filtros operacionais">
+      <lightning-record-picker data-org="organizationId" object-api-name="Flosum__Organisation__c" label="Organização Flosum" placeholder="Todas as organizações" value={organizationId} onchange={handleOrganization}></lightning-record-picker>
+      <lightning-combobox name="period" label="Período de criação dos logs" value={period} options={periodOptions} onchange={handlePeriod}></lightning-combobox>
+      <lightning-button label="Limpar" onclick={handleClear} disabled={loading}></lightning-button>
+    </div>
 
-            </div>
-          </aside>
+    <template lwc:if={loading}><div class="spinner"><lightning-spinner alternative-text="Consultando Flosum" size="small"></lightning-spinner></div></template>
+    <template lwc:elseif={error}><p class="error" role="alert">{error}</p></template>
+    <template lwc:elseif={complete}>
+      <div class="metrics">
+        <template for:each={metrics} for:item="metric">
+          <article key={metric.key} class="metric"><span>{metric.label}</span><strong>{metric.value}</strong></article>
         </template>
       </div>
-      <template lwc:if={readOnly}><p class="ds-help">Somente leitura. Para classificar organizações, solicite permissão de gestão de ambientes ao administrador.</p></template>
-    </div>
+      <template lwc:if={hasRows}>
+        <div class="layout">
+          <section class="panel" aria-label="Organizações e atividade operacional">
+            <div class="panel-heading"><h3>Organizações Flosum</h3><span>{data.organizationCount} organizações neste recorte</span></div>
+            <div class="table-scroll">
+              <table class="org-table">
+                <thead><tr><th scope="col">Organização</th><th scope="col">Deploys</th><th scope="col">Validações</th><th scope="col">Outras</th><th scope="col">Última atividade</th></tr></thead>
+                <tbody>
+                  <template for:each={rows} for:item="row">
+                    <tr key={row.id} class={row.selectedClass}>
+                      <td><button class="org-name" data-id={row.id} title={row.name} onclick={handleSelect}>{row.name}</button></td>
+                      <td>{row.deployments}</td><td>{row.validations}</td><td>{row.otherOperations}</td>
+                      <td><template lwc:if={row.lastActivity}><lightning-formatted-date-time value={row.lastActivity} day="2-digit" month="2-digit" year="numeric" hour="2-digit" minute="2-digit" time-zone="UTC"></lightning-formatted-date-time></template><template lwc:else>—</template></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </section>
+          <template lwc:if={hasSelection}>
+            <aside class="panel detail" aria-label="Detalhes da organização">
+              <div class="panel-heading">
+                <h3 title={selected.name}>{selected.name}</h3>
+                <lightning-button-icon icon-name="utility:close" alternative-text="Fechar detalhes" title="Fechar detalhes" onclick={handleClose}></lightning-button-icon>
+              </div>
+              <div class="detail-body">
+                <p><strong>{selected.deployments}</strong> deployments · <strong>{selected.validations}</strong> validações</p>
+                <p>{selected.successes} operações com sucesso · {selected.failures} com falha</p>
+                <div class="detail-actions"><lightning-button label="Abrir organização" variant="brand-outline" icon-name="utility:new_window" data-id={selected.id} onclick={handleOpenOrg}></lightning-button></div>
+                <h4>Últimas operações registradas</h4>
+                <template for:each={selected.recent} for:item="log">
+                  <div key={log.id} class="log-row">
+                    <button data-id={log.id} onclick={handleOpenLog} title={log.name}>{log.name}</button>
+                    <span title={log.processType}>{log.processType} · {log.result}</span>
+                  </div>
+                </template>
+              </div>
+            </aside>
+          </template>
+        </div>
+      </template>
+      <template lwc:else><div class="empty">Nenhuma organização acessível nesta consulta.</div></template>
+      <p class="footnote">Fonte: organizações e Metadata Logs Flosum acessíveis ao usuário. Período por criação do log (UTC). Resultados operacionais, não indicam disponibilidade da Salesforce nem constituem métricas DORA certificadas.</p>
+    </template>
+    <template lwc:else>
+      <p class="error" role="status">A consulta ultrapassou o limite seguro de organizações ou logs. Selecione uma organização ou reduza o período para evitar totais parciais.</p>
+    </template>
   </section>
 </template>
