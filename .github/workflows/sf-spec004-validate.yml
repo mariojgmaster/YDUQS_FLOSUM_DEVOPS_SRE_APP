@@ -9,6 +9,7 @@ on:
       - 'force-app/main/default/classes/DevSreEnvironment*'
       - 'force-app/main/default/classes/DevSreDeployment*'
       - 'force-app/main/default/lwc/devSreDeliveryHub/**'
+      - 'force-app/main/default/lwc/devSrePipelineOverview/**'
       - 'force-app/main/default/lwc/devSreDeliveryStyles/**'
       - 'force-app/main/default/lwc/devSreDeployments/**'
       - 'force-app/main/default/lwc/devSreEnvironments/**'
@@ -51,7 +52,7 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npx eslint force-app/main/default/lwc/devSreDeployments/devSreDeployments.js force-app/main/default/lwc/devSreEnvironments/devSreEnvironments.js force-app/main/default/lwc/devSreDeliveryHub/devSreDeliveryHub.js
-      - run: npm run test:unit -- -- --runInBand --runTestsByPath force-app/main/default/lwc/devSreDeployments/__tests__/devSreDeployments.test.js force-app/main/default/lwc/devSreEnvironments/__tests__/devSreEnvironments.test.js
+      - run: npm run test:unit -- -- --runInBand --runTestsByPath force-app/main/default/lwc/devSreDeployments/__tests__/devSreDeployments.test.js force-app/main/default/lwc/devSreEnvironments/__tests__/devSreEnvironments.test.js force-app/main/default/lwc/devSreDeliveryHub/__tests__/devSreDeliveryHub.test.js force-app/main/default/lwc/devSrePipelineOverview/__tests__/devSrePipelineOverview.test.js
 
   collect:
     if: >-
