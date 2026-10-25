@@ -1,199 +1,107 @@
 <template>
-  <section class="ds-page" aria-label="Deployments">
-    <header class="ds-header">
-      <div>
-        <div class="ds-heading">
-          <lightning-icon
-            icon-name="standard:deployment"
-            size="small"
-            alternative-text=""
-          ></lightning-icon>
+  <section class="ds-page delivery-page" aria-label="Deployments">
+    <header class="ds-header delivery-hero">
+      <div class="ds-heading">
+        <lightning-icon icon-name="standard:deployment" size="medium" alternative-text=""></lightning-icon>
+        <div>
           <h2 class="ds-title">Deployments</h2>
+          <p class="ds-subtitle">Histórico de entregas e rastreabilidade no Flosum.</p>
         </div>
-        <p class="ds-subtitle">
-          Consulte entregas, confira o resultado e abra o registro de origem no
-          Flosum.
-        </p>
       </div>
-      <lightning-button
-        label="Atualizar lista"
-        icon-name="utility:refresh"
-        onclick={handleSearch}
-        disabled={loading}
-      ></lightning-button>
+      <div class="ds-actions">
+        <lightning-button label="Atualizar" icon-name="utility:refresh" onclick={handleSearch} disabled={loading}></lightning-button>
+        <lightning-button label="Exportar página" icon-name="utility:download" onclick={handleExport} disabled={exportDisabled}></lightning-button>
+      </div>
     </header>
     <div class="ds-section ds-stack">
-      <div class="ds-filters">
-        <lightning-input
-          type="date"
-          name="fromDate"
-          label="Data inicial (UTC)"
-          value={fromDate}
-          required
-          onchange={handleChange}
-        ></lightning-input>
-        <lightning-input
-          type="date"
-          name="toDate"
-          label="Data final (UTC)"
-          value={toDate}
-          required
-          onchange={handleChange}
-        ></lightning-input>
-        <lightning-combobox
-          name="organizationId"
-          label="Organização"
-          value={organizationId}
-          options={organizations}
-          onchange={handleChange}
-        ></lightning-combobox>
-        <lightning-combobox
-          name="environmentClass"
-          label="Ambiente da entrega"
-          value={environmentClass}
-          options={environmentOptions}
-          onchange={handleChange}
-        ></lightning-combobox>
-        <lightning-combobox
-          name="outcome"
-          label="Resultado"
-          value={outcome}
-          options={outcomeOptions}
-          onchange={handleChange}
-        ></lightning-combobox>
+      <div class="delivery-filters" aria-label="Filtros de deployments">
+        <lightning-input type="search" name="searchTerm" label="Buscar deployment ou Branch" value={searchTerm} maxlength="80" onchange={handleChange}></lightning-input>
+        <div class="delivery-dates">
+          <lightning-input type="date" name="fromDate" label="De (UTC)" value={fromDate} required onchange={handleChange}></lightning-input>
+          <lightning-input type="date" name="toDate" label="Até (UTC)" value={toDate} required onchange={handleChange}></lightning-input>
+        </div>
+        <lightning-combobox name="organizationId" label="Organização" value={organizationId} options={organizations} onchange={handleChange}></lightning-combobox>
+        <lightning-combobox name="environmentClass" label="Ambiente" value={environmentClass} options={environmentOptions} onchange={handleChange}></lightning-combobox>
+        <lightning-combobox name="outcome" label="Resultado" value={outcome} options={outcomeOptions} onchange={handleChange}></lightning-combobox>
+        <lightning-button variant="brand" label="Aplicar filtros" onclick={handleSearch} disabled={loading}></lightning-button>
+        <lightning-button label="Limpar" onclick={handleClear} disabled={loading}></lightning-button>
       </div>
-      <lightning-accordion allow-multiple-sections-open>
-        <lightning-accordion-section
-          name="filters"
-          label="Mais filtros e busca de organizações"
-        >
+      <lightning-accordion>
+        <lightning-accordion-section name="advanced" label="Mais filtros e busca de organizações">
           <div class="ds-filters">
-            <lightning-input
-              name="organizationSearch"
-              type="search"
-              label="Nome da organização"
-              value={organizationSearch}
-              maxlength="80"
-              onchange={handleChange}
-            ></lightning-input>
-            <lightning-button
-              label="Buscar organizações"
-              onclick={handleSearchOrganizations}
-              disabled={organizationsLoading}
-            ></lightning-button>
-            <lightning-input
-              name="branchId"
-              label="ID da Branch (opcional)"
-              field-level-help="Copie o ID do registro Branch no Salesforce para consultar uma entrega específica."
-              value={branchId}
-              maxlength="18"
-              onchange={handleChange}
-            ></lightning-input>
+            <lightning-input name="organizationSearch" type="search" label="Localizar organização" value={organizationSearch} maxlength="80" onchange={handleChange}></lightning-input>
+            <lightning-button label="Buscar organizações" onclick={handleSearchOrganizations} disabled={organizationsLoading}></lightning-button>
+            <lightning-input name="branchId" label="ID da Branch (opcional)" value={branchId} maxlength="18" onchange={handleChange} field-level-help="Filtro exato por ID Salesforce da Branch."></lightning-input>
           </div>
-          <template lwc:if={organizationsLoading}
-            ><p role="status" class="ds-help">
-              Buscando organizações…
-            </p></template
-          >
-          <template lwc:if={organizationsHaveMore}
-            ><p role="status" class="ds-help">
-              Mais de 50 organizações. Refine a pesquisa para localizar outras.
-            </p></template
-          >
-          <template lwc:if={organizationError}
-            ><p role="alert" class="ds-error">{organizationError}</p></template
-          >
+          <template lwc:if={organizationsLoading}><p class="ds-help" role="status">Buscando organizações…</p></template>
+          <template lwc:if={organizationsHaveMore}><p class="ds-help" role="status">Mais de 50 organizações. Refine sua pesquisa.</p></template>
+          <template lwc:if={organizationError}><p class="ds-error" role="alert">{organizationError}</p></template>
         </lightning-accordion-section>
       </lightning-accordion>
-      <div class="ds-toolbar">
-        <p class="ds-help">
-          O ambiente considera a classificação da organização na conclusão da
-          entrega.
-        </p>
-        <lightning-button
-          variant="brand"
-          label="Aplicar filtros"
-          onclick={handleSearch}
-          disabled={loading}
-        ></lightning-button>
-      </div>
-      <template lwc:if={error}
-        ><div class="ds-error" role="alert">{error}</div></template
-      >
+      <p class="ds-help"><lightning-icon icon-name="utility:info" size="xx-small" alternative-text="Informação"></lightning-icon>
+        O ambiente considera a classificação válida na conclusão da entrega. Datas em UTC.</p>
+      <template lwc:if={error}><div class="ds-error" role="alert">{error}</div></template>
+      <template lwc:if={csvStatus}><p class="ds-banner" role="status">{csvStatus}</p></template>
       <template lwc:if={loading}>
-        <div class="ds-loading">
-          <lightning-spinner
-            alternative-text="Consultando deployments"
-            size="small"
-          ></lightning-spinner>
-        </div>
+        <div class="ds-loading"><lightning-spinner alternative-text="Consultando deployments" size="small"></lightning-spinner></div>
       </template>
       <template lwc:elseif={filtersDirty}>
-        <p class="ds-banner" role="status">
-          Filtros alterados. Selecione Aplicar filtros para consultar os
-          resultados.
-        </p>
+        <p class="ds-banner" role="status">Filtros alterados. Selecione Aplicar filtros para consultar os resultados.</p>
       </template>
       <template lwc:elseif={showResults}>
-        <p class="ds-help" role="status">{statusLabel}</p>
-        <template lwc:if={hasUnclassified}
-          ><p class="ds-banner">
-            Há entregas sem ambiente identificado ou com classificação
-            conflitante nesta página. Consulte a aba Ambientes e as observações
-            do registro.
-          </p></template
-        >
-        <template lwc:if={hasRows}>
-          <div class="ds-table">
-            <lightning-datatable
-              key-field="id"
-              data={rows}
-              columns={columns}
-              onrowaction={handleRowAction}
-              hide-checkbox-column
-            ></lightning-datatable>
-          </div>
-        </template>
-        <template lwc:else>
-          <div class="ds-empty" role="status">
-            <h3>Nenhum deployment encontrado nesta página</h3>
-            <p>{emptyDescription}</p>
-          </div>
-        </template>
-        <div class="ds-footer">
-          <p class="ds-help">{paginationLabel}</p>
-          <lightning-button
-            label="Próxima página"
-            onclick={handleNext}
-            disabled={nextDisabled}
-          ></lightning-button>
+        <div class="delivery-split">
+          <section class="delivery-table-panel" aria-label="Entregas encontradas">
+            <div class="delivery-panel-heading"><h3>Entregas encontradas</h3><p class="ds-help" role="status">{statusLabel}</p></div>
+            <template lwc:if={hasUnclassified}><p class="ds-banner">Há entregas sem ambiente identificado ou com classificação conflitante. Consulte a aba Ambientes.</p></template>
+            <template lwc:if={hasRows}>
+              <div class="ds-table">
+                <lightning-datatable data-name="deployments" key-field="id" data={rows} columns={columns} onrowaction={handleRowAction} hide-checkbox-column></lightning-datatable>
+              </div>
+            </template>
+            <template lwc:else>
+              <div class="ds-empty" role="status"><h3>Nenhum deployment encontrado nesta página</h3><p>{emptyDescription}</p></div>
+            </template>
+            <div class="ds-footer">
+              <p class="ds-help">{paginationLabel}</p>
+              <lightning-button label="Próxima página" icon-name="utility:chevronright" icon-position="right" onclick={handleNext} disabled={nextDisabled}></lightning-button>
+            </div>
+          </section>
+          <aside class="delivery-detail" aria-label="Detalhes da entrega">
+            <div class="delivery-panel-heading">
+              <h3>Detalhes da entrega</h3>
+              <template lwc:if={hasSelection}><lightning-button-icon icon-name="utility:close" alternative-text="Fechar detalhes" title="Fechar detalhes" onclick={handleCloseDetails}></lightning-button-icon></template>
+            </div>
+            <template lwc:if={hasSelection}>
+              <div class="delivery-detail-body">
+                <div class="delivery-record-heading">
+                  <lightning-icon icon-name="standard:deployment" size="medium" alternative-text=""></lightning-icon>
+                  <div><strong>{selectedRow.name}</strong><p class="ds-help">{selectedRow.id}</p></div>
+                  <span class={selectedRow.outcomeClass}>{selectedRow.outcomeLabel}</span>
+                </div>
+                <dl class="delivery-facts">
+                  <div><dt>Branch</dt><dd>{selectedRow.branchName}</dd></div>
+                  <div><dt>Organização</dt><dd>{selectedRow.organizationName}</dd></div>
+                  <div><dt>Ambiente na conclusão</dt><dd>{selectedRow.environmentLabel}</dd></div>
+                  <div><dt>Início (UTC)</dt><dd>{selectedRow.startLabel}</dd></div>
+                  <div><dt>Conclusão (UTC)</dt><dd>{selectedRow.completionLabel}</dd></div>
+                  <div><dt>Duração</dt><dd>{selectedRow.durationLabel}</dd></div>
+                </dl>
+                <p class="ds-help" role="status">{selectedRow.quality}</p>
+                <lightning-button variant="brand" stretch label="Abrir no Flosum" icon-name="utility:new_window" onclick={handleOpenSelected}></lightning-button>
+              </div>
+            </template>
+            <template lwc:else>
+              <div class="ds-empty"><h3>Selecione uma entrega</h3><p>Use o nome ou a ação Detalhes de uma linha para consultar sua origem.</p></div>
+            </template>
+          </aside>
         </div>
       </template>
-      <lightning-accordion allow-multiple-sections-open>
-        <lightning-accordion-section
-          name="source"
-          label="Sobre os dados e o período consultado"
-        >
-          <p>
-            Fonte: registros de Deployment do Metadata Log do Flosum. As
-            métricas DORA permanecem não certificadas.
-          </p>
-          <p class="ds-help">
-            A data final do filtro inclui o dia inteiro em UTC. Sem conclusão, a
-            consulta usa início ou criação como referência; o ambiente fica Não
-            identificado. A tabela é ordenada pela criação do log. Datas da
-            tabela em UTC.
-          </p>
-          <p class="ds-help">
-            {inspectedRows} registros de origem examinados nesta página. Não é
-            um total global.
-          </p>
-          <template lwc:if={correlationIncomplete}
-            ><p class="ds-error" role="status">
-              A fonte não garante unicidade das requisições. Revise a correlação
-              antes de qualquer consolidação.
-            </p></template
-          >
+      <lightning-accordion>
+        <lightning-accordion-section name="source" label="Sobre os dados e o período consultado">
+          <p>Fonte: registros de Deployment do Metadata Log do Flosum. As métricas DORA permanecem não certificadas.</p>
+          <p class="ds-help">A data final inclui o dia inteiro em UTC. Sem conclusão, o filtro usa início ou criação; a classificação fica Não identificado. A consulta é ordenada pela criação do log, não pela conclusão.</p>
+          <p class="ds-help">{inspectedRows} registros de origem examinados nesta página. Não é um total global.</p>
+          <template lwc:if={correlationIncomplete}><p class="ds-error" role="status">A fonte não garante unicidade das requisições. Revise a correlação.</p></template>
         </lightning-accordion-section>
       </lightning-accordion>
     </div>
