@@ -11,7 +11,7 @@ from pathlib import Path
 
 TITLE = "SDOA COMPONENTS DevSreFeat Flosum"
 BODY = "SDOA-FLOSUM-COMPONENTS/1\noperation=component-schema\ntarget=DevSreFeat"
-OBJECTS = ("Flosum__Components__c", "Flosum__Component_History__c")
+OBJECTS = ("Flosum__Components__c", "Flosum__Component__c", "Flosum__Component_History__c")
 TARGETS = {
     "branch": {"Flosum__Branch__c"},
     "component": {"Flosum__Components__c"},
@@ -57,10 +57,13 @@ def summarize(name, description):
                                      for w in ("version","revision","hash","checksum")))
     commits=sum(1 for f in fields if "commit" in (f.get("name") or "").lower())
     readable=sum(1 for f in fields if f.get("accessible",True))
+    name_signals={kind:sum(1 for f in fields if kind in (f.get("name") or "").lower())
+                  for kind in ("branch", "component", "commit", "history", "version", "metadata")}
     print(f"FLOSUM_COMPONENT_SCHEMA: object={name} describe=ok fields={len(fields)} readable_fields={readable}")
     print("FLOSUM_COMPONENT_RELATIONS: object="+name+
           " "+" ".join(f"{role}={len(found)}" for role,found in refs.items()))
     print(f"FLOSUM_COMPONENT_SIGNALS: object={name} body_candidates={binary} version_candidates={versions} commit_candidates={commits}")
+    print("FLOSUM_COMPONENT_NAME_SIGNALS: object="+name+" "+" ".join(f"{k}={v}" for k,v in name_signals.items()))
     return refs
 
 def inspect():
@@ -71,11 +74,13 @@ def inspect():
             results[name]=summarize(name,sf_describe(name))
         except Block:
             print(f"FLOSUM_COMPONENT_SCHEMA: object={name} describe=unavailable")
-    if len(results)!=2:
+    component = next((name for name in OBJECTS[:2] if name in results), None)
+    history = OBJECTS[2]
+    if not component or history not in results:
         print("FLOSUM_COMPONENT_VERDICT: relation_graph=unverified diff_content=not_verified")
     else:
-        c,h=results[OBJECTS[0]],results[OBJECTS[1]]
-        print("FLOSUM_COMPONENT_VERDICT: component_to_branch="+str(bool(c["branch"])).lower()+
+        c,h=results[component],results[history]
+        print("FLOSUM_COMPONENT_VERDICT: resolved_component_object="+component+" component_to_branch="+str(bool(c["branch"])).lower()+
               " history_to_component="+str(bool(h["component"])).lower()+
               " history_to_branch="+str(bool(h["branch"])).lower()+
               " component_to_log="+str(bool(c["log"])).lower()+
