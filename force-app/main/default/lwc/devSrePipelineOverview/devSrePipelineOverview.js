@@ -245,7 +245,7 @@ export default class DevSrePipelineOverview extends NavigationMixin(
     }
   }
   applyFilters() {
-    const fields = [...this.template.querySelectorAll("[data-filter]")];
+    const fields = [...this.template.querySelectorAll("[data-filter][required]")];
     if (!fields.map((field) => field.reportValidity()).every(Boolean)) return;
     const today = new Date().toISOString().slice(0, 10);
     const endDate = this.customPeriod ? this.draft.toDate : today;
