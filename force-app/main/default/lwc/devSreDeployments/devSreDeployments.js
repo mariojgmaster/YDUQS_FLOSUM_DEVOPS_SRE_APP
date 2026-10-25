@@ -131,12 +131,14 @@ export default class DevSreDeployments extends NavigationMixin(
     return this.loading || this.filtersDirty || !this.hasMore;
   }
   connectedCallback() {
-    this.loadOrganizations();
     this.load(false);
   }
   disconnectedCallback() {
     this.requestVersion++;
     this.organizationVersion++;
+  }
+  handleOrganizationPicker(event) {
+    this.handleChange({ target: { name: "organizationId", value: event.detail.recordId || "" }, detail: { value: event.detail.recordId || "" } });
   }
   handleChange(event) {
     this[event.target.name] = event.detail?.value ?? event.target.value;
