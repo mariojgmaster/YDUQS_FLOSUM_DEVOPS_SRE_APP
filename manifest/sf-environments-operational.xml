@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
-  <types><members>DevSreEnvironmentInsightsController</members><members>DevSreEnvironmentInsightsTest</members><name>ApexClass</name></types>
+  <types><members>DevSreEnvironmentController</members><members>DevSreEnvironmentInsightsTest</members><name>ApexClass</name></types>
   <types><members>devSreEnvironments</members><name>LightningComponentBundle</name></types>
-  <types><members>DevSreDeployment_Reader</members><members>DevSreEnvironment_Manager</members><name>PermissionSet</name></types>
   <version>67.0</version>
 </Package>
