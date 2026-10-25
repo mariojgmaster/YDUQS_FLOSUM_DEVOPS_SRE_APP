@@ -40,7 +40,7 @@
           </div></template
         >
       </div>
-<template lwc:if={summaryError}
+      <template lwc:if={summaryError}
         ><p class="ds-error" role="alert">{summaryError}</p></template
       >
       <template lwc:if={summaryUnavailable}
@@ -102,45 +102,6 @@
             ></lightning-combobox
             ><lightning-record-picker data-filter name="organizationId" object-api-name="Flosum__Organisation__c" label="Organização Flosum" placeholder="Pesquisar organização..." value={draft.organizationId} onchange={handleOrganizationPicker}></lightning-record-picker>
           </div>
-          <template lwc:if={customPeriod}
-            ><div class="ds-filters">
-              <lightning-input
-                data-filter
-                name="fromDate"
-                type="date"
-                label="Data inicial (UTC)"
-                value={draft.fromDate}
-                required
-                onchange={handleFilter}
-              ></lightning-input
-              ><lightning-input
-                data-filter
-                name="toDate"
-                type="date"
-                label="Data final (UTC, dia inteiro)"
-                value={draft.toDate}
-                required
-                onchange={handleFilter}
-              ></lightning-input></div
-          ></template>
-          <div class="ds-filters">
-            <lightning-input
-              type="search"
-              label="Localizar organização pelo nome"
-              value={organizationSearch}
-              maxlength="80"
-              onchange={handleOrganizationSearch}
-            ></lightning-input
-            ><lightning-button
-              label="Buscar organizações"
-              onclick={loadOrganizations}
-            ></lightning-button>
-          </div>
-          <template lwc:if={organizationsHaveMore}
-            ><p class="ds-help">
-              Mais de 50 organizações encontradas. Refine o nome.
-            </p></template
-          >
 
         </div>
       </template>
