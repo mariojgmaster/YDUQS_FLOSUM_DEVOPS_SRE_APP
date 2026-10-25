@@ -139,8 +139,7 @@
       ],
       "allowed_types": [
         "ApexClass",
-        "LightningComponentBundle",
-        "PermissionSet"
+        "LightningComponentBundle"
       ]
     }
   }
