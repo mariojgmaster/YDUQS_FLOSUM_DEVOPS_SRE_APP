@@ -63,3 +63,17 @@
 .environment-form { gap:0.8rem; }
 .environment-actions { padding-top:0.45rem; border-top:1px solid #e9edf4; }
 @media(max-width: 1000px) { .environment-layout-open { grid-template-columns:1fr; } }
+
+
+/* Truncation instead of unpredictable line wrapping in tables and editor. */
+.environment-table-panel .ds-table { min-width: 0; overflow-x: auto; }
+.environment-table-panel lightning-datatable { min-width: 38rem; }
+.environment-editor, .environment-form, .environment-panel-heading { min-width: 0; }
+.environment-panel-heading h3 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.environment-history-filters > *, .environment-toolbar > * { min-width: 0; }
+.environment-history-filters lightning-record-picker { flex: 1 1 12rem; min-width: 10rem; }
+.environment-form lightning-record-picker, .environment-form lightning-input, .environment-form lightning-combobox { min-width: 0; }
+@media (max-width: 520px) {
+  .environment-history-filters > * { flex: 1 1 100%; }
+  .environment-toolbar lightning-input { width: 100%; }
+}

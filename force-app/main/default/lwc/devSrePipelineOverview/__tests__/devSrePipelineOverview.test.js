@@ -71,6 +71,7 @@ function change(el, name, value) {
 describe("Pipeline Monitor principal", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers();
     listMonitorDeployments.mockResolvedValue(PAGE);
     getMonitorSummary.mockResolvedValue(SUMMARY);
     searchOrganizations.mockResolvedValue({ options: [], hasMore: false });
@@ -102,21 +103,20 @@ describe("Pipeline Monitor principal", () => {
     button(el, "Filtros").click();
     await flush();
     change(el, "search", "CRM");
+    jest.advanceTimersByTime(350);
     change(el, "environmentClass", "UAT");
     change(el, "outcome", "Failed");
     await flush();
-    expect(el.shadowRoot.textContent).toContain("Filtros alterados");
-    valid(el);
-    button(el, "Aplicar filtros").click();
+    expect(button(el, "Aplicar filtros")).toBeUndefined();
     await flush();
-    expect(listMonitorDeployments.mock.calls[1][0]).toMatchObject({
+    expect(listMonitorDeployments.mock.calls.at(-1)[0]).toMatchObject({
       searchTerm: "CRM",
       environmentClass: "UAT",
       outcome: "Failed",
       cursorId: null
     });
-    expect(getMonitorSummary.mock.calls[1][0]).not.toHaveProperty("outcome");
-    expect(getMonitorSummary.mock.calls[1][0]).toMatchObject({
+    expect(getMonitorSummary.mock.calls.at(-1)[0]).not.toHaveProperty("outcome");
+    expect(getMonitorSummary.mock.calls.at(-1)[0]).toMatchObject({
       searchTerm: "CRM",
       environmentClass: "UAT"
     });
@@ -152,7 +152,7 @@ describe("Pipeline Monitor principal", () => {
     resolve(PAGE);
     await flush();
     expect(el.shadowRoot.textContent).not.toContain("Release CRM");
-    expect(el.shadowRoot.textContent).toContain("Filtros alterados");
+    expect(el.shadowRoot.textContent).not.toContain("Release CRM");
   });
   it("não pula registros entre expansão da página e cursor seguinte", async () => {
     listMonitorDeployments.mockResolvedValue({
@@ -199,6 +199,18 @@ describe("Pipeline Monitor principal", () => {
       .filter((x) => x.name === "fromDate" || x.name === "toDate")).toHaveLength(2);
     expect(el.shadowRoot.querySelector('lightning-input[type="toggle"]')).toBeNull();
   });
+  it("navega por Branch e Metadata Log separadamente, sem seta", async () => {
+    listMonitorDeployments.mockResolvedValue({
+      ...PAGE, rows: [{ ...ROW, branchId: "a0B0001" }]
+    });
+    const el = mount();
+    await flush();
+    expect(el.shadowRoot.querySelector(".delivery-row lightning-button-icon")).toBeNull();
+    expect(el.shadowRoot.querySelector(".branch-link")).not.toBeNull();
+    expect(el.shadowRoot.querySelector(".log-link")).not.toBeNull();
+    expect(el.shadowRoot.textContent).toContain("Org Flosum:");
+    expect(el.shadowRoot.textContent).toContain("Ambiente:");
+  });
   it("seleciona organização Flosum por record-picker", async () => {
     const el = mount();
     await flush();
@@ -208,8 +220,6 @@ describe("Pipeline Monitor principal", () => {
     expect(picker.objectApiName).toBe("Flosum__Organisation__c");
     picker.dispatchEvent(new CustomEvent("change", { detail: { recordId: "a01ORG" } }));
     await flush();
-    valid(el);
-    button(el,"Aplicar filtros").click();
     await flush();
     expect(listMonitorDeployments).toHaveBeenLastCalledWith(
       expect.objectContaining({ organizationId: "a01ORG" })

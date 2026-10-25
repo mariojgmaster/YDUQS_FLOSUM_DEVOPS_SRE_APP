@@ -117,6 +117,17 @@
       "allowed_types": [
         "LightningComponentBundle"
       ]
+    },
+    "pipeline-monitor-auto-filters": {
+      "manifest": "manifest/sf-pipeline-monitor-auto-filters.xml",
+      "test_level": "RunSpecifiedTests",
+      "tests": [
+        "DevSreEnvironmentTest",
+        "DevSreDeploymentTest"
+      ],
+      "allowed_types": [
+        "LightningComponentBundle"
+      ]
     }
   }
 }

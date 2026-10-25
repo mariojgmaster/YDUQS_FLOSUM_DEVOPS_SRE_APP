@@ -25,7 +25,6 @@
       <div class="overview-custom-range" role="group" aria-label="Período personalizado">
         <lightning-input data-filter name="fromDate" type="date" label="De (UTC)" value={draft.fromDate} required onchange={handleFilter}></lightning-input>
         <lightning-input data-filter name="toDate" type="date" label="Até (UTC)" value={draft.toDate} required onchange={handleFilter}></lightning-input>
-        <lightning-button label="Aplicar período" variant="brand" onclick={applyFilters} disabled={loading}></lightning-button>
       </div>
     </template>
     <section aria-label="Resumo operacional" class="summary-section">
@@ -84,12 +83,6 @@
           onchange={handleFilter}
         ></lightning-combobox>
         <lightning-button label="Exportar página" icon-name="utility:download" onclick={handleExport} disabled={exportDisabled}></lightning-button>
-        <lightning-button
-          variant="brand"
-          label="Aplicar filtros"
-          onclick={applyFilters}
-          disabled={loading}
-        ></lightning-button>
       </div>
       <template lwc:if={filtersOpen}>
         <div id="monitor-filters" class="filter-panel ds-stack">
@@ -119,7 +112,7 @@
       ></template>
       <template lwc:elseif={dirty}
         ><p class="ds-banner" role="status">
-          Filtros alterados. Selecione Aplicar filtros para atualizar o monitor.
+          Atualizando o monitor com os filtros selecionados…
         </p></template
       >
       <template lwc:elseif={showRows}>
@@ -127,25 +120,21 @@
           <template for:each={visibleRows} for:item="row"
             ><li key={row.id} class="delivery-row">
               <div class="row-icon row-icon-brand">
-                <lightning-icon
-                  icon-name="standard:deployment"
-                  size="small"
-                  alternative-text=""
-                ></lightning-icon>
+                <lightning-icon icon-name="utility:flow" size="small" alternative-text="Registro de Metadata Log"></lightning-icon>
               </div>
               <div class="delivery-content">
                 <div class="delivery-title">
-                  <button
-                    class="record-link"
-                    data-id={row.id}
-                    onclick={handleOpen}
-                  >
-                    {row.title}</button
-                  ><span class="log-label">{row.name}</span>
+                  <template lwc:if={row.hasBranch}>
+                    <button class="record-link branch-link" data-id={row.branchId} title={row.branchTitle} onclick={handleOpenBranch}>{row.title}</button>
+                  </template>
+                  <template lwc:else>
+                    <span class="record-link record-static" title={row.title}>{row.title}</span>
+                  </template>
+                  <button class="log-label log-link" data-id={row.id} title={row.logTitle} onclick={handleOpen}>{row.name}</button>
                 </div>
                 <p class="row-meta">
-                  <span class={row.environmentClassName}>{row.environmentLabel}</span
-                  ><span>{row.organizationLabel}</span>
+                  <span class={row.environmentClassName} title={row.environmentDetail}>Ambiente: {row.environmentLabel}</span>
+                  <span class="row-organization" title={row.organizationDetail}>Org Flosum: {row.organizationLabel}</span>
                 </p>
                 <lightning-helptext content={row.quality}></lightning-helptext>
               </div>
@@ -165,14 +154,7 @@
                   UTC</span
                 >
               </div>
-              <lightning-button-icon
-                variant="border-filled"
-                data-id={row.id}
-                icon-name="utility:chevronright"
-                alternative-text={row.openLabel}
-                title={row.openLabel}
-                onclick={handleOpen}
-              ></lightning-button-icon></li
+</li
           ></template>
         </ul>
       </template>

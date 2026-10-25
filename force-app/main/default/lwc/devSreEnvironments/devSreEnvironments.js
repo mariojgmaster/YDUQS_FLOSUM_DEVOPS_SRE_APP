@@ -53,10 +53,10 @@ export default class DevSreEnvironments extends NavigationMixin(
   organizationVersion = 0;
   get columns() {
     const base = [
-      { label: "Organização Flosum", fieldName: "organizationName" },
-      { label: "Uso nas análises", fieldName: "environmentLabel", cellAttributes: { class: { fieldName: "environmentCellClass" } } },
+      { label: "Organização Flosum", fieldName: "organizationName", wrapText: false, initialWidth: 195 },
+      { label: "Uso nas análises", fieldName: "environmentLabel", wrapText: false, initialWidth: 165, cellAttributes: { class: { fieldName: "environmentCellClass" } } },
       { label: "Vale desde (UTC)", fieldName: "validFrom", type: "date", typeAttributes: DATE },
-      { label: "Situação", fieldName: "stateLabel", cellAttributes: { class: { fieldName: "stateCellClass" } } }
+      { label: "Situação", fieldName: "stateLabel", wrapText: false, initialWidth: 100, cellAttributes: { class: { fieldName: "stateCellClass" } } }
     ];
     if (this.isHistory) base.push({ label: "Vale até (UTC)", fieldName: "validTo", type: "date", typeAttributes: DATE });
     if (this.canManage) base.push({

@@ -58,14 +58,16 @@ function button(el, label) {
 describe("deployments reais", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers();
     listDeployments.mockResolvedValue(PAGE);
     listDeploymentsWithSearch.mockResolvedValue(PAGE);
     searchOrganizations.mockResolvedValue({ options: [], hasMore: false });
   });
   afterEach(() => {
     document.body.innerHTML = "";
+    jest.useRealTimers();
   });
-  it("busca nome de log/Branch no servidor, sem filtrar só a página atual", async () => {
+  it("busca nome de log/Branch automaticamente e remove filtro de ID da Branch", async () => {
     const el = mount();
     await flush();
     valid(el);
@@ -74,8 +76,9 @@ describe("deployments reais", () => {
     );
     search.dispatchEvent(new CustomEvent("change", { detail: { value: "release" } }));
     await flush();
-    expect(el.shadowRoot.textContent).toContain("Filtros alterados");
-    button(el, "Aplicar filtros").click();
+    expect(button(el, "Aplicar filtros")).toBeUndefined();
+    expect(el.shadowRoot.querySelector(".delivery-advanced")).toBeNull();
+    jest.advanceTimersByTime(350);
     await flush();
     expect(listDeploymentsWithSearch).toHaveBeenCalledWith(
       expect.objectContaining({ searchTerm: "release", branchId: null })
@@ -146,10 +149,8 @@ describe("deployments reais", () => {
     );
     env.dispatchEvent(new CustomEvent("change", { detail: { value: "UAT" } }));
     await flush();
-    expect(button(el, "Próxima página")).toBeUndefined();
-    expect(el.shadowRoot.textContent).toContain("Filtros alterados");
+    expect(button(el, "Aplicar filtros")).toBeUndefined();
     valid(el);
-    button(el, "Aplicar filtros").click();
     await flush();
     expect(listDeployments.mock.calls[2][0]).toMatchObject({
       environmentClass: "UAT",
@@ -180,7 +181,7 @@ describe("deployments reais", () => {
     );
     expect(el.shadowRoot.querySelector("lightning-datatable")).toBeNull();
     valid(el);
-    button(el, "Aplicar filtros").click();
+    button(el, "Atualizar").click();
     await flush();
     expect(
       el.shadowRoot.querySelector("lightning-datatable").data
@@ -200,7 +201,7 @@ describe("deployments reais", () => {
       .dispatchEvent(new CustomEvent("change", { detail: { value: "DEV" } }));
     resolve(PAGE);
     await flush();
-    expect(el.shadowRoot.querySelector("lightning-datatable")).toBeNull();
+    expect(listDeployments).toHaveBeenCalledTimes(2);
   });
   it("traduz ausência de classificação e orienta a ação na aba Ambientes", async () => {
     listDeployments.mockResolvedValue({
@@ -223,7 +224,6 @@ describe("deployments reais", () => {
     picker.dispatchEvent(new CustomEvent("change", { detail: { recordId: "a01ORG" } }));
     await flush();
     valid(el);
-    button(el,"Aplicar filtros").click();
     await flush();
     expect(listDeployments).toHaveBeenLastCalledWith(
       expect.objectContaining({ organizationId: "a01ORG" })
