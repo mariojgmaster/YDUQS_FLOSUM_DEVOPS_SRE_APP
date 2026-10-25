@@ -163,7 +163,7 @@ describe("vigências de ambientes", () => {
     expect(
       [
         ...el.shadowRoot.querySelectorAll("lightning-input, lightning-combobox, lightning-record-picker")
-      ].find((x) => x.name === "organizationId").disabled
+      ].find((x) => x.name === "organizationId" || x.dataset.org === "organizationId").disabled
     ).toBe(true);
     expect(
       [
