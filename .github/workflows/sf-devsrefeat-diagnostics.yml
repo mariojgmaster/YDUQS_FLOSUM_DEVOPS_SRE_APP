@@ -19,6 +19,7 @@ on:
           - apex-tests
           - flosum-schema-inventory
           - flosum-branch-inspect
+          - flosum-components-inspect
       branch_id:
         description: "ID da Branch Flosum (15 ou 18 caracteres), somente para flosum-branch-inspect"
         required: false
@@ -36,7 +37,7 @@ concurrency:
 
 jobs:
   diagnose:
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'issues' && github.event.action == 'opened' && github.event.issue.title == 'SDOA INVENTORY DevSreFeat Flosum' && github.actor == github.repository_owner && github.event.issue.user.login == github.repository_owner && github.event.sender.login == github.repository_owner && github.ref == 'refs/heads/master' && github.run_attempt == 1) }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'issues' && github.event.action == 'opened' && (github.event.issue.title == 'SDOA INVENTORY DevSreFeat Flosum' || github.event.issue.title == 'SDOA COMPONENTS DevSreFeat Flosum') && github.actor == github.repository_owner && github.event.issue.user.login == github.repository_owner && github.event.sender.login == github.repository_owner && github.ref == 'refs/heads/master' && github.run_attempt == 1) }}
     name: Run on DevSreFeat
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -46,7 +47,7 @@ jobs:
       SF_USERNAME: ${{ secrets.SF_USERNAME }}
       SF_JWT_KEY: ${{ secrets.SF_JWT_KEY }}
       SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
-      OPERATION: ${{ github.event_name == 'issues' && 'flosum-schema-inventory' || inputs.operation }}
+      OPERATION: ${{ github.event_name == 'issues' && (github.event.issue.title == 'SDOA COMPONENTS DevSreFeat Flosum' && 'flosum-components-inspect' || 'flosum-schema-inventory') || inputs.operation }}
     steps:
       - name: Validate target and required configuration
         shell: bash
@@ -75,7 +76,15 @@ jobs:
           EXPECTED_OWNER: ${{ github.repository_owner }}
         shell: bash
         run: |
-          python3 scripts/ci/sf-flosum-schema-inventory.py --verify-issue "$GITHUB_EVENT_PATH" --owner "$EXPECTED_OWNER"
+          case "$OPERATION" in
+            flosum-schema-inventory)
+              python3 scripts/ci/sf-flosum-schema-inventory.py --verify-issue "$GITHUB_EVENT_PATH" --owner "$EXPECTED_OWNER"
+              ;;
+            flosum-components-inspect)
+              python3 scripts/ci/sf-flosum-component-research.py --verify-issue "$GITHUB_EVENT_PATH" --owner "$EXPECTED_OWNER"
+              ;;
+            *) echo "::error::Unknown issue operation"; exit 2 ;;
+          esac
 
       - name: Set up Node.js for Salesforce CLI
         uses: actions/setup-node@v4
@@ -215,6 +224,13 @@ jobs:
                 exit 1
               fi
               python3 scripts/ci/sf-flosum-schema-inventory.py --inventory
+              ;;
+            flosum-components-inspect)
+              if [[ "$GITHUB_REF" != "refs/heads/master" || "$GITHUB_ACTOR" != "$GITHUB_REPOSITORY_OWNER" || "$GITHUB_RUN_ATTEMPT" != "1" ]]; then
+                echo "::error title=FLOSUM_COMPONENTS_DENIED::Owner-only on protected master."
+                exit 1
+              fi
+              python3 scripts/ci/sf-flosum-component-research.py --inspect
               ;;
             flosum-branch-inspect)
               if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" || "$GITHUB_REF" != "refs/heads/master" || "$GITHUB_ACTOR" != "$GITHUB_REPOSITORY_OWNER" || "$GITHUB_RUN_ATTEMPT" != "1" ]]; then
