@@ -23,21 +23,15 @@
         <lightning-record-picker data-org="organizationId" object-api-name="Flosum__Organisation__c" label="Organização Flosum" placeholder="Todas as organizações" value={organizationId} onchange={handleOrganizationPicker}></lightning-record-picker>
         <lightning-combobox name="environmentClass" label="Ambiente" value={environmentClass} options={environmentOptions} onchange={handleChange}></lightning-combobox>
         <lightning-combobox name="outcome" label="Resultado" value={outcome} options={outcomeOptions} onchange={handleChange}></lightning-combobox>
-        <lightning-button variant="brand" label="Aplicar filtros" onclick={handleSearch} disabled={loading}></lightning-button>
         <lightning-button label="Limpar" onclick={handleClear} disabled={loading}></lightning-button>
       </div>
-      <lightning-accordion class="delivery-advanced" active-section-name={advancedSection} onsectiontoggle={handleAdvancedToggle}>
-        <lightning-accordion-section name="advanced" label="Filtro avançado">
-          <lightning-input name="branchId" label="ID da Branch (opcional)" value={branchId} maxlength="18" onchange={handleChange} field-level-help="Filtro exato por ID Salesforce da Branch."></lightning-input>
-        </lightning-accordion-section>
-      </lightning-accordion>
       <template lwc:if={error}><div class="ds-error" role="alert">{error}</div></template>
       <template lwc:if={csvStatus}><p class="ds-banner" role="status">{csvStatus}</p></template>
       <template lwc:if={loading}>
         <div class="ds-loading"><lightning-spinner alternative-text="Consultando deployments" size="small"></lightning-spinner></div>
       </template>
       <template lwc:elseif={filtersDirty}>
-        <p class="ds-banner" role="status">Filtros alterados. Selecione Aplicar filtros para consultar os resultados.</p>
+        <p class="ds-banner" role="status">Atualizando resultados para os filtros selecionados…</p>
       </template>
       <template lwc:elseif={showResults}>
         <div class="delivery-split">
