@@ -69,6 +69,32 @@ public with sharing class DevSreDeploymentController {
     );
   }
 
+  /** Search deployments and branch names at the source, preserving exact Branch filtering. */
+  @AuraEnabled
+  public static DeploymentPage listDeploymentsWithSearch(
+    Datetime fromUtc,
+    Datetime toUtc,
+    Id organizationId,
+    Id branchId,
+    String environmentClass,
+    String outcome,
+    String searchTerm,
+    Datetime cursorCreated,
+    Id cursorId
+  ) {
+    return queryDeployments(
+      fromUtc,
+      toUtc,
+      organizationId,
+      branchId,
+      environmentClass,
+      outcome,
+      cursorCreated,
+      cursorId,
+      searchTerm
+    );
+  }
+
   @AuraEnabled
   public static DeploymentPage listMonitorDeployments(
     Datetime fromUtc,
