@@ -30,11 +30,11 @@ class ComponentsResearchSafety(unittest.TestCase):
             {"name":"Flosum__Changed__c","type":"string"},
             {"name":"Flosum__Body__c","type":"textarea"},
         ]}
-        refs=mod.summarize(mod.OBJECTS[1],data)
+        refs=mod.summarize(mod.OBJECTS[2],data)
         self.assertEqual(len(refs["branch"]),1)
         self.assertEqual(len(refs["component"]),1)
         self.assertEqual(len(refs["log"]),0)
     def test_fixed_object_allowlist(self):
-        self.assertEqual(mod.OBJECTS,("Flosum__Components__c","Flosum__Component_History__c"))
+        self.assertEqual(mod.OBJECTS,("Flosum__Components__c","Flosum__Component__c","Flosum__Component_History__c"))
 
 if __name__=="__main__": unittest.main()
