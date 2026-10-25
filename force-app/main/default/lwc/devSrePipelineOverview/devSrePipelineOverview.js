@@ -57,6 +57,7 @@ export default class DevSrePipelineOverview extends NavigationMixin(
   pageNumber = 1;
   visibleCount = 10;
   requestVersion = 0;
+  filterTimer;
   organizationVersion = 0;
   downloadUrl;
   correlationIncomplete = false;
@@ -65,6 +66,7 @@ export default class DevSrePipelineOverview extends NavigationMixin(
     this.applyFilters();
   }
   disconnectedCallback() {
+    clearTimeout(this.filterTimer);
     this.requestVersion++;
     this.organizationVersion++;
     if (this.downloadUrl) URL.revokeObjectURL(this.downloadUrl);
@@ -181,21 +183,34 @@ export default class DevSrePipelineOverview extends NavigationMixin(
     ];
   }
   handleFilter(event) {
+    const field = event.target.name;
     this.draft = {
       ...this.draft,
-      [event.target.name]: event.detail?.value ?? event.target.value
+      [field]: event.detail?.value ?? event.target.value
     };
     this.dirty = true;
-    this.requestVersion++;
+    ++this.requestVersion; // Ignore stale responses.
     this.loading = false;
     this.exportError = "";
-    if (event.target.name === "period" && !this.customPeriod) this.applyFilters();
+    clearTimeout(this.filterTimer);
+    if (field === "period" && this.customPeriod) return;
+    if (this.customPeriod && (!this.draft.fromDate || !this.draft.toDate)) return;
+    if (field === "search") {
+      // Debounce free text to avoid an Apex call for every keypress.
+      // eslint-disable-next-line @lwc/lwc/no-async-operation
+      this.filterTimer = setTimeout(() => this.applyFilters(), 350);
+    } else {
+      this.applyFilters();
+    }
   }
   handleOrganizationPicker(event) {
     this.handleFilter({ target: { name: "organizationId", value: event.detail.recordId || "" }, detail: { value: event.detail.recordId || "" } });
   }
   handleKey(event) {
-    if (event.key === "Enter") this.applyFilters();
+    if (event.key === "Enter") {
+      clearTimeout(this.filterTimer);
+      this.applyFilters();
+    }
   }
   handleToggleFilters() {
     this.filtersOpen = !this.filtersOpen;
@@ -323,6 +338,15 @@ export default class DevSrePipelineOverview extends NavigationMixin(
     return {
       ...row,
       title: row.branchName || row.name,
+      hasBranch: Boolean(row.branchId),
+      branchTitle: `Abrir Branch ${row.branchName || ""} no Flosum`,
+      logTitle: `Abrir Metadata Log ${row.name} no Flosum`,
+      environmentDetail: row.environmentClass === "UNKNOWN"
+        ? "Nenhuma classificação válida encontrada para esta entrega"
+        : row.environmentClass === "AMBIGUOUS"
+          ? "Mais de uma classificação vigente nesta entrega"
+          : `Classificação da entrega: ${ENVIRONMENTS[row.environmentClass] || ENVIRONMENTS.UNKNOWN}`,
+      organizationDetail: `Organização Flosum: ${row.organizationName || "Não informada"}`,
       resultLabel: result.label,
       resultClass: `result result-${result.tone}`,
       environmentClassName: `environment-chip environment-${(row.environmentClass || "UNKNOWN").toLowerCase()}`,
@@ -352,6 +376,13 @@ export default class DevSrePipelineOverview extends NavigationMixin(
   }
   handleNext() {
     if (!this.nextDisabled) this.load(true);
+  }
+  handleOpenBranch(event) {
+    const id = event.currentTarget.dataset.id;
+    if (id) this[NavigationMixin.Navigate]({
+      type: "standard__recordPage",
+      attributes: { recordId: id, objectApiName: "Flosum__Branch__c", actionName: "view" }
+    });
   }
   handleOpen(event) {
     this[NavigationMixin.Navigate]({
