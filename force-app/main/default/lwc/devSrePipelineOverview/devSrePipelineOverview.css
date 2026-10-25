@@ -418,3 +418,27 @@ h1 {
 .result-partial { background:#fff5e2; color:#855600; border-color:#ffdea7; }
 .result-neutral { background:#f1f4f7; color:#4c5f78; border-color:#dce3ec; }
 .row-icon-brand lightning-icon { --slds-c-icon-color-foreground-default: #0176d3; }
+
+
+/* Stable, actionable Metadata Log rows and a distinct organisation source. */
+.delivery-row { display: flex; align-items: center; min-width: 0; }
+.delivery-content { min-width: 0; overflow: hidden; }
+.delivery-title { display: flex; align-items: center; flex-wrap: nowrap; gap: 0.5rem; min-width: 0; }
+.delivery-title > * { min-width: 0; max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; }
+.record-link { overflow-wrap: normal; white-space: nowrap; }
+.record-static { cursor: default; }
+.log-link { border: 0; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; }
+.log-link:hover { color: #0176d3; text-decoration: underline; }
+.log-link:focus-visible { outline: 2px solid #0176d3; outline-offset: 2px; }
+.row-meta { display: flex; flex-wrap: nowrap; gap: 0.45rem; min-width: 0; overflow: hidden; }
+.row-meta > * { min-width: 0; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1; }
+.row-organization { font-size: 0.76rem; color: #506782; }
+.row-result { flex: 0 0 auto; min-width: 9rem; margin-left: auto; }
+.row-icon-brand { flex: 0 0 2.3rem; height: 2.3rem; width: 2.3rem; background: #e7f2ff; }
+.row-icon-brand lightning-icon { --slds-c-icon-color-foreground-default: #0176d3; }
+@media (max-width: 45rem) {
+  .delivery-row { align-items: flex-start; }
+  .delivery-content { flex: 1 1 100%; }
+  .row-result { margin-left: 3.1rem; }
+  .delivery-title > * { max-width: 50%; }
+}
