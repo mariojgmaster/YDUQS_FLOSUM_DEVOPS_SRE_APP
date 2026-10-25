@@ -49,3 +49,17 @@
   .environment-hero { padding: 0.85rem; }
   .environment-page .ds-section { padding: 0.7rem; }
 }
+
+
+.environment-page .ds-section { padding: 0.85rem; }
+.environment-layout { gap: 0.8rem; }
+.environment-toolbar { padding: 0.85rem; }
+.environment-tabs { background:#f5f8fe; }
+.environment-table-panel { border:1px solid #d8e0eb; box-shadow:0 1px 2px rgb(17 39 71 / 3%); }
+.environment-editor { border:1px solid #d8e0eb; }
+.environment-hero .ds-heading lightning-icon { --slds-c-icon-color-background: #09847c; }
+.environment-table-panel .ds-table { overflow-x: auto; }
+.environment-history-filters { background:#fbfcff; padding:0.65rem 0.85rem; }
+.environment-form { gap:0.8rem; }
+.environment-actions { padding-top:0.45rem; border-top:1px solid #e9edf4; }
+@media(max-width: 1000px) { .environment-layout-open { grid-template-columns:1fr; } }
