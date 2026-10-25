@@ -32,7 +32,7 @@
           <template lwc:if={isHistory}>
             <div class="environment-history-filters">
               <lightning-combobox name="view" label="Período do histórico" value={view} options={historyOptions} onchange={handleChange} disabled={busy}></lightning-combobox>
-              <lightning-combobox name="organizationFilter" label="Organização" value={organizationFilter} options={filterOptions} onchange={handleChange} disabled={busy}></lightning-combobox>
+              <lightning-record-picker name="organizationFilter" object-api-name="Flosum__Organisation__c" label="Organização Flosum" placeholder="Todas as organizações" value={organizationFilter} onchange={handleHistoryOrganisationPicker} disabled={busy}></lightning-record-picker>
               <lightning-button label="Todas as organizações" onclick={handleClearHistoryFilter}></lightning-button>
             </div>
           </template>
@@ -47,23 +47,6 @@
           <template lwc:elseif={showEmpty}>
             <div class="ds-empty" role="status"><h3>{emptyTitle}</h3><p>{emptyDescription}</p></div>
           </template>
-          <div class="environment-table-footer">
-            <p class="ds-help" role="status">{statusLabel}</p>
-            <p class="ds-help">Sem data final, a classificação continua válida.</p>
-          </div>
-          <lightning-accordion class="environment-help" allow-multiple-sections-open active-section-name={helpSections} onsectiontoggle={handleHelpToggle}>
-            <lightning-accordion-section name="dates" label="Por que informar desde quando?">
-              <p>Se uma organização era UAT até junho e passou a PROD em julho, as entregas de junho devem continuar identificadas como UAT.</p>
-              <p class="ds-help">O início é inclusivo e o término exclusivo: uma nova classificação pode começar no mesmo instante da anterior. Datas na lista em UTC; no formulário, o fuso é o do seu perfil Salesforce.</p>
-            </lightning-accordion-section>
-            <lightning-accordion-section name="find" label="Localizar outra organização para classificar">
-              <div class="ds-filters">
-                <lightning-input name="organizationSearch" type="search" label="Nome da organização" value={organizationSearch} maxlength="80" onchange={handleChange}></lightning-input>
-                <lightning-button label="Buscar organizações" onclick={handleSearchOrganizations} disabled={organizationsLoading}></lightning-button>
-              </div>
-              <template lwc:if={organizationsHaveMore}><p class="ds-help" role="status">Mais de 50 organizações encontradas. Refine a busca.</p></template>
-            </lightning-accordion-section>
-          </lightning-accordion>
         </section>
         <template lwc:if={showEditor}>
           <aside class="environment-editor" aria-label="Classificar organização">
@@ -72,9 +55,9 @@
               <lightning-button-icon icon-name="utility:close" alternative-text="Fechar painel sem salvar" title="Fechar painel" onclick={handleCancel} disabled={saving}></lightning-button-icon>
             </div>
             <div class="environment-form">
-              <p class="ds-help">{formHelp}</p>
+
               <template lwc:if={formError}><p class="ds-error" role="alert">{formError}</p></template>
-              <lightning-combobox data-form data-focus name="organizationId" label="Organização Flosum" value={organizationId} options={organizations} required disabled={identityDisabled} onchange={handleChange}></lightning-combobox>
+              <lightning-record-picker data-form data-focus name="organizationId" object-api-name="Flosum__Organisation__c" label="Organização Flosum" placeholder="Pesquisar organização..." value={organizationId} required disabled={identityDisabled} onchange={handleFormOrganisationPicker}></lightning-record-picker>
               <lightning-combobox data-form name="environmentClass" label="Uso da organização" value={environmentClass} options={environmentOptions} required disabled={identityDisabled} onchange={handleChange}></lightning-combobox>
               <lightning-input data-form name="validFrom" type="datetime" label="Esta classificação vale desde" value={validFrom} required disabled={identityDisabled} onchange={handleChange} field-level-help="Use o início real para classificar corretamente entregas antigas."></lightning-input>
               <p class="ds-help">Informe o início do uso real. Horário no fuso do perfil Salesforce.</p>
@@ -87,8 +70,7 @@
                 <lightning-button label="Cancelar" onclick={handleCancel} disabled={saving}></lightning-button>
                 <lightning-button variant="brand" label="Salvar classificação" onclick={handleSave} disabled={busy}></lightning-button>
               </div>
-              <p class="ds-banner"><lightning-icon icon-name="utility:info" size="xx-small" alternative-text="Informação"></lightning-icon>
-                A classificação é aplicada aos deployments pela data de conclusão.</p>
+
             </div>
           </aside>
         </template>
