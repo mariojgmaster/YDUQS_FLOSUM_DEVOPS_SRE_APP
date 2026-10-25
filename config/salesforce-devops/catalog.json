@@ -106,6 +106,17 @@
       "allowed_types": [
         "LightningComponentBundle"
       ]
+    },
+    "pipeline-monitor-ux-lookup": {
+      "manifest": "manifest/sf-pipeline-monitor-ux-lookup.xml",
+      "test_level": "RunSpecifiedTests",
+      "tests": [
+        "DevSreEnvironmentTest",
+        "DevSreDeploymentTest"
+      ],
+      "allowed_types": [
+        "LightningComponentBundle"
+      ]
     }
   }
 }
