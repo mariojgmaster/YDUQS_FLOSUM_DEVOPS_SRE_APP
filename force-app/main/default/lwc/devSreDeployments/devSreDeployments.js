@@ -11,6 +11,14 @@ const RESULTS = {
   Pending: "Em andamento",
   Unknown: "Desconhecido"
 };
+const ENVIRONMENTS = {
+  PROD: "PROD · Produção",
+  UAT: "UAT · Homologação",
+  SIT: "SIT · Integração",
+  DEV: "DEV · Desenvolvimento",
+  UNKNOWN: "Não identificado",
+  AMBIGUOUS: "Classificação conflitante"
+};
 const DATE = {
   year: "numeric",
   month: "2-digit",
@@ -25,6 +33,10 @@ export default class DevSreDeployments extends NavigationMixin(
 ) {
   rows = [];
   error = "";
+  organizationError = "";
+  organizationsLoading = false;
+  filtersDirty = false;
+  pageNumber = 1;
   loading = false;
   fromDate = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
   toDate = new Date().toISOString().slice(0, 10);
@@ -54,7 +66,7 @@ export default class DevSreDeployments extends NavigationMixin(
       }
     },
     { label: "Organização", fieldName: "organizationName" },
-    { label: "Ambiente", fieldName: "environmentClass" },
+    { label: "Ambiente", fieldName: "environmentLabel" },
     {
       label: "Branch",
       fieldName: "branchName",
@@ -80,13 +92,13 @@ export default class DevSreDeployments extends NavigationMixin(
       typeAttributes: DATE
     },
     { label: "Duração (s)", fieldName: "durationSeconds", type: "number" },
-    { label: "Qualidade / correlação", fieldName: "quality", wrapText: true }
+    { label: "Observações", fieldName: "quality", wrapText: true }
   ];
   get environmentOptions() {
     return [
       { label: "Todos os ambientes", value: "" },
       ...["PROD", "UAT", "SIT", "DEV", "UNKNOWN", "AMBIGUOUS"].map((value) => ({
-        label: value,
+        label: ENVIRONMENTS[value],
         value
       }))
     ];
@@ -101,10 +113,28 @@ export default class DevSreDeployments extends NavigationMixin(
     return this.rows.length > 0;
   }
   get statusLabel() {
-    return `${this.rows.length} registros nesta página; ${this.inspectedRows} registros de origem examinados. Não é um total global.`;
+    return `${this.rows.length} deployments nesta página · Página ${this.pageNumber}`;
+  }
+  get showResults() {
+    return !this.error;
+  }
+  get hasUnclassified() {
+    return this.rows.some((row) =>
+      ["UNKNOWN", "AMBIGUOUS"].includes(row.environmentClass)
+    );
+  }
+  get paginationLabel() {
+    return this.hasMore
+      ? "Há mais registros de origem a examinar. Continue a consulta na próxima página."
+      : "Fim dos registros para estes filtros.";
+  }
+  get emptyDescription() {
+    return this.hasMore
+      ? "Há mais registros a examinar. Avance para a próxima página ou ajuste os filtros."
+      : "Ajuste o período, a organização ou os demais filtros e tente novamente.";
   }
   get nextDisabled() {
-    return this.loading || !this.hasMore;
+    return this.loading || this.filtersDirty || !this.hasMore;
   }
   connectedCallback() {
     this.loadOrganizations();
@@ -116,6 +146,10 @@ export default class DevSreDeployments extends NavigationMixin(
   }
   handleChange(event) {
     this[event.target.name] = event.detail?.value ?? event.target.value;
+    if (event.target.name === "organizationSearch") return;
+    this.filtersDirty = true;
+    this.error = "";
+    this.correlationIncomplete = false;
     this.requestVersion++;
     this.loading = false;
     this.rows = [];
@@ -126,6 +160,8 @@ export default class DevSreDeployments extends NavigationMixin(
   }
   async loadOrganizations() {
     const version = ++this.organizationVersion;
+    this.organizationsLoading = true;
+    this.organizationError = "";
     try {
       const page = await searchOrganizations({
         searchTerm: this.organizationSearch
@@ -133,13 +169,22 @@ export default class DevSreDeployments extends NavigationMixin(
       if (version !== this.organizationVersion) return;
       this.organizations = [
         { label: "Todas as organizações", value: "" },
-        ...page.options
+        ...page.options,
+        ...this.organizations.filter(
+          (item) =>
+            item.value &&
+            item.value === this.organizationId &&
+            !page.options.some((option) => option.value === item.value)
+        )
       ];
       this.organizationsHaveMore = page.hasMore;
     } catch {
       if (version === this.organizationVersion)
-        this.error =
+        this.organizationError =
           "Não foi possível consultar organizações. Revise seu acesso ou tente novamente.";
+    } finally {
+      if (version === this.organizationVersion)
+        this.organizationsLoading = false;
     }
   }
   handleSearchOrganizations() {
@@ -160,6 +205,7 @@ export default class DevSreDeployments extends NavigationMixin(
     this.error = "";
     this.rows = [];
     this.inspectedRows = 0;
+    this.correlationIncomplete = false;
     const fields = [
       ...this.template.querySelectorAll("lightning-input, lightning-combobox")
     ];
@@ -187,8 +233,12 @@ export default class DevSreDeployments extends NavigationMixin(
       this.rows = page.rows.map((row) => ({
         ...row,
         noBranch: !row.branchId,
+        environmentLabel:
+          ENVIRONMENTS[row.environmentClass] || "Não identificado",
         outcomeLabel: RESULTS[row.outcome] || "Desconhecido"
       }));
+      this.filtersDirty = false;
+      this.pageNumber = next ? this.pageNumber + 1 : 1;
       this.hasMore = page.hasMore;
       this.cursorCreated = page.cursorCreated;
       this.cursorId = page.cursorId;

@@ -1,159 +1,238 @@
 <template>
-  <lightning-card
-    title="Configuração de ambientes"
-    icon-name="standard:settings"
-  >
-    <div class="slds-p-around_medium">
-      <p>
-        Classifique organizações Flosum por vigência. Nomes de Branch ou
-        organização não definem o ambiente automaticamente.
-      </p>
-      <div class="filters slds-m-top_medium">
-        <lightning-input
-          name="organizationSearch"
-          type="search"
-          label="Pesquisar organização"
-          value={organizationSearch}
-          maxlength="80"
-          onchange={handleChange}
-        ></lightning-input>
+  <section class="ds-page" aria-label="Ambientes">
+    <header class="ds-header">
+      <div>
+        <div class="ds-heading">
+          <lightning-icon
+            icon-name="standard:environment_hub"
+            size="small"
+            alternative-text=""
+          ></lightning-icon>
+          <h2 class="ds-title">Ambientes</h2>
+        </div>
+        <p class="ds-subtitle">
+          Defina quais organizações são produção, homologação, integração ou
+          desenvolvimento.
+        </p>
+      </div>
+      <template lwc:if={canManage}>
         <lightning-button
-          label="Buscar organizações"
-          onclick={handleSearchOrganizations}
+          data-create
+          variant="brand"
+          label="Classificar organização"
+          onclick={handleNew}
           disabled={busy}
         ></lightning-button>
+      </template>
+    </header>
+    <div class="ds-section ds-stack">
+      <p class="ds-banner">
+        A classificação identifica o ambiente de cada deployment na data de
+        conclusão. O nome da organização, sozinho, não define seu uso.
+      </p>
+      <div class="ds-filters">
+        <lightning-combobox
+          name="view"
+          label="Mostrar"
+          value={view}
+          options={viewOptions}
+          onchange={handleChange}
+          disabled={busy}
+        ></lightning-combobox>
         <lightning-combobox
           name="organizationFilter"
-          label="Filtrar vigências"
+          label="Organização"
           value={organizationFilter}
           options={filterOptions}
           onchange={handleChange}
+          disabled={busy}
         ></lightning-combobox>
         <lightning-button
-          label="Consultar / atualizar"
+          label="Atualizar lista"
           onclick={handleRefresh}
           disabled={busy}
         ></lightning-button>
       </div>
-      <template lwc:if={organizationsHaveMore}
-        ><p role="status">
-          Mais de 50 organizações. Refine a pesquisa.
-        </p></template
-      >
-      <template lwc:if={error}
-        ><div
-          class="slds-notify slds-notify_alert slds-alert_error slds-m-top_small"
-          role="alert"
+      <lightning-accordion allow-multiple-sections-open>
+        <lightning-accordion-section
+          name="organizations"
+          label="Localizar outra organização"
         >
-          {error}
-        </div></template
+          <div class="ds-filters">
+            <lightning-input
+              name="organizationSearch"
+              type="search"
+              label="Nome da organização"
+              value={organizationSearch}
+              maxlength="80"
+              onchange={handleChange}
+            ></lightning-input>
+            <lightning-button
+              label="Buscar organizações"
+              onclick={handleSearchOrganizations}
+              disabled={busy}
+            ></lightning-button>
+          </div>
+          <template lwc:if={organizationsHaveMore}
+            ><p class="ds-help" role="status">
+              Mais de 50 organizações encontradas. Refine o nome para localizar
+              outras.
+            </p></template
+          >
+        </lightning-accordion-section>
+        <lightning-accordion-section
+          name="dates"
+          label="Por que informar desde quando?"
+        >
+          <p>
+            Uma organização pode mudar de função. Se ela era UAT até junho e
+            passou a PROD em julho, os deployments de junho devem continuar
+            classificados como UAT.
+          </p>
+          <p class="ds-help">
+            Informe desde quando a classificação é válida, inclusive para
+            deployments antigos. Sem data final, ela continua valendo. No
+            instante da troca, termina uma classificação e começa a outra. As
+            datas da lista estão em UTC; o formulário usa seu fuso.
+          </p>
+        </lightning-accordion-section>
+      </lightning-accordion>
+      <template lwc:if={error}
+        ><div class="ds-error" role="alert">{error}</div></template
       >
       <template lwc:if={notice}
-        ><p role="status" class="slds-m-top_small">{notice}</p></template
+        ><p class="ds-banner" role="status">{notice}</p></template
       >
-      <template lwc:if={busy}
-        ><div class="loading">
+      <template lwc:if={busy}>
+        <div class="ds-loading">
           <lightning-spinner
             size="small"
             alternative-text="Atualizando ambientes"
-          ></lightning-spinner></div
-      ></template>
-      <template lwc:elseif={hasRows}
-        ><lightning-datatable
-          class="slds-m-top_medium"
-          key-field="id"
-          data={rows}
-          columns={columns}
-          onrowaction={handleRowAction}
-          hide-checkbox-column
-        ></lightning-datatable
-      ></template>
-      <template lwc:else
-        ><p class="slds-m-top_medium" role="status">
-          Nenhuma vigência acessível para este filtro.
-        </p></template
-      >
-      <template lwc:if={canManage}>
+          ></lightning-spinner>
+        </div>
+      </template>
+      <template lwc:elseif={hasVisibleRows}>
+        <div class="ds-table">
+          <p class="ds-help" role="status">{statusLabel}</p>
+          <lightning-datatable
+            key-field="id"
+            data={visibleRows}
+            columns={columns}
+            onrowaction={handleRowAction}
+            hide-checkbox-column
+          ></lightning-datatable>
+        </div>
+      </template>
+      <template lwc:elseif={showEmpty}>
+        <div class="ds-empty" role="status">
+          <h3>{emptyTitle}</h3>
+          <p>{emptyDescription}</p>
+        </div>
+      </template>
+      <template lwc:if={showEditor}>
         <section
-          class="slds-box slds-m-top_large"
-          aria-label="Editar configuração de ambiente"
+          class="ds-editor ds-stack"
+          aria-label="Classificar organização"
         >
-          <h2 class="slds-text-heading_small">{formTitle}</h2>
-          <p class="slds-m-vertical_small">
-            O início é inclusivo e o fim exclusivo. Datas são apresentadas no
-            seu fuso. Alterações históricas exigem revalidação dos períodos
-            afetados.
-          </p>
-          <div class="filters">
+          <div>
+            <h3 class="ds-title">{formTitle}</h3>
+            <p class="ds-help">{formHelp}</p>
+          </div>
+          <template lwc:if={formError}
+            ><div class="ds-error" role="alert">{formError}</div></template
+          >
+          <div class="ds-filters">
             <lightning-combobox
               data-form
+              data-focus
               name="organizationId"
               label="Organização"
               value={organizationId}
               options={organizations}
               required
-              disabled={editing}
+              disabled={identityDisabled}
               onchange={handleChange}
             ></lightning-combobox>
             <lightning-combobox
               data-form
               name="environmentClass"
-              label="Ambiente"
+              label="Uso da organização"
               value={environmentClass}
               options={environmentOptions}
               required
-              disabled={editing}
+              disabled={identityDisabled}
               onchange={handleChange}
             ></lightning-combobox>
             <lightning-input
               data-form
               name="validFrom"
               type="datetime"
-              label="Início da vigência"
+              label="Esta classificação vale desde"
+              field-level-help="Use o início real desse uso da organização para classificar também os deployments antigos. Não use a data de cadastro se o ambiente já existia."
               value={validFrom}
               required
-              disabled={editing}
-              onchange={handleChange}
-            ></lightning-input>
-            <lightning-input
-              data-form
-              name="validTo"
-              type="datetime"
-              label="Fim da vigência (opcional)"
-              value={validTo}
+              disabled={identityDisabled}
               onchange={handleChange}
             ></lightning-input>
           </div>
+          <lightning-input
+            name="hasEnd"
+            type="checkbox"
+            label="Definir quando esta classificação deixa de valer"
+            checked={hasEnd}
+            disabled={endToggleDisabled}
+            onchange={handleChange}
+          ></lightning-input>
+          <template lwc:if={hasEnd}>
+            <lightning-input
+              data-form
+              data-end-focus
+              name="validTo"
+              type="datetime"
+              label="Vale até"
+              field-level-help="Nesse instante a classificação deixa de valer. Uma nova classificação pode começar exatamente na mesma data e hora."
+              value={validTo}
+              required
+              disabled={saving}
+              onchange={handleChange}
+            ></lightning-input>
+          </template>
           <lightning-textarea
             data-form
+            data-reason-focus
             name="reason"
-            label="Justificativa"
+            label="Motivo da classificação ou alteração"
             maxlength="255"
             value={reason}
             required
+            disabled={saving}
             onchange={handleChange}
           ></lightning-textarea>
-          <div class="slds-m-top_medium">
+          <p class="ds-help">
+            Datas no seu fuso. Alterar o histórico pode mudar o ambiente
+            atribuído aos deployments daquele período.
+          </p>
+          <div class="ds-actions">
             <lightning-button
-              variant="brand"
-              label="Salvar vigência"
-              onclick={handleSave}
-              disabled={busy}
+              label="Cancelar"
+              onclick={handleCancel}
+              disabled={saving}
             ></lightning-button>
             <lightning-button
-              class="slds-m-left_small"
-              label="Nova vigência"
-              onclick={handleNew}
+              variant="brand"
+              label="Salvar classificação"
+              onclick={handleSave}
               disabled={busy}
             ></lightning-button>
           </div>
         </section>
       </template>
-      <template lwc:else
-        ><p class="slds-m-top_medium">
-          Somente leitura. A gerência requer permissão específica.
+      <template lwc:if={readOnly}
+        ><p class="ds-help">
+          Somente leitura. Para classificar organizações, solicite a permissão
+          de gestão de ambientes ao administrador.
         </p></template
       >
     </div>
-  </lightning-card>
+  </section>
 </template>

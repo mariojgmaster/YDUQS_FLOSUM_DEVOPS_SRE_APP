@@ -1,11 +1,22 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
-<types><members>DevSreEnvironmentController</members><members>DevSreEnvironmentGuard</members><members>DevSreEnvironmentTest</members><members>DevSreDeploymentController</members><members>DevSreDeploymentTest</members><name>ApexClass</name></types>
-<types><members>DevSreEnvironmentMapping</members><name>ApexTrigger</name></types>
-<types><members>DevSre_EnvironmentMapping__c</members><name>CustomObject</name></types>
-<types><members>DevSre_ManageEnvironments</members><name>CustomPermission</name></types>
-<types><members>DevSreEnvironment_Manager</members><members>DevSreDeployment_Reader</members><name>PermissionSet</name></types>
-<types><members>devSreDeliveryHub</members><members>devSreDeployments</members><members>devSreEnvironments</members><name>LightningComponentBundle</name></types>
+<types><members>DevSreEnvironmentController</members><members
+    >DevSreEnvironmentGuard</members><members
+    >DevSreEnvironmentTest</members><members
+    >DevSreDeploymentController</members><members
+    >DevSreDeploymentTest</members><name>ApexClass</name></types>
+<types><members>DevSreEnvironmentMapping</members><name
+    >ApexTrigger</name></types>
+<types><members>DevSre_EnvironmentMapping__c</members><name
+    >CustomObject</name></types>
+<types><members>DevSre_ManageEnvironments</members><name
+    >CustomPermission</name></types>
+<types><members>DevSreEnvironment_Manager</members><members
+    >DevSreDeployment_Reader</members><name>PermissionSet</name></types>
+<types><members>devSreDeliveryHub</members><members
+    >devSreDeployments</members><members>devSreEnvironments</members><members
+    >devSreDeliveryStyles</members><name>LightningComponentBundle</name></types>
 <types><members>pipelineMonitor</members><name>CustomTab</name></types>
-<types><members>DevSre_EnvironmentMapping__c-Environment Mapping</members><name>Layout</name></types>
+<types><members>DevSre_EnvironmentMapping__c-Environment Mapping</members><name
+    >Layout</name></types>
 <version>67.0</version></Package>

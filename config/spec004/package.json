@@ -26,7 +26,8 @@
     "LightningComponentBundle": [
       "devSreDeliveryHub",
       "devSreDeployments",
-      "devSreEnvironments"
+      "devSreEnvironments",
+      "devSreDeliveryStyles"
     ],
     "CustomTab": [
       "pipelineMonitor"

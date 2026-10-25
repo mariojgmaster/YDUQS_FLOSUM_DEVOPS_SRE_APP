@@ -10,3 +10,11 @@
 - [x] T008 Autorização recebida e deploy real executado na DevSreFeat: [#40142453709](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/actions/runs/40142453709), 20 componentes, 9 testes, zero erros. Resposta integral analisada com checkOnly=false/success=true/done=true.
 - [x] T009 Conferir tab original e navegação após deploy por leitura Metadata API: run #40142581375, pipelineMonitor aponta para devSreDeliveryHub e as quatro abas da aplicação permanecem iguais.
 - [ ] T010 Homologação funcional pelo responsável: atribuir Permission Set adequado, cadastrar vigências e conferir filtros, resultados e histórico. Não confundir leitura de metadados com teste visual.
+
+## Revisão de clareza e Design System
+
+- [x] U001 Definir finalidade das abas e registrar interações em `ux-refinement.md`.
+- [x] U002 Simplificar cadastro/listagem de ambientes e aplicar estilos semânticos compartilhados.
+- [x] U003 Reorganizar filtros, explicações e estados da consulta de deployments.
+- [x] U004 Executar Jest/ESLint e controles de pacote.
+- [ ] U005 Implantar como atualização controlada e homologar aparência/teclado/zoom/fusos na org.

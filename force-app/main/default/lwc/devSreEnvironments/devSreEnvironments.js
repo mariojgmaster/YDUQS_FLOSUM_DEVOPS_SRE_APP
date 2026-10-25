@@ -4,6 +4,12 @@ import searchOrganizations from "@salesforce/apex/DevSreEnvironmentController.se
 import listMappings from "@salesforce/apex/DevSreEnvironmentController.listMappings";
 import saveMapping from "@salesforce/apex/DevSreEnvironmentController.saveMapping";
 
+const ENVIRONMENTS = {
+  PROD: "PROD · Produção",
+  UAT: "UAT · Homologação",
+  SIT: "SIT · Integração",
+  DEV: "DEV · Desenvolvimento"
+};
 const DATE = {
   year: "numeric",
   month: "2-digit",
@@ -16,6 +22,16 @@ export default class DevSreEnvironments extends NavigationMixin(
   LightningElement
 ) {
   rows = [];
+  view = "current";
+  asOf = Date.now();
+  showForm = false;
+  hasEnd = false;
+  originalEnd = "";
+  formError = "";
+  pendingFocus = "";
+  organizationsLoading = false;
+  organizationError = "";
+  capabilitiesKnown = false;
   organizations = [];
   organizationSearch = "";
   organizationFilter = "";
@@ -35,15 +51,16 @@ export default class DevSreEnvironments extends NavigationMixin(
   organizationVersion = 0;
   columns = [
     { label: "Organização", fieldName: "organizationName" },
-    { label: "Ambiente", fieldName: "environmentClass" },
+    { label: "Uso da organização", fieldName: "environmentLabel" },
+    { label: "Situação", fieldName: "stateLabel" },
     {
-      label: "Desde (UTC)",
+      label: "Vale desde (UTC)",
       fieldName: "validFrom",
       type: "date",
       typeAttributes: DATE
     },
     {
-      label: "Até (UTC, exclusivo)",
+      label: "Vale até (UTC)",
       fieldName: "validTo",
       type: "date",
       typeAttributes: DATE
@@ -54,18 +71,79 @@ export default class DevSreEnvironments extends NavigationMixin(
       typeAttributes: { rowActions: this.rowActions.bind(this) }
     }
   ];
-  get hasRows() {
-    return this.rows.length > 0;
+  get visibleRows() {
+    return this.rows
+      .map((row) => {
+        const state =
+          new Date(row.validFrom).getTime() > this.asOf
+            ? "scheduled"
+            : row.validTo && new Date(row.validTo).getTime() <= this.asOf
+              ? "ended"
+              : "current";
+        return {
+          ...row,
+          state,
+          environmentLabel:
+            ENVIRONMENTS[row.environmentClass] || row.environmentClass,
+          stateLabel: {
+            current: "Atual",
+            scheduled: "Futura",
+            ended: "Encerrada"
+          }[state]
+        };
+      })
+      .filter((row) => this.view === "all" || row.state === this.view);
+  }
+  get hasVisibleRows() {
+    return this.visibleRows.length > 0;
+  }
+  get showEmpty() {
+    return !this.error;
+  }
+  get readOnly() {
+    return this.capabilitiesKnown && !this.canManage;
+  }
+  get showEditor() {
+    return this.canManage && this.showForm;
+  }
+  get identityDisabled() {
+    return this.editing || this.saving;
+  }
+  get endToggleDisabled() {
+    return this.saving || Boolean(this.originalEnd);
+  }
+  get statusLabel() {
+    return `${this.visibleRows.length} classificações nesta consulta. Sem data final, a classificação continua valendo.`;
+  }
+  get emptyTitle() {
+    return this.rows.length
+      ? "Nenhuma classificação nesta visão"
+      : "Nenhuma classificação cadastrada nesta consulta";
+  }
+  get emptyDescription() {
+    return this.rows.length
+      ? "Altere a visão para consultar classificações atuais, futuras ou encerradas."
+      : this.canManage
+        ? "Use Classificar organização para definir o ambiente e desde quando ele é válido."
+        : "Solicite a classificação das organizações ao responsável pelos ambientes.";
+  }
+  get viewOptions() {
+    return [
+      { label: "Classificações atuais", value: "current" },
+      { label: "Classificações futuras", value: "scheduled" },
+      { label: "Histórico encerrado", value: "ended" },
+      { label: "Todas as classificações", value: "all" }
+    ];
   }
   get editing() {
     return Boolean(this.mappingId);
   }
   get busy() {
-    return this.loading || this.saving;
+    return this.loading || this.saving || this.organizationsLoading;
   }
   get environmentOptions() {
-    return ["PROD", "UAT", "SIT", "DEV"].map((value) => ({
-      label: value,
+    return Object.keys(ENVIRONMENTS).map((value) => ({
+      label: ENVIRONMENTS[value],
       value
     }));
   }
@@ -76,9 +154,20 @@ export default class DevSreEnvironments extends NavigationMixin(
     ];
   }
   get formTitle() {
+    return this.editing ? "Atualizar classificação" : "Classificar organização";
+  }
+  get formHelp() {
     return this.editing
-      ? "Encerrar vigência / atualizar justificativa"
-      : "Nova classificação de ambiente";
+      ? "Você pode encerrar esta classificação ou atualizar o motivo. Para mudar o uso da organização, encerre a atual e cadastre a nova com a mesma data de troca. Um período já encerrado não pode ser reaberto ou ampliado."
+      : "Escolha a organização, seu uso e desde quando ele é válido. Defina uma data final apenas se esse uso tiver término previsto.";
+  }
+  renderedCallback() {
+    if (!this.pendingFocus) return;
+    const target = this.template.querySelector(this.pendingFocus);
+    if (target) {
+      this.pendingFocus = "";
+      target.focus();
+    }
   }
   connectedCallback() {
     this.loadOrganizations();
@@ -89,28 +178,49 @@ export default class DevSreEnvironments extends NavigationMixin(
     this.organizationVersion++;
   }
   rowActions(row, done) {
-    const actions = [{ label: "Abrir registro / histórico", name: "open" }];
+    const actions = [{ label: "Abrir registro e auditoria", name: "open" }];
     if (this.canManage)
-      actions.push({ label: "Encerrar / justificar", name: "edit" });
+      actions.push({ label: "Atualizar classificação", name: "edit" });
     done(actions);
   }
   handleChange(event) {
-    this[event.target.name] = event.detail?.value ?? event.target.value;
+    const name = event.target.name;
+    this[name] =
+      name === "hasEnd"
+        ? event.target.checked
+        : (event.detail?.value ?? event.target.value);
+    if (name === "hasEnd" && !this.hasEnd) this.validTo = "";
+    if (name === "organizationFilter") this.loadMappings();
   }
   async loadOrganizations() {
     const version = ++this.organizationVersion;
+    this.organizationsLoading = true;
+    this.organizationError = "";
     try {
       const page = await searchOrganizations({
         searchTerm: this.organizationSearch
       });
       if (version !== this.organizationVersion) return;
-      this.organizations = page.options;
+      // Retain selected values when a narrower search replaces the result options.
+      const selected = new Set([this.organizationId, this.organizationFilter]);
+      this.organizations = [
+        ...page.options,
+        ...this.organizations.filter(
+          (item) =>
+            selected.has(item.value) &&
+            !page.options.some((option) => option.value === item.value)
+        )
+      ];
       this.organizationsHaveMore = page.hasMore;
       this.canManage = page.canManage;
+      this.capabilitiesKnown = true;
     } catch {
       if (version === this.organizationVersion)
-        this.error =
-          "Não foi possível consultar organizações com seu acesso atual.";
+        this.organizationError =
+          "Não foi possível consultar organizações com seu acesso atual. Use Buscar organizações para tentar novamente.";
+    } finally {
+      if (version === this.organizationVersion)
+        this.organizationsLoading = false;
     }
   }
   handleSearchOrganizations() {
@@ -128,22 +238,37 @@ export default class DevSreEnvironments extends NavigationMixin(
       const rows = await listMappings({
         organizationId: this.organizationFilter || null
       });
-      if (version === this.requestVersion) this.rows = rows;
+      if (version === this.requestVersion) {
+        this.rows = rows;
+        this.asOf = Date.now();
+      }
     } catch (error) {
       if (version === this.requestVersion)
         this.error =
-          error?.body?.message || "Não foi possível consultar as vigências.";
+          error?.body?.message ||
+          "Não foi possível consultar as classificações. Use Atualizar lista para tentar novamente.";
     } finally {
       if (version === this.requestVersion) this.loading = false;
     }
   }
   handleNew() {
+    this.showForm = true;
+    this.notice = "";
+    this.formError = "";
+    this.pendingFocus = "[data-focus]";
+    this.hasEnd = false;
+    this.originalEnd = "";
     this.mappingId = null;
     this.organizationId = "";
     this.environmentClass = "";
     this.validFrom = "";
     this.validTo = "";
     this.reason = "";
+  }
+  handleCancel() {
+    this.showForm = false;
+    this.formError = "";
+    this.pendingFocus = "[data-create]";
   }
   handleRowAction(event) {
     const row = event.detail.row;
@@ -159,6 +284,11 @@ export default class DevSreEnvironments extends NavigationMixin(
       return;
     }
     if (!this.canManage) return;
+    this.showForm = true;
+    this.formError = "";
+    this.pendingFocus = "[data-reason-focus]";
+    this.hasEnd = Boolean(row.validTo);
+    this.originalEnd = row.validTo || "";
     this.mappingId = row.id;
     this.organizationId = row.organizationId;
     this.environmentClass = row.environmentClass;
@@ -173,11 +303,11 @@ export default class DevSreEnvironments extends NavigationMixin(
     }
   }
   async handleSave() {
-    if (this.saving || !this.canManage) return;
+    if (this.busy || !this.canManage) return;
     const inputs = [...this.template.querySelectorAll("[data-form]")];
-    if (!inputs.every((input) => input.reportValidity())) return;
+    if (!inputs.map((input) => input.reportValidity()).every(Boolean)) return;
     this.saving = true;
-    this.error = "";
+    this.formError = "";
     this.notice = "";
     try {
       await saveMapping({
@@ -187,18 +317,25 @@ export default class DevSreEnvironments extends NavigationMixin(
         validFrom: this.validFrom
           ? new Date(this.validFrom).toISOString()
           : null,
-        validTo: this.validTo ? new Date(this.validTo).toISOString() : null,
+        validTo:
+          this.hasEnd && this.validTo
+            ? new Date(this.validTo).toISOString()
+            : null,
         reason: this.reason
       });
       this.notice =
-        "Vigência salva. Atualize a consulta de deployments para aplicar a configuração.";
-      this.handleNew();
+        "Classificação salva. A consulta de deployments será atualizada com essa configuração.";
+      this.showForm = false;
+      this.view = "all";
+      // Make a newly created mapping visible even when another organization was filtered.
+      this.organizationFilter = this.organizationId;
+      this.pendingFocus = "[data-create]";
       await this.loadMappings();
       this.dispatchEvent(new CustomEvent("mappingchange"));
     } catch (error) {
-      this.error =
+      this.formError =
         error?.body?.message ||
-        "Não foi possível salvar. Verifique o período, a sobreposição e suas permissões.";
+        "Não foi possível salvar. Verifique as datas e suas permissões. Cada organização deve ter apenas uma classificação por período.";
     } finally {
       this.saving = false;
     }

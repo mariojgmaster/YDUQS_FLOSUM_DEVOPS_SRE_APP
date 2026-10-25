@@ -8,8 +8,12 @@
         onmappingchange={handleMappingChange}
       ></c-dev-sre-environments
     ></lightning-tab>
-    <lightning-tab label="Visão original" value="original"
-      ><c-pipeline-monitor></c-pipeline-monitor
+    <lightning-tab label="Pipeline" value="original"
+      ><p class="ds-help">
+        Visão operacional de pipelines. Consulte as entregas executadas na aba
+        Deployments e a classificação das organizações na aba Ambientes.
+      </p>
+      <c-pipeline-monitor></c-pipeline-monitor
     ></lightning-tab>
   </lightning-tabset>
 </template>

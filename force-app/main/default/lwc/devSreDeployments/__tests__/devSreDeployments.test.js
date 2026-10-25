@@ -80,9 +80,10 @@ describe("deployments reais", () => {
     );
     env.dispatchEvent(new CustomEvent("change", { detail: { value: "UAT" } }));
     await flush();
-    expect(button(el, "Próxima página").disabled).toBe(true);
+    expect(button(el, "Próxima página")).toBeUndefined();
+    expect(el.shadowRoot.textContent).toContain("Filtros alterados");
     valid(el);
-    button(el, "Consultar / atualizar").click();
+    button(el, "Aplicar filtros").click();
     await flush();
     expect(listDeployments.mock.calls[2][0]).toMatchObject({
       environmentClass: "UAT",
@@ -113,7 +114,7 @@ describe("deployments reais", () => {
     );
     expect(el.shadowRoot.querySelector("lightning-datatable")).toBeNull();
     valid(el);
-    button(el, "Consultar / atualizar").click();
+    button(el, "Aplicar filtros").click();
     await flush();
     expect(
       el.shadowRoot.querySelector("lightning-datatable").data
@@ -134,5 +135,48 @@ describe("deployments reais", () => {
     resolve(PAGE);
     await flush();
     expect(el.shadowRoot.querySelector("lightning-datatable")).toBeNull();
+  });
+  it("traduz ausência de classificação e orienta a ação na aba Ambientes", async () => {
+    listDeployments.mockResolvedValue({
+      ...PAGE,
+      rows: [{ ...PAGE.rows[0], environmentClass: "UNKNOWN" }]
+    });
+    const el = mount();
+    await flush();
+    expect(
+      el.shadowRoot.querySelector("lightning-datatable").data[0]
+        .environmentLabel
+    ).toBe("Não identificado");
+    expect(el.shadowRoot.textContent).toContain("Consulte a aba Ambientes");
+  });
+  it("buscar opções de organização não descarta uma página já consultada", async () => {
+    const el = mount();
+    await flush();
+    const search = [...el.shadowRoot.querySelectorAll("lightning-input")].find(
+      (input) => input.name === "organizationSearch"
+    );
+    search.dispatchEvent(
+      new CustomEvent("change", { detail: { value: "UAT" } })
+    );
+    await flush();
+    expect(
+      el.shadowRoot.querySelector("lightning-datatable").data
+    ).toHaveLength(1);
+    expect(el.shadowRoot.textContent).not.toContain("Filtros alterados");
+    expect(listDeployments).toHaveBeenCalledTimes(1);
+  });
+  it("falha na busca de organizações preserva os deployments e oferece nova busca", async () => {
+    searchOrganizations.mockRejectedValueOnce(new Error("lookup"));
+    const el = mount();
+    await flush();
+    expect(
+      el.shadowRoot.querySelector("lightning-datatable").data
+    ).toHaveLength(1);
+    expect(el.shadowRoot.querySelector('[role="alert"]').textContent).toContain(
+      "organizações"
+    );
+    button(el, "Buscar organizações").click();
+    await flush();
+    expect(el.shadowRoot.querySelector('[role="alert"]')).toBeNull();
   });
 });
