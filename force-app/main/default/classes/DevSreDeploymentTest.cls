@@ -135,6 +135,40 @@ private class DevSreDeploymentTest {
       );
     }
   }
+  @IsTest
+  static void searchesOnSourceWithoutLosingOtherFilters() {
+    System.runAs(grant()) {
+      Id organizationId = [
+        SELECT Id FROM Flosum__Organisation__c
+        WHERE Name = 'SPEC004 Adapter'
+        WITH USER_MODE LIMIT 1
+      ].Id;
+      DevSreDeploymentController.DeploymentPage allResults =
+        DevSreDeploymentController.listDeploymentsWithSearch(
+          at(1), at(3), organizationId, null, null, null,
+          null, null, null
+        );
+      Assert.areEqual(50, allResults.rows.size());
+      DevSreDeploymentController.DeploymentPage emptySearch =
+        DevSreDeploymentController.listDeploymentsWithSearch(
+          at(1), at(3), organizationId, null, null, null,
+          'never-matches-a-deployment', null, null
+        );
+      Assert.areEqual(0, emptySearch.rows.size());
+      Assert.isFalse(emptySearch.hasMore);
+      Boolean rejected = false;
+      try {
+        DevSreDeploymentController.listDeploymentsWithSearch(
+          at(1), at(3), organizationId, null, null, null,
+          '012345678901234567890123456789012345678901234567890123456789012345678901234567890',
+          null, null
+        );
+      } catch (AuraHandledException expected) {
+        rejected = true;
+      }
+      Assert.isTrue(rejected);
+    }
+  }
   private static Flosum__Metadata_Log__c event() {
     return new Flosum__Metadata_Log__c(
       Flosum__Status__c = 'Completed',

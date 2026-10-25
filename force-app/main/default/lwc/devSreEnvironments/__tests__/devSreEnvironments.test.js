@@ -57,6 +57,36 @@ describe("vigências de ambientes", () => {
     document.body.innerHTML = "";
     jest.restoreAllMocks();
   });
+  it("histórico por organização mantém a classificação original", async () => {
+    listMappings.mockResolvedValue([
+      { id: "map1", organizationId: "org1", organizationName: "Org A",
+        environmentClass: "UAT", validFrom: "2026-01-01T00:00:00Z",
+        validTo: null, reason: "Histórico" }
+    ]);
+    const el = mount();
+    await flush();
+    const table = el.shadowRoot.querySelector("lightning-datatable");
+    table.dispatchEvent(new CustomEvent("rowaction", {
+      detail: { action: { name: "history" }, row: table.data[0] }
+    }));
+    await flush();
+    expect(listMappings).toHaveBeenLastCalledWith({ organizationId: "org1" });
+    expect([...el.shadowRoot.querySelectorAll("lightning-combobox")].find((x) => x.name === "view").label).toBe("Período do histórico");
+  });
+  it("pesquisa organização na lista sem descartar mapeamentos", async () => {
+    listMappings.mockResolvedValue([
+      { id: "1", organizationName: "Org A", environmentClass: "PROD",
+        validFrom: "2026-01-01T00:00:00Z" },
+      { id: "2", organizationName: "Org B", environmentClass: "UAT",
+        validFrom: "2026-01-01T00:00:00Z" }
+    ]);
+    const el = mount();
+    await flush();
+    change(el, "organizationQuery", "Org B");
+    await flush();
+    expect(el.shadowRoot.querySelector("lightning-datatable").data.map((x) => x.id)).toEqual(["2"]);
+    expect(listMappings).toHaveBeenCalledTimes(1);
+  });
   it("leitor consulta mas não recebe formulário de escrita", async () => {
     const el = mount();
     await flush();
@@ -176,6 +206,8 @@ describe("vigências de ambientes", () => {
     const table = () => el.shadowRoot.querySelector("lightning-datatable");
     expect(table().data.map((row) => row.id)).toEqual(["now"]);
     expect(table().data[0].environmentLabel).toBe("PROD · Produção");
+    button(el, "Histórico").click();
+    await flush();
     change(el, "view", "ended");
     await flush();
     expect(table().data.map((row) => row.id)).toEqual(["past"]);
@@ -235,6 +267,8 @@ describe("vigências de ambientes", () => {
       ).required
     ).toBe(true);
     button(el, "Cancelar").click();
+    button(el, "Histórico").click();
+    await flush();
     change(el, "view", "all");
     await flush();
     el.shadowRoot.querySelector("lightning-datatable").dispatchEvent(

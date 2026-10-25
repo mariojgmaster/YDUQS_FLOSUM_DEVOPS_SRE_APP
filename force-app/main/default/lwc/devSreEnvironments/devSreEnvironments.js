@@ -23,6 +23,7 @@ export default class DevSreEnvironments extends NavigationMixin(
 ) {
   rows = [];
   view = "current";
+  organizationQuery = "";
   asOf = Date.now();
   showForm = false;
   hasEnd = false;
@@ -49,28 +50,45 @@ export default class DevSreEnvironments extends NavigationMixin(
   reason = "";
   requestVersion = 0;
   organizationVersion = 0;
-  columns = [
-    { label: "Organização", fieldName: "organizationName" },
-    { label: "Uso da organização", fieldName: "environmentLabel" },
-    { label: "Situação", fieldName: "stateLabel" },
-    {
-      label: "Vale desde (UTC)",
-      fieldName: "validFrom",
-      type: "date",
-      typeAttributes: DATE
-    },
-    {
-      label: "Vale até (UTC)",
-      fieldName: "validTo",
-      type: "date",
-      typeAttributes: DATE
-    },
-    { label: "Justificativa", fieldName: "reason", wrapText: true },
-    {
-      type: "action",
-      typeAttributes: { rowActions: this.rowActions.bind(this) }
-    }
-  ];
+  get columns() {
+    const base = [
+      { label: "Organização Flosum", fieldName: "organizationName" },
+      { label: "Uso nas análises", fieldName: "environmentLabel" },
+      { label: "Vale desde (UTC)", fieldName: "validFrom", type: "date", typeAttributes: DATE },
+      { label: "Situação", fieldName: "stateLabel" }
+    ];
+    if (this.isHistory) base.push({ label: "Vale até (UTC)", fieldName: "validTo", type: "date", typeAttributes: DATE });
+    if (this.canManage) base.push({
+      label: "Atualizar",
+      type: "button",
+      typeAttributes: { label: "Atualizar", name: "edit", variant: "neutral" }
+    });
+    base.push({
+      label: "Histórico", type: "button",
+      typeAttributes: { label: "Histórico", name: "history", variant: "base" }
+    });
+    base.push({ type: "action", typeAttributes: { rowActions: this.rowActions.bind(this) } });
+    return base;
+  }
+  get isHistory() {
+    return this.view !== "current";
+  }
+  get currentVariant() {
+    return this.isHistory ? "neutral" : "brand-outline";
+  }
+  get historyVariant() {
+    return this.isHistory ? "brand-outline" : "neutral";
+  }
+  get historyOptions() {
+    return [
+      { label: "Histórico encerrado", value: "ended" },
+      { label: "Classificações futuras", value: "scheduled" },
+      { label: "Todas as classificações", value: "all" }
+    ];
+  }
+  get layoutClass() {
+    return this.showEditor ? "environment-layout environment-layout-open" : "environment-layout";
+  }
   get visibleRows() {
     return this.rows
       .map((row) => {
@@ -92,7 +110,8 @@ export default class DevSreEnvironments extends NavigationMixin(
           }[state]
         };
       })
-      .filter((row) => this.view === "all" || row.state === this.view);
+      .filter((row) => (this.view === "all" || row.state === this.view) &&
+        (!this.organizationQuery.trim() || (row.organizationName || "").toLocaleLowerCase("pt-BR").includes(this.organizationQuery.trim().toLocaleLowerCase("pt-BR"))));
   }
   get hasVisibleRows() {
     return this.visibleRows.length > 0;
@@ -229,6 +248,23 @@ export default class DevSreEnvironments extends NavigationMixin(
   handleRefresh() {
     this.loadMappings();
   }
+  handleCurrent() {
+    this.view = "current";
+    this.organizationFilter = "";
+    this.organizationQuery = "";
+    this.loadMappings();
+  }
+  handleHistory() {
+    this.view = "ended";
+    this.organizationFilter = "";
+    this.organizationQuery = "";
+    this.loadMappings();
+  }
+  handleClearHistoryFilter() {
+    this.organizationFilter = "";
+    this.organizationQuery = "";
+    this.loadMappings();
+  }
   async loadMappings() {
     const version = ++this.requestVersion;
     this.loading = true;
@@ -272,6 +308,20 @@ export default class DevSreEnvironments extends NavigationMixin(
   }
   handleRowAction(event) {
     const row = event.detail.row;
+    if (event.detail.action.name === "history") {
+      this.view = "all";
+      this.organizationFilter = row.organizationId;
+      this.organizationQuery = "";
+      this.showForm = false;
+      if (!this.organizations.some((item) => item.value === row.organizationId)) {
+        this.organizations = [
+          ...this.organizations,
+          { value: row.organizationId, label: row.organizationName }
+        ];
+      }
+      this.loadMappings();
+      return;
+    }
     if (event.detail.action.name === "open") {
       this[NavigationMixin.Navigate]({
         type: "standard__recordPage",

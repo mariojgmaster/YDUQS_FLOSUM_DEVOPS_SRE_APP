@@ -83,6 +83,18 @@
         "ApexClass",
         "LightningComponentBundle"
       ]
+    },
+    "pipeline-monitor-detail-ux": {
+      "manifest": "manifest/sf-pipeline-monitor-detail-ux.xml",
+      "test_level": "RunSpecifiedTests",
+      "tests": [
+        "DevSreEnvironmentTest",
+        "DevSreDeploymentTest"
+      ],
+      "allowed_types": [
+        "ApexClass",
+        "LightningComponentBundle"
+      ]
     }
   }
 }

@@ -1,9 +1,15 @@
 import { createElement } from "lwc";
 import Component from "c/devSreDeployments";
 import listDeployments from "@salesforce/apex/DevSreDeploymentController.listDeployments";
+import listDeploymentsWithSearch from "@salesforce/apex/DevSreDeploymentController.listDeploymentsWithSearch";
 import searchOrganizations from "@salesforce/apex/DevSreEnvironmentController.searchOrganizations";
 jest.mock(
   "@salesforce/apex/DevSreDeploymentController.listDeployments",
+  () => ({ default: jest.fn() }),
+  { virtual: true }
+);
+jest.mock(
+  "@salesforce/apex/DevSreDeploymentController.listDeploymentsWithSearch",
   () => ({ default: jest.fn() }),
   { virtual: true }
 );
@@ -53,10 +59,71 @@ describe("deployments reais", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     listDeployments.mockResolvedValue(PAGE);
+    listDeploymentsWithSearch.mockResolvedValue(PAGE);
     searchOrganizations.mockResolvedValue({ options: [], hasMore: false });
   });
   afterEach(() => {
     document.body.innerHTML = "";
+  });
+  it("busca nome de log/Branch no servidor, sem filtrar só a página atual", async () => {
+    const el = mount();
+    await flush();
+    valid(el);
+    const search = [...el.shadowRoot.querySelectorAll("lightning-input")].find(
+      (input) => input.name === "searchTerm"
+    );
+    search.dispatchEvent(new CustomEvent("change", { detail: { value: "release" } }));
+    await flush();
+    expect(el.shadowRoot.textContent).toContain("Filtros alterados");
+    button(el, "Aplicar filtros").click();
+    await flush();
+    expect(listDeploymentsWithSearch).toHaveBeenCalledWith(
+      expect.objectContaining({ searchTerm: "release", branchId: null })
+    );
+    expect(el.shadowRoot.querySelector("lightning-datatable").data).toHaveLength(1);
+  });
+  it("ordena somente a página carregada sem alterar o cursor da consulta", async () => {
+    listDeployments.mockResolvedValue({
+      ...PAGE, rows: [
+        { ...PAGE.rows[0], id: "a", name: "Alpha" },
+        { ...PAGE.rows[0], id: "b", name: "Beta" }
+      ]
+    });
+    const el = mount();
+    await flush();
+    const table = el.shadowRoot.querySelector("lightning-datatable");
+    table.dispatchEvent(new CustomEvent("sort", {
+      detail: { fieldName: "name", sortDirection: "desc" }
+    }));
+    await flush();
+    expect(table.data.map((row) => row.name)).toEqual(["Beta", "Alpha"]);
+    expect(listDeployments).toHaveBeenCalledTimes(1);
+  });
+  it("seleciona detalhe sem navegar e exporta só a página visível", async () => {
+    const el = mount();
+    await flush();
+    expect(el.shadowRoot.textContent).toContain("Detalhes da entrega");
+    expect(el.shadowRoot.textContent).toContain("Completo");
+    const dt = el.shadowRoot.querySelector("lightning-datatable");
+    dt.dispatchEvent(new CustomEvent("rowaction", {
+      detail: { action: { name: "details" }, row: PAGE.rows[0] }
+    }));
+    await flush();
+    expect(el.shadowRoot.textContent).toContain("Log real");
+  });
+  it("limpa busca e filtros sem inventar dados", async () => {
+    const el = mount();
+    await flush();
+    valid(el);
+    const search = [...el.shadowRoot.querySelectorAll("lightning-input")].find(
+      (input) => input.name === "searchTerm"
+    );
+    search.dispatchEvent(new CustomEvent("change", { detail: { value: "x" } }));
+    await flush();
+    valid(el);
+    button(el, "Limpar").click();
+    await flush();
+    expect(listDeployments).toHaveBeenCalledTimes(2);
   });
   it("apresenta dados reais e distingue resultados sem certificar KPI", async () => {
     const el = mount();
