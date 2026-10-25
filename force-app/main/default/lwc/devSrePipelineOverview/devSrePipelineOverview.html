@@ -52,6 +52,8 @@
       >
     </section>
     <section class="delivery-panel" aria-label="Entregas Flosum">
+      <a data-download class="download-link" tabindex="-1" aria-hidden="true">Exportação</a>
+      <template lwc:if={exportError}><p class="ds-error" role="alert">{exportError}</p></template>
       <div class="search-toolbar">
         <lightning-input
           data-filter
@@ -126,7 +128,7 @@
             ><li key={row.id} class="delivery-row">
               <div class="row-icon row-icon-brand">
                 <lightning-icon
-                  icon-name="utility:deployment"
+                  icon-name="standard:deployment"
                   size="small"
                   alternative-text=""
                 ></lightning-icon>
