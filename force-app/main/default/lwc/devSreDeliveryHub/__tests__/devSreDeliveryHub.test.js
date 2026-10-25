@@ -1,5 +1,31 @@
 import { createElement } from "lwc";
 import DevSreDeliveryHub from "c/devSreDeliveryHub";
+import listMonitorDeployments from "@salesforce/apex/DevSreDeploymentController.listMonitorDeployments";
+import getMonitorSummary from "@salesforce/apex/DevSreDeploymentController.getMonitorSummary";
+import listDeployments from "@salesforce/apex/DevSreDeploymentController.listDeployments";
+import searchOrganizations from "@salesforce/apex/DevSreEnvironmentController.searchOrganizations";
+import listMappings from "@salesforce/apex/DevSreEnvironmentController.listMappings";
+
+jest.mock(
+  "@salesforce/apex/DevSreDeploymentController.listMonitorDeployments",
+  () => ({ default: jest.fn() }), { virtual: true }
+);
+jest.mock(
+  "@salesforce/apex/DevSreDeploymentController.getMonitorSummary",
+  () => ({ default: jest.fn() }), { virtual: true }
+);
+jest.mock(
+  "@salesforce/apex/DevSreDeploymentController.listDeployments",
+  () => ({ default: jest.fn() }), { virtual: true }
+);
+jest.mock(
+  "@salesforce/apex/DevSreEnvironmentController.searchOrganizations",
+  () => ({ default: jest.fn() }), { virtual: true }
+);
+jest.mock(
+  "@salesforce/apex/DevSreEnvironmentController.listMappings",
+  () => ({ default: jest.fn() }), { virtual: true }
+);
 
 const flush = async () => {
   await Promise.resolve();
@@ -22,6 +48,23 @@ const has = (element, selector) =>
   Boolean(element.shadowRoot.querySelector(selector));
 
 describe("Pipeline Monitor — uma seção por vez", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    listMonitorDeployments.mockResolvedValue({
+      rows: [], hasMore: false, cursorCreated: null, cursorId: null
+    });
+    getMonitorSummary.mockResolvedValue({
+      complete: true, total: 0, succeeded: 0, failed: 0,
+      pending: 0, partial: 0, notRun: 0, unknown: 0, successRate: null
+    });
+    listDeployments.mockResolvedValue({
+      rows: [], hasMore: false, inspectedRows: 0, correlationIncomplete: false
+    });
+    searchOrganizations.mockResolvedValue({
+      options: [], hasMore: false, canManage: false
+    });
+    listMappings.mockResolvedValue([]);
+  });
   afterEach(() => {
     document.body.innerHTML = "";
   });
