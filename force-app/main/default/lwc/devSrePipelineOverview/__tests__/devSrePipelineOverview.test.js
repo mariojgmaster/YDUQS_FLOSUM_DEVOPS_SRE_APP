@@ -88,10 +88,12 @@ describe("Pipeline Monitor principal", () => {
     );
     expect(el.shadowRoot.textContent).toContain("Release CRM");
     expect(el.shadowRoot.textContent).toContain("Produção");
-    expect(el.shadowRoot.textContent).toContain("54 registros acessíveis");
+    expect(el.shadowRoot.textContent).not.toContain("54 registros acessíveis");
     expect(el.shadowRoot.textContent).toContain("98,1%");
     expect(el.shadowRoot.textContent).toContain("Fila");
-    expect(button(el, "Novo deployment").disabled).toBe(true);
+    expect(button(el, "Novo deployment")).toBeUndefined();
+    expect(el.shadowRoot.querySelector('lightning-button-icon[title="Atualizar monitor"]')).not.toBeNull();
+    expect(el.shadowRoot.querySelector('lightning-input[type="toggle"]')).toBeNull();
   });
   it("aplica busca/ambiente no servidor e não envia filtro de resultado ao resumo", async () => {
     const el = mount();
@@ -181,26 +183,34 @@ describe("Pipeline Monitor principal", () => {
     expect(el.shadowRoot.textContent).toContain("mais registros de origem");
     expect(button(el, "Próxima página").disabled).toBe(false);
   });
-  it("atualização automática é opt-in e para ao desconectar", async () => {
-    jest.useFakeTimers();
-    jest.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+  it("oferece 7/30/90 dias e intervalo personalizado, sem polling", async () => {
     const el = mount();
     await flush();
-    jest.advanceTimersByTime(60000);
+    const period = [...el.shadowRoot.querySelectorAll("lightning-combobox")]
+      .find((x) => x.name === "period");
+    expect(period.options.map((x) => x.value)).toEqual(["7","30","90","custom"]);
+    period.dispatchEvent(new CustomEvent("change", { detail: { value: "7" } }));
     await flush();
-    expect(listMonitorDeployments).toHaveBeenCalledTimes(1);
-    const toggle = [...el.shadowRoot.querySelectorAll("lightning-input")].find(
-      (node) => node.type === "toggle"
+    expect(listMonitorDeployments).toHaveBeenCalledTimes(2);
+    period.dispatchEvent(new CustomEvent("change", { detail: { value: "custom" } }));
+    await flush();
+    expect([...el.shadowRoot.querySelectorAll("lightning-input")]
+      .filter((x) => x.name === "fromDate" || x.name === "toDate")).toHaveLength(2);
+    expect(el.shadowRoot.querySelector('lightning-input[type="toggle"]')).toBeNull();
+  });
+  it("seleciona organização Flosum por record-picker", async () => {
+    const el = mount();
+    await flush();
+    const picker = el.shadowRoot.querySelector('lightning-record-picker[name="organizationId"]');
+    expect(picker.objectApiName).toBe("Flosum__Organisation__c");
+    picker.dispatchEvent(new CustomEvent("change", { detail: { recordId: "a01ORG" } }));
+    await flush();
+    valid(el);
+    button(el,"Aplicar filtros").click();
+    await flush();
+    expect(listMonitorDeployments).toHaveBeenLastCalledWith(
+      expect.objectContaining({ organizationId: "a01ORG" })
     );
-    toggle.checked = true;
-    toggle.dispatchEvent(new CustomEvent("change"));
-    jest.advanceTimersByTime(60000);
-    await flush();
-    expect(listMonitorDeployments).toHaveBeenCalledTimes(2);
-    el.remove();
-    jest.advanceTimersByTime(60000);
-    await flush();
-    expect(listMonitorDeployments).toHaveBeenCalledTimes(2);
   });
   it("exporta apenas a página consultada e neutraliza fórmulas CSV", async () => {
     listMonitorDeployments.mockResolvedValue({
