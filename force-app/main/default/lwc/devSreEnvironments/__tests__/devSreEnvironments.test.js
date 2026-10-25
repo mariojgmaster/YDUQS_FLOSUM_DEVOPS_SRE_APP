@@ -71,7 +71,7 @@ describe("vigências de ambientes", () => {
     }));
     await flush();
     expect(listMappings).toHaveBeenLastCalledWith({ organizationId: "org1" });
-    expect(el.shadowRoot.textContent).toContain("Período do histórico");
+    expect([...el.shadowRoot.querySelectorAll("lightning-combobox")].find((x) => x.name === "view").label).toBe("Período do histórico");
   });
   it("pesquisa organização na lista sem descartar mapeamentos", async () => {
     listMappings.mockResolvedValue([
