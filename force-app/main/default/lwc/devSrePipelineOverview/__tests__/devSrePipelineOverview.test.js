@@ -186,6 +186,7 @@ describe("Pipeline Monitor principal", () => {
   it("oferece 7/30/90 dias e intervalo personalizado, sem polling", async () => {
     const el = mount();
     await flush();
+    valid(el);
     const period = [...el.shadowRoot.querySelectorAll("lightning-combobox")]
       .find((x) => x.name === "period");
     expect(period.options.map((x) => x.value)).toEqual(["7","30","90","custom"]);
