@@ -39,7 +39,7 @@ function change(el, name, value) {
       "lightning-input, lightning-combobox, lightning-textarea, lightning-record-picker"
     )
   ]
-    .find((x) => x.name === name)
+    .find((x) => x.name === name || x.dataset.org === name)
     .dispatchEvent(new CustomEvent("change", { detail: { value, recordId: value } }));
 }
 describe("vigências de ambientes", () => {
@@ -63,12 +63,12 @@ describe("vigências de ambientes", () => {
     await flush();
     button(el,"Classificar organização").click();
     await flush();
-    const recordPicker = el.shadowRoot.querySelector('lightning-record-picker[name="organizationId"]');
+    const recordPicker = el.shadowRoot.querySelector('lightning-record-picker[data-org="organizationId"]');
     expect(recordPicker.objectApiName).toBe("Flosum__Organisation__c");
     button(el,"Cancelar").click();
     button(el,"Histórico").click();
     await flush();
-    const historyPicker = el.shadowRoot.querySelector('lightning-record-picker[name="organizationFilter"]');
+    const historyPicker = el.shadowRoot.querySelector('lightning-record-picker[data-org="organizationFilter"]');
     historyPicker.dispatchEvent(new CustomEvent("change", { detail: { recordId: "org1" } }));
     await flush();
     expect(listMappings).toHaveBeenLastCalledWith({ organizationId: "org1" });
