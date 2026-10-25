@@ -202,6 +202,8 @@ describe("Pipeline Monitor principal", () => {
   it("seleciona organização Flosum por record-picker", async () => {
     const el = mount();
     await flush();
+    button(el,"Filtros").click();
+    await flush();
     const picker = el.shadowRoot.querySelector('lightning-record-picker[data-org="organizationId"]');
     expect(picker.objectApiName).toBe("Flosum__Organisation__c");
     picker.dispatchEvent(new CustomEvent("change", { detail: { recordId: "a01ORG" } }));
