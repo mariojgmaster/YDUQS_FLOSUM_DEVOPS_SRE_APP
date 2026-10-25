@@ -82,6 +82,23 @@ describe("deployments reais", () => {
     );
     expect(el.shadowRoot.querySelector("lightning-datatable").data).toHaveLength(1);
   });
+  it("ordena somente a página carregada sem alterar o cursor da consulta", async () => {
+    listDeployments.mockResolvedValue({
+      ...PAGE, rows: [
+        { ...PAGE.rows[0], id: "a", name: "Alpha" },
+        { ...PAGE.rows[0], id: "b", name: "Beta" }
+      ]
+    });
+    const el = mount();
+    await flush();
+    const table = el.shadowRoot.querySelector("lightning-datatable");
+    table.dispatchEvent(new CustomEvent("sort", {
+      detail: { fieldName: "name", sortDirection: "desc" }
+    }));
+    await flush();
+    expect(table.data.map((row) => row.name)).toEqual(["Beta", "Alpha"]);
+    expect(listDeployments).toHaveBeenCalledTimes(1);
+  });
   it("seleciona detalhe sem navegar e exporta só a página visível", async () => {
     const el = mount();
     await flush();
