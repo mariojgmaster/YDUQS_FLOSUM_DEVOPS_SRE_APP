@@ -410,3 +410,11 @@ h1 {
   .delivery-row { flex-wrap: wrap; }
   .row-result { align-items: flex-start; justify-items: start; min-width: 8rem; }
 }
+
+
+.result-success { background:#e5f8ed; color:#12693e; border-color:#b7eccb; }
+.result-failed { background:#fff0ef; color:#a62124; border-color:#ffc5c3; }
+.result-running { background:#e9f3ff; color:#0964bb; border-color:#b8d9ff; }
+.result-partial { background:#fff5e2; color:#855600; border-color:#ffdea7; }
+.result-neutral { background:#f1f4f7; color:#4c5f78; border-color:#dce3ec; }
+.row-icon-brand lightning-icon { --slds-c-icon-color-foreground-default: #0176d3; }
