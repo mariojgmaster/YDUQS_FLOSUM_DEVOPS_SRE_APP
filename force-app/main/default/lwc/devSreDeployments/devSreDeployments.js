@@ -288,7 +288,7 @@ export default class DevSreDeployments extends NavigationMixin(
     this.inspectedRows = 0;
     this.correlationIncomplete = false;
     const fields = [
-      ...this.template.querySelectorAll("lightning-input, lightning-combobox, lightning-record-picker")
+      ...this.template.querySelectorAll("lightning-input[required], lightning-combobox[required]")
     ];
     if (!fields.every((input) => input.reportValidity())) {
       this.loading = false;
