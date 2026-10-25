@@ -17,4 +17,5 @@
 - [x] U002 Simplificar cadastro/listagem de ambientes e aplicar estilos semânticos compartilhados.
 - [x] U003 Reorganizar filtros, explicações e estados da consulta de deployments.
 - [x] U004 Executar Jest/ESLint e controles de pacote.
-- [ ] U005 Implantar como atualização controlada e homologar aparência/teclado/zoom/fusos na org.
+- [x] U005 Implantar como atualização controlada pelo kit universal: run #40145262180, nove testes Apex, zero erros; ver `ui-deployment.md`.
+- [ ] U006 Homologar aparência/teclado/zoom/fusos e fluxos reais na org.
