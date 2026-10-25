@@ -32,7 +32,7 @@
           <template lwc:if={isHistory}>
             <div class="environment-history-filters">
               <lightning-combobox name="view" label="Período do histórico" value={view} options={historyOptions} onchange={handleChange} disabled={busy}></lightning-combobox>
-              <lightning-record-picker name="organizationFilter" object-api-name="Flosum__Organisation__c" label="Organização Flosum" placeholder="Todas as organizações" value={organizationFilter} onchange={handleHistoryOrganisationPicker} disabled={busy}></lightning-record-picker>
+              <lightning-record-picker data-org="organizationFilter" object-api-name="Flosum__Organisation__c" label="Organização Flosum" placeholder="Todas as organizações" value={organizationFilter} onchange={handleHistoryOrganisationPicker} disabled={busy}></lightning-record-picker>
               <lightning-button label="Todas as organizações" onclick={handleClearHistoryFilter}></lightning-button>
             </div>
           </template>
@@ -57,7 +57,7 @@
             <div class="environment-form">
 
               <template lwc:if={formError}><p class="ds-error" role="alert">{formError}</p></template>
-              <lightning-record-picker data-form data-focus name="organizationId" object-api-name="Flosum__Organisation__c" label="Organização Flosum" placeholder="Pesquisar organização..." value={organizationId} required disabled={identityDisabled} onchange={handleFormOrganisationPicker}></lightning-record-picker>
+              <lightning-record-picker data-form data-focus data-org="organizationId" object-api-name="Flosum__Organisation__c" label="Organização Flosum" placeholder="Pesquisar organização..." value={organizationId} required disabled={identityDisabled} onchange={handleFormOrganisationPicker}></lightning-record-picker>
               <lightning-combobox data-form name="environmentClass" label="Uso da organização" value={environmentClass} options={environmentOptions} required disabled={identityDisabled} onchange={handleChange}></lightning-combobox>
               <lightning-input data-form name="validFrom" type="datetime" label="Esta classificação vale desde" value={validFrom} required disabled={identityDisabled} onchange={handleChange} field-level-help="Use o início real para classificar corretamente entregas antigas."></lightning-input>
               <p class="ds-help">Informe o início do uso real. Horário no fuso do perfil Salesforce.</p>
