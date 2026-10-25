@@ -1,7 +1,7 @@
 import { createElement } from "lwc";
 import Component from "c/devSreEnvironments";
-import loadOverview from "@salesforce/apex/DevSreEnvironmentInsightsController.loadOverview";
-jest.mock("@salesforce/apex/DevSreEnvironmentInsightsController.loadOverview",
+import loadOverview from "@salesforce/apex/DevSreEnvironmentController.loadOverview";
+jest.mock("@salesforce/apex/DevSreEnvironmentController.loadOverview",
   () => ({ default: jest.fn() }), { virtual: true });
 
 const flush = async () => { for (let i = 0; i < 8; i++) await Promise.resolve(); };

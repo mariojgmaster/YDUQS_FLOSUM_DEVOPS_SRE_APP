@@ -16,8 +16,8 @@ private class DevSreEnvironmentInsightsTest {
         Flosum__Async_Request_Id__c='INSIGHTS_2')
     };
     Test.startTest();
-    DevSreEnvironmentInsightsController.InsightsPage data =
-      DevSreEnvironmentInsightsController.loadOverview(30, org.Id);
+    DevSreEnvironmentController.InsightsPage data =
+      DevSreEnvironmentController.loadOverview(30, org.Id);
     Test.stopTest();
     System.assertEquals(true, data.complete);
     System.assertEquals(1, data.organizationCount);
@@ -28,9 +28,9 @@ private class DevSreEnvironmentInsightsTest {
     System.assertEquals(2, data.organizations[0].recent.size());
   }
   @IsTest static void rejectsBadFilterAndWrongReferenceType() {
-    try { DevSreEnvironmentInsightsController.loadOverview(45, null);
+    try { DevSreEnvironmentController.loadOverview(45, null);
       System.assert(false); } catch (AuraHandledException ex) { System.assertNotEquals(null,ex); }
-    try { DevSreEnvironmentInsightsController.loadOverview(30, UserInfo.getUserId());
+    try { DevSreEnvironmentController.loadOverview(30, UserInfo.getUserId());
       System.assert(false); } catch (AuraHandledException ex) { System.assertNotEquals(null,ex); }
   }
 }

@@ -1,6 +1,6 @@
 import { LightningElement } from "lwc";
 import { NavigationMixin } from "lightning/navigation";
-import loadOverview from "@salesforce/apex/DevSreEnvironmentInsightsController.loadOverview";
+import loadOverview from "@salesforce/apex/DevSreEnvironmentController.loadOverview";
 
 export default class DevSreEnvironments extends NavigationMixin(LightningElement) {
   period = "30";
