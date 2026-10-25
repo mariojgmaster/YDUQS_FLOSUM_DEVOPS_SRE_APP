@@ -21,17 +21,17 @@ const ENVIRONMENTS = {
   AMBIGUOUS: "Classificação conflitante"
 };
 const formatUTC = (value) =>
-  value
+  (value
     ? new Intl.DateTimeFormat("pt-BR", {
         timeZone: "UTC",
         day: "2-digit", month: "2-digit", year: "numeric",
         hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false
       }).format(new Date(value))
-    : "—";
+    : "—");
 const durationLabel = (seconds) =>
-  seconds === null || seconds === undefined
+  (seconds === null || seconds === undefined
     ? "—"
-    : Math.floor(Number(seconds) / 60) + " min " + Math.round(Number(seconds) % 60) + " s";
+    : Math.floor(Number(seconds) / 60) + " min " + Math.round(Number(seconds) % 60) + " s");
 const csvCell = (value) => {
   const raw = String(value ?? "");
   const safe = /^[=+\-@\t\r]/.test(raw) ? "'" + raw : raw;
