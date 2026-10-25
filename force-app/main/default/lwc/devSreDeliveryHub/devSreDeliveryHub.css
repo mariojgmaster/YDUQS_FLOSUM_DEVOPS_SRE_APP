@@ -34,8 +34,8 @@
   min-width: 0;
 }
 .pm-heading-icon {
-  width: 2.75rem;
-  height: 2.75rem;
+  width: 2.1rem;
+  height: 2.1rem;
   display: grid;
   place-items: center;
   flex: 0 0 auto;
@@ -44,27 +44,20 @@
 }
 .pm-heading-copy {
   min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
 }
-.pm-eyebrow {
-  color: var(--pm-muted);
-  font-size: 0.67rem;
+.pm-root-label {
+  font-size: 0.98rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
-}
-.pm-heading h1 {
-  margin: 0.1rem 0 0.15rem;
-  font-size: 1.2rem;
-  font-weight: 700;
-  line-height: 1.3;
   color: var(--pm-navy);
 }
-.pm-breadcrumb {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  margin: 0;
+.pm-breadcrumb-separator,
+.pm-breadcrumb-current {
+  font-size: 0.88rem;
   color: var(--pm-muted);
-  font-size: 0.8rem;
 }
 .pm-source-label {
   padding: 0.3rem 0.7rem;
