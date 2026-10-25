@@ -37,6 +37,28 @@
       "allowed_types": [
         "ApexClass"
       ]
+    },
+    "spec004-delivery-existing-ui": {
+      "manifest": "manifest/sf-spec004-existing-ui.xml",
+      "test_level": "RunSpecifiedTests",
+      "tests": [
+        "DevSreEnvironmentTest",
+        "DevSreDeploymentTest"
+      ],
+      "allowed_types": [
+        "LightningComponentBundle"
+      ]
+    },
+    "spec004-delivery-ui": {
+      "manifest": "manifest/sf-spec004-delivery-ui.xml",
+      "test_level": "RunSpecifiedTests",
+      "tests": [
+        "DevSreEnvironmentTest",
+        "DevSreDeploymentTest"
+      ],
+      "allowed_types": [
+        "LightningComponentBundle"
+      ]
     }
   }
 }
