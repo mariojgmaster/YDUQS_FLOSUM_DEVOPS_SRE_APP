@@ -1,0 +1,344 @@
+<template>
+  <div class="monitor ds-stack">
+    <section class="monitor-toolbar" aria-label="Período e ações">
+      <div class="toolbar-title">
+        <lightning-icon
+          icon-name="utility:flow"
+          size="x-small"
+          alternative-text=""
+        ></lightning-icon
+        ><strong>Pipeline Monitor</strong
+        ><span class="muted">Dados Flosum</span>
+      </div>
+      <lightning-combobox
+        data-filter
+        name="period"
+        label="Período (UTC)"
+        value={draft.period}
+        options={periodOptions}
+        onchange={handleFilter}
+      ></lightning-combobox>
+    </section>
+    <section class="quick-actions" aria-label="Ações rápidas">
+      <h2>Ações rápidas</h2>
+      <div class="ds-actions">
+        <lightning-button
+          label="Novo deployment"
+          variant="brand"
+          disabled
+          title="Inicie deployments pelo fluxo do Flosum. Esta tela acompanha as entregas."
+        ></lightning-button>
+        <lightning-helptext
+          content="Para iniciar um deployment, utilize o fluxo do Flosum."
+        ></lightning-helptext>
+        <lightning-button
+          label="Declarar incidente"
+          variant="brand"
+          onclick={handleIncident}
+        ></lightning-button>
+        <lightning-button
+          label="Exportar página"
+          variant="brand"
+          onclick={handleExport}
+          disabled={exportDisabled}
+        ></lightning-button>
+        <lightning-button
+          label="Atualizar"
+          variant="brand"
+          icon-name="utility:refresh"
+          onclick={refresh}
+          disabled={refreshDisabled}
+        ></lightning-button>
+      </div>
+      <a data-download class="download-link" tabindex="-1" aria-hidden="true"
+        >Exportação</a
+      >
+      <template lwc:if={exportError}
+        ><p class="ds-error" role="alert">{exportError}</p></template
+      >
+    </section>
+    <header class="monitor-header">
+      <div class="ds-heading">
+        <div class="hero-icon">
+          <lightning-icon
+            icon-name="utility:flow"
+            variant="inverse"
+            size="medium"
+            alternative-text=""
+          ></lightning-icon>
+        </div>
+        <div>
+          <p class="eyebrow">Observabilidade de releases</p>
+          <h1>Pipeline Monitor</h1>
+          <p class="muted">Acompanhe as entregas Flosum entre ambientes.</p>
+        </div>
+      </div>
+      <div class="refresh-control">
+        <span class="refresh-state">{refreshLabel}</span
+        ><lightning-input
+          type="toggle"
+          label="Atualizar automaticamente"
+          message-toggle-active="A cada 60 segundos"
+          message-toggle-inactive="Desativado"
+          checked={autoRefresh}
+          onchange={handleAutoRefresh}
+        ></lightning-input>
+      </div>
+    </header>
+    <section aria-label="Resumo operacional" class="summary-section">
+      <div class="summary-grid">
+        <template for:each={summaryCards} for:item="card"
+          ><div key={card.key} class={card.className}>
+            <div class="metric-heading">
+              <span>{card.label}</span
+              ><lightning-helptext content={card.help}></lightning-helptext>
+            </div>
+            <strong>{card.value}</strong>
+          </div></template
+        >
+      </div>
+      <p class="scope">{scopeLabel}</p>
+      <p class="scope" role="status">{summaryContext}</p>
+      <template lwc:if={summaryError}
+        ><p class="ds-error" role="alert">{summaryError}</p></template
+      >
+      <template lwc:if={summaryUnavailable}
+        ><p class="ds-banner" role="status">
+          Resumo indisponível: mais de 2.000 registros de origem no período.
+          Reduza o período ou filtre uma organização. A lista continua
+          disponível.
+        </p></template
+      >
+    </section>
+    <section class="delivery-panel" aria-label="Entregas Flosum">
+      <div class="search-toolbar">
+        <lightning-input
+          data-filter
+          name="search"
+          type="search"
+          variant="label-hidden"
+          label="Buscar deployment ou Branch"
+          placeholder="Buscar deployment ou Branch…"
+          value={draft.search}
+          maxlength="80"
+          onchange={handleFilter}
+          onkeydown={handleKey}
+        ></lightning-input>
+        <lightning-button
+          label={filterLabel}
+          icon-name="utility:filterList"
+          onclick={handleToggleFilters}
+          aria-expanded={filtersOpen}
+          aria-controls="monitor-filters"
+        ></lightning-button>
+        <lightning-combobox
+          data-filter
+          name="environmentClass"
+          label="Ambiente"
+          variant="label-hidden"
+          value={draft.environmentClass}
+          options={environmentOptions}
+          onchange={handleFilter}
+        ></lightning-combobox>
+        <lightning-button
+          variant="brand"
+          label="Aplicar filtros"
+          onclick={applyFilters}
+          disabled={loading}
+        ></lightning-button>
+      </div>
+      <template lwc:if={filtersOpen}>
+        <div id="monitor-filters" class="filter-panel ds-stack">
+          <div class="ds-filters">
+            <lightning-combobox
+              data-filter
+              name="outcome"
+              label="Resultado"
+              value={draft.outcome}
+              options={outcomeOptions}
+              onchange={handleFilter}
+            ></lightning-combobox
+            ><lightning-combobox
+              data-filter
+              name="organizationId"
+              label="Organização"
+              value={draft.organizationId}
+              options={organizations}
+              onchange={handleFilter}
+            ></lightning-combobox>
+          </div>
+          <template lwc:if={customPeriod}
+            ><div class="ds-filters">
+              <lightning-input
+                data-filter
+                name="fromDate"
+                type="date"
+                label="Data inicial (UTC)"
+                value={draft.fromDate}
+                required
+                onchange={handleFilter}
+              ></lightning-input
+              ><lightning-input
+                data-filter
+                name="toDate"
+                type="date"
+                label="Data final (UTC, dia inteiro)"
+                value={draft.toDate}
+                required
+                onchange={handleFilter}
+              ></lightning-input></div
+          ></template>
+          <div class="ds-filters">
+            <lightning-input
+              type="search"
+              label="Localizar organização pelo nome"
+              value={organizationSearch}
+              maxlength="80"
+              onchange={handleOrganizationSearch}
+            ></lightning-input
+            ><lightning-button
+              label="Buscar organizações"
+              onclick={loadOrganizations}
+            ></lightning-button>
+          </div>
+          <template lwc:if={organizationsHaveMore}
+            ><p class="ds-help">
+              Mais de 50 organizações encontradas. Refine o nome.
+            </p></template
+          >
+          <template lwc:if={organizationError}
+            ><p class="ds-error" role="alert">{organizationError}</p></template
+          >
+        </div>
+      </template>
+      <template lwc:if={error}
+        ><p class="ds-error" role="alert">{error}</p></template
+      >
+      <template lwc:if={loading}
+        ><div class="ds-loading">
+          <lightning-spinner
+            size="small"
+            alternative-text="Atualizando Pipeline Monitor"
+          ></lightning-spinner></div
+      ></template>
+      <template lwc:elseif={dirty}
+        ><p class="ds-banner" role="status">
+          Filtros alterados. Selecione Aplicar filtros para atualizar o monitor.
+        </p></template
+      >
+      <template lwc:elseif={showRows}>
+        <ul class="delivery-list">
+          <template for:each={visibleRows} for:item="row"
+            ><li key={row.id} class="delivery-row">
+              <div class={row.iconClass}>
+                <lightning-icon
+                  icon-name={row.icon}
+                  size="small"
+                  alternative-text=""
+                ></lightning-icon>
+              </div>
+              <div class="delivery-content">
+                <div class="delivery-title">
+                  <button
+                    class="record-link"
+                    data-id={row.id}
+                    onclick={handleOpen}
+                  >
+                    {row.title}</button
+                  ><span class="log-label">{row.name}</span>
+                </div>
+                <p class="row-meta">
+                  <span>{row.environmentLabel}</span
+                  ><span>{row.organizationLabel}</span>
+                </p>
+                <lightning-helptext content={row.quality}></lightning-helptext>
+              </div>
+              <div class="row-result">
+                <span class={row.resultClass}>{row.resultLabel}</span
+                ><span class="duration">{row.durationLabel}</span
+                ><span class="clock"
+                  >{row.clockLabel}:
+                  <lightning-formatted-date-time
+                    value={row.clock}
+                    day="2-digit"
+                    month="2-digit"
+                    hour="2-digit"
+                    minute="2-digit"
+                    time-zone="UTC"
+                  ></lightning-formatted-date-time>
+                  UTC</span
+                >
+              </div>
+              <lightning-button-icon
+                data-id={row.id}
+                icon-name="utility:chevronright"
+                alternative-text={row.openLabel}
+                title={row.openLabel}
+                onclick={handleOpen}
+              ></lightning-button-icon></li
+          ></template>
+        </ul>
+      </template>
+      <template lwc:elseif={showEmpty}
+        ><div class="ds-empty" role="status">
+          <h2>Nenhuma entrega encontrada nesta página</h2>
+          <p>{emptyDescription}</p>
+        </div></template
+      >
+      <template lwc:if={showRows}
+        ><div class="list-footer">
+          <p class="muted" role="status">{pageLabel}</p>
+          <div class="ds-actions">
+            <template lwc:if={moreInPage}
+              ><lightning-button
+                label="Mostrar mais desta página"
+                onclick={handleMore}
+              ></lightning-button></template
+            ><lightning-button
+              label="Próxima página"
+              onclick={handleNext}
+              disabled={nextDisabled}
+            ></lightning-button>
+          </div></div
+      ></template>
+      <template lwc:if={showEmpty}
+        ><div class="list-footer">
+          <lightning-button
+            label="Próxima página"
+            onclick={handleNext}
+            disabled={nextDisabled}
+          ></lightning-button></div
+      ></template>
+      <template lwc:if={correlationIncomplete}
+        ><p class="ds-banner">
+          A fonte não garante unicidade das requisições. Revise a correlação
+          antes de consolidar indicadores.
+        </p></template
+      >
+    </section>
+    <footer class="monitor-footnote">
+      <p>
+        Fonte: registros de Deployment do Flosum. O ambiente considera a
+        conclusão da entrega. Squad, quantidade de componentes e progresso
+        percentual não estão disponíveis nesta integração.
+      </p>
+      <p>
+        Resumo operacional de logs; métricas DORA não certificadas. Ordenação
+        pela criação do log. Sem conclusão, a consulta usa início ou criação
+        como referência.
+      </p>
+      <template lwc:if={lastUpdated}
+        ><p>
+          Última consulta:
+          <lightning-formatted-date-time
+            value={lastUpdated}
+            day="2-digit"
+            month="2-digit"
+            hour="2-digit"
+            minute="2-digit"
+            second="2-digit"
+          ></lightning-formatted-date-time></p
+      ></template>
+    </footer>
+  </div>
+</template>

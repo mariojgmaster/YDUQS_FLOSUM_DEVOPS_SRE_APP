@@ -286,4 +286,134 @@ private class DevSreDeploymentTest {
       Assert.isNotNull(expected);
     }
   }
+  @IsTest
+  static void summarizesFullScopeBeyondFirstPageAndRespectsEnvironment() {
+    System.runAs(grant()) {
+      Id org = [SELECT Id FROM Flosum__Organisation__c WITH SYSTEM_MODE LIMIT 1]
+      .Id;
+      DevSreEnvironmentController.saveMapping(
+        null,
+        org,
+        'PROD',
+        at(1),
+        null,
+        'Monitor'
+      );
+      DevSreDeploymentController.MonitorSummary summary = DevSreDeploymentController.getMonitorSummary(
+        at(1),
+        at(3),
+        org,
+        'PROD',
+        null
+      );
+      Assert.isTrue(summary.complete);
+      Assert.areEqual(
+        54,
+        summary.total,
+        'Includes 50 first-page and four further logs, excludes Validate'
+      );
+      Assert.areEqual(53, summary.succeeded);
+      Assert.areEqual(1, summary.failed);
+      Assert.areEqual(0, summary.pending);
+      Assert.areEqual(98.1, summary.successRate);
+      summary = DevSreDeploymentController.getMonitorSummary(
+        at(1),
+        at(3),
+        org,
+        'UAT',
+        null
+      );
+      Assert.areEqual(0, summary.total);
+      Assert.isNull(
+        summary.successRate,
+        'An empty denominator is not 0% success'
+      );
+    }
+  }
+  @IsTest
+  static void searchesMonitorOnServerWithLiteralWildcardsAndOutcomeFilter() {
+    System.runAs(grant()) {
+      Flosum__Metadata_Log__c log = [
+        SELECT Name
+        FROM Flosum__Metadata_Log__c
+        WHERE Flosum__Process_Type__c = 'Deployment'
+        WITH SYSTEM_MODE
+        LIMIT 1
+      ];
+      DevSreDeploymentController.DeploymentPage page = DevSreDeploymentController.listMonitorDeployments(
+        at(1),
+        at(3),
+        null,
+        null,
+        null,
+        log.Name,
+        null,
+        null
+      );
+      Assert.isTrue(page.rows.size() > 0);
+      for (DevSreDeploymentController.DeploymentRow row : page.rows)
+        Assert.isTrue(row.name.contains(log.Name));
+      Assert.areEqual(
+        0,
+        DevSreDeploymentController.listMonitorDeployments(
+            at(1),
+            at(3),
+            null,
+            null,
+            null,
+            '%_',
+            null,
+            null
+          )
+          .rows.size(),
+        'Wildcards are literal search text'
+      );
+      Assert.areEqual(
+        1,
+        DevSreDeploymentController.listMonitorDeployments(
+            at(1),
+            at(3),
+            null,
+            null,
+            'Failed',
+            null,
+            null,
+            null
+          )
+          .rows.size()
+      );
+      String tooLong = 'x';
+      for (Integer i = 0; i < 7; i++)
+        tooLong += tooLong;
+      try {
+        DevSreDeploymentController.getMonitorSummary(
+          at(1),
+          at(3),
+          null,
+          null,
+          tooLong
+        );
+        Assert.fail('Oversized search');
+      } catch (AuraHandledException expected) {
+        Assert.isNotNull(expected);
+      }
+    }
+  }
+  @IsTest
+  static void neverReportsPartialCountsAsCompleteSummary() {
+    System.runAs(grant()) {
+      DevSreDeploymentController.monitorLimit = 10;
+      DevSreDeploymentController.MonitorSummary summary = DevSreDeploymentController.getMonitorSummary(
+        at(1),
+        at(3),
+        null,
+        null,
+        null
+      );
+      Assert.isFalse(summary.complete);
+      Assert.isNull(summary.total);
+      Assert.isNull(summary.succeeded);
+      Assert.isNull(summary.successRate);
+    }
+  }
 }

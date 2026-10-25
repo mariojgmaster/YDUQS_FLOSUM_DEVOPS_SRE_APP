@@ -59,6 +59,30 @@
       "allowed_types": [
         "LightningComponentBundle"
       ]
+    },
+    "pipeline-monitor-main": {
+      "manifest": "manifest/sf-pipeline-monitor-main.xml",
+      "test_level": "RunSpecifiedTests",
+      "tests": [
+        "DevSreEnvironmentTest",
+        "DevSreDeploymentTest"
+      ],
+      "allowed_types": [
+        "ApexClass",
+        "LightningComponentBundle"
+      ]
+    },
+    "pipeline-monitor-existing": {
+      "manifest": "manifest/sf-pipeline-monitor-existing.xml",
+      "test_level": "RunSpecifiedTests",
+      "tests": [
+        "DevSreEnvironmentTest",
+        "DevSreDeploymentTest"
+      ],
+      "allowed_types": [
+        "ApexClass",
+        "LightningComponentBundle"
+      ]
     }
   }
 }
