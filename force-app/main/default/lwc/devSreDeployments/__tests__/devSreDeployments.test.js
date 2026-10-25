@@ -103,7 +103,7 @@ describe("deployments reais", () => {
     const el = mount();
     await flush();
     expect(el.shadowRoot.textContent).toContain("Detalhes da entrega");
-    expect(el.shadowRoot.textContent).toContain("Completo");
+    expect(el.shadowRoot.textContent).not.toContain("Completo");
     const dt = el.shadowRoot.querySelector("lightning-datatable");
     dt.dispatchEvent(new CustomEvent("rowaction", {
       detail: { action: { name: "details" }, row: PAGE.rows[0] }
@@ -131,8 +131,7 @@ describe("deployments reais", () => {
     const table = el.shadowRoot.querySelector("lightning-datatable");
     expect(table.data[0].outcomeLabel).toBe("Sucesso");
     expect(table.data[0].name).toBe("Log real");
-    expect(el.shadowRoot.textContent).toContain("não certificadas");
-    expect(el.shadowRoot.textContent).toContain("Não é um total global");
+    expect(el.shadowRoot.textContent).toContain("Entregas encontradas");
   });
   it("transmite cursor e reinicia ao trocar filtros", async () => {
     listDeployments.mockResolvedValue({ ...PAGE, hasMore: true });
@@ -214,36 +213,20 @@ describe("deployments reais", () => {
       el.shadowRoot.querySelector("lightning-datatable").data[0]
         .environmentLabel
     ).toBe("Não identificado");
-    expect(el.shadowRoot.textContent).toContain("Consulte a aba Ambientes");
+    expect(el.shadowRoot.textContent).not.toContain("Consulte a aba Ambientes");
   });
-  it("buscar opções de organização não descarta uma página já consultada", async () => {
+  it("utiliza o lookup nativo de Flosum para filtrar a fonte", async () => {
     const el = mount();
     await flush();
-    const search = [...el.shadowRoot.querySelectorAll("lightning-input")].find(
-      (input) => input.name === "organizationSearch"
-    );
-    search.dispatchEvent(
-      new CustomEvent("change", { detail: { value: "UAT" } })
-    );
+    const picker = el.shadowRoot.querySelector('lightning-record-picker[data-org="organizationId"]');
+    expect(picker.objectApiName).toBe("Flosum__Organisation__c");
+    picker.dispatchEvent(new CustomEvent("change", { detail: { recordId: "a01ORG" } }));
     await flush();
-    expect(
-      el.shadowRoot.querySelector("lightning-datatable").data
-    ).toHaveLength(1);
-    expect(el.shadowRoot.textContent).not.toContain("Filtros alterados");
-    expect(listDeployments).toHaveBeenCalledTimes(1);
-  });
-  it("falha na busca de organizações preserva os deployments e oferece nova busca", async () => {
-    searchOrganizations.mockRejectedValueOnce(new Error("lookup"));
-    const el = mount();
+    valid(el);
+    button(el,"Aplicar filtros").click();
     await flush();
-    expect(
-      el.shadowRoot.querySelector("lightning-datatable").data
-    ).toHaveLength(1);
-    expect(el.shadowRoot.querySelector('[role="alert"]').textContent).toContain(
-      "organizações"
+    expect(listDeployments).toHaveBeenLastCalledWith(
+      expect.objectContaining({ organizationId: "a01ORG" })
     );
-    button(el, "Buscar organizações").click();
-    await flush();
-    expect(el.shadowRoot.querySelector('[role="alert"]')).toBeNull();
   });
 });

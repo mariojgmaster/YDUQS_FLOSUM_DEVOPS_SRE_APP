@@ -54,9 +54,9 @@ export default class DevSreEnvironments extends NavigationMixin(
   get columns() {
     const base = [
       { label: "Organização Flosum", fieldName: "organizationName" },
-      { label: "Uso nas análises", fieldName: "environmentLabel" },
+      { label: "Uso nas análises", fieldName: "environmentLabel", cellAttributes: { class: { fieldName: "environmentCellClass" } } },
       { label: "Vale desde (UTC)", fieldName: "validFrom", type: "date", typeAttributes: DATE },
-      { label: "Situação", fieldName: "stateLabel" }
+      { label: "Situação", fieldName: "stateLabel", cellAttributes: { class: { fieldName: "stateCellClass" } } }
     ];
     if (this.isHistory) base.push({ label: "Vale até (UTC)", fieldName: "validTo", type: "date", typeAttributes: DATE });
     if (this.canManage) base.push({
@@ -102,6 +102,8 @@ export default class DevSreEnvironments extends NavigationMixin(
         return {
           ...row,
           state,
+          environmentCellClass: "environment-tone-" + (row.environmentClass || "").toLowerCase(),
+          stateCellClass: "state-tone-" + state,
           environmentLabel:
             ENVIRONMENTS[row.environmentClass] || row.environmentClass,
           stateLabel: {
@@ -203,6 +205,13 @@ export default class DevSreEnvironments extends NavigationMixin(
       actions.push({ label: "Atualizar classificação", name: "edit" });
     done(actions);
   }
+  handleHistoryOrganisationPicker(event) {
+    this.organizationFilter = event.detail.recordId || "";
+    this.loadMappings();
+  }
+  handleFormOrganisationPicker(event) {
+    this.organizationId = event.detail.recordId || "";
+  }
   handleChange(event) {
     const name = event.target.name;
     this[name] =
@@ -221,7 +230,7 @@ export default class DevSreEnvironments extends NavigationMixin(
         searchTerm: this.organizationSearch
       });
       if (version !== this.organizationVersion) return;
-      // Retain selected values when a narrower search replaces the result options.
+      // Kept for permission discovery; record-picker owns the record search.
       const selected = new Set([this.organizationId, this.organizationFilter]);
       this.organizations = [
         ...page.options,

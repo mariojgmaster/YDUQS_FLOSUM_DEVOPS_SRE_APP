@@ -1,62 +1,5 @@
 <template>
   <div class="monitor ds-stack">
-    <section class="monitor-toolbar" aria-label="Período e ações">
-      <div class="toolbar-title">
-        <lightning-icon
-          icon-name="utility:flow"
-          size="x-small"
-          alternative-text=""
-        ></lightning-icon
-        ><strong>Pipeline Monitor</strong
-        ><span class="muted">Dados Flosum</span>
-      </div>
-      <lightning-combobox
-        data-filter
-        name="period"
-        label="Período (UTC)"
-        value={draft.period}
-        options={periodOptions}
-        onchange={handleFilter}
-      ></lightning-combobox>
-    </section>
-    <section class="quick-actions" aria-label="Ações rápidas">
-      <h2>Ações rápidas</h2>
-      <div class="ds-actions">
-        <lightning-button
-          label="Novo deployment"
-          variant="brand"
-          disabled
-          title="Inicie deployments pelo fluxo do Flosum. Esta tela acompanha as entregas."
-        ></lightning-button>
-        <lightning-helptext
-          content="Para iniciar um deployment, utilize o fluxo do Flosum."
-        ></lightning-helptext>
-        <lightning-button
-          label="Declarar incidente"
-          variant="brand"
-          onclick={handleIncident}
-        ></lightning-button>
-        <lightning-button
-          label="Exportar página"
-          variant="brand"
-          onclick={handleExport}
-          disabled={exportDisabled}
-        ></lightning-button>
-        <lightning-button
-          label="Atualizar"
-          variant="brand"
-          icon-name="utility:refresh"
-          onclick={refresh}
-          disabled={refreshDisabled}
-        ></lightning-button>
-      </div>
-      <a data-download class="download-link" tabindex="-1" aria-hidden="true"
-        >Exportação</a
-      >
-      <template lwc:if={exportError}
-        ><p class="ds-error" role="alert">{exportError}</p></template
-      >
-    </section>
     <header class="monitor-header">
       <div class="ds-heading">
         <div class="hero-icon">
@@ -73,18 +16,18 @@
           <p class="muted">Acompanhe as entregas Flosum entre ambientes.</p>
         </div>
       </div>
-      <div class="refresh-control">
-        <span class="refresh-state">{refreshLabel}</span
-        ><lightning-input
-          type="toggle"
-          label="Atualizar automaticamente"
-          message-toggle-active="A cada 60 segundos"
-          message-toggle-inactive="Desativado"
-          checked={autoRefresh}
-          onchange={handleAutoRefresh}
-        ></lightning-input>
+      <div class="overview-period-actions">
+        <lightning-combobox data-filter name="period" label="Período (UTC)" value={draft.period} options={periodOptions} onchange={handleFilter}></lightning-combobox>
+        <lightning-button-icon icon-name="utility:refresh" variant="border-filled" alternative-text="Atualizar monitor" title="Atualizar monitor" onclick={refresh} disabled={refreshDisabled}></lightning-button-icon>
       </div>
     </header>
+    <template lwc:if={customPeriod}>
+      <div class="overview-custom-range" role="group" aria-label="Período personalizado">
+        <lightning-input data-filter name="fromDate" type="date" label="De (UTC)" value={draft.fromDate} required onchange={handleFilter}></lightning-input>
+        <lightning-input data-filter name="toDate" type="date" label="Até (UTC)" value={draft.toDate} required onchange={handleFilter}></lightning-input>
+        <lightning-button label="Aplicar período" variant="brand" onclick={applyFilters} disabled={loading}></lightning-button>
+      </div>
+    </template>
     <section aria-label="Resumo operacional" class="summary-section">
       <div class="summary-grid">
         <template for:each={summaryCards} for:item="card"
@@ -97,8 +40,6 @@
           </div></template
         >
       </div>
-      <p class="scope">{scopeLabel}</p>
-      <p class="scope" role="status">{summaryContext}</p>
       <template lwc:if={summaryError}
         ><p class="ds-error" role="alert">{summaryError}</p></template
       >
@@ -111,6 +52,8 @@
       >
     </section>
     <section class="delivery-panel" aria-label="Entregas Flosum">
+      <a data-download class="download-link" tabindex="-1" aria-hidden="true">Exportação</a>
+      <template lwc:if={exportError}><p class="ds-error" role="alert">{exportError}</p></template>
       <div class="search-toolbar">
         <lightning-input
           data-filter
@@ -140,6 +83,7 @@
           options={environmentOptions}
           onchange={handleFilter}
         ></lightning-combobox>
+        <lightning-button label="Exportar página" icon-name="utility:download" onclick={handleExport} disabled={exportDisabled}></lightning-button>
         <lightning-button
           variant="brand"
           label="Aplicar filtros"
@@ -158,57 +102,9 @@
               options={outcomeOptions}
               onchange={handleFilter}
             ></lightning-combobox
-            ><lightning-combobox
-              data-filter
-              name="organizationId"
-              label="Organização"
-              value={draft.organizationId}
-              options={organizations}
-              onchange={handleFilter}
-            ></lightning-combobox>
+            ><lightning-record-picker data-org="organizationId" object-api-name="Flosum__Organisation__c" label="Organização Flosum" placeholder="Pesquisar organização..." value={draft.organizationId} onchange={handleOrganizationPicker}></lightning-record-picker>
           </div>
-          <template lwc:if={customPeriod}
-            ><div class="ds-filters">
-              <lightning-input
-                data-filter
-                name="fromDate"
-                type="date"
-                label="Data inicial (UTC)"
-                value={draft.fromDate}
-                required
-                onchange={handleFilter}
-              ></lightning-input
-              ><lightning-input
-                data-filter
-                name="toDate"
-                type="date"
-                label="Data final (UTC, dia inteiro)"
-                value={draft.toDate}
-                required
-                onchange={handleFilter}
-              ></lightning-input></div
-          ></template>
-          <div class="ds-filters">
-            <lightning-input
-              type="search"
-              label="Localizar organização pelo nome"
-              value={organizationSearch}
-              maxlength="80"
-              onchange={handleOrganizationSearch}
-            ></lightning-input
-            ><lightning-button
-              label="Buscar organizações"
-              onclick={loadOrganizations}
-            ></lightning-button>
-          </div>
-          <template lwc:if={organizationsHaveMore}
-            ><p class="ds-help">
-              Mais de 50 organizações encontradas. Refine o nome.
-            </p></template
-          >
-          <template lwc:if={organizationError}
-            ><p class="ds-error" role="alert">{organizationError}</p></template
-          >
+
         </div>
       </template>
       <template lwc:if={error}
@@ -230,9 +126,9 @@
         <ul class="delivery-list">
           <template for:each={visibleRows} for:item="row"
             ><li key={row.id} class="delivery-row">
-              <div class={row.iconClass}>
+              <div class="row-icon row-icon-brand">
                 <lightning-icon
-                  icon-name={row.icon}
+                  icon-name="standard:deployment"
                   size="small"
                   alternative-text=""
                 ></lightning-icon>
@@ -248,7 +144,7 @@
                   ><span class="log-label">{row.name}</span>
                 </div>
                 <p class="row-meta">
-                  <span>{row.environmentLabel}</span
+                  <span class={row.environmentClassName}>{row.environmentLabel}</span
                   ><span>{row.organizationLabel}</span>
                 </p>
                 <lightning-helptext content={row.quality}></lightning-helptext>
@@ -270,6 +166,7 @@
                 >
               </div>
               <lightning-button-icon
+                variant="border-filled"
                 data-id={row.id}
                 icon-name="utility:chevronright"
                 alternative-text={row.openLabel}
@@ -316,29 +213,6 @@
         </p></template
       >
     </section>
-    <footer class="monitor-footnote">
-      <p>
-        Fonte: registros de Deployment do Flosum. O ambiente considera a
-        conclusão da entrega. Squad, quantidade de componentes e progresso
-        percentual não estão disponíveis nesta integração.
-      </p>
-      <p>
-        Resumo operacional de logs; métricas DORA não certificadas. Ordenação
-        pela criação do log. Sem conclusão, a consulta usa início ou criação
-        como referência.
-      </p>
-      <template lwc:if={lastUpdated}
-        ><p>
-          Última consulta:
-          <lightning-formatted-date-time
-            value={lastUpdated}
-            day="2-digit"
-            month="2-digit"
-            hour="2-digit"
-            minute="2-digit"
-            second="2-digit"
-          ></lightning-formatted-date-time></p
-      ></template>
-    </footer>
+
   </div>
 </template>

@@ -57,3 +57,37 @@
   .delivery-hero { padding: 0.85rem; }
   .delivery-page .ds-section { padding: 0.7rem; }
 }
+
+/* Alinhamento do formulário ao wireframe e lookup Salesforce nativo. */
+.delivery-filters {
+  display: grid;
+  grid-template-columns: minmax(15rem,1.5fr) minmax(15rem,1.3fr) minmax(14rem,1.1fr) minmax(10rem,0.8fr) minmax(10rem,0.8fr) auto auto;
+  gap: 0.7rem;
+  align-items: end;
+  padding: 0.2rem 0.15rem 0;
+}
+.delivery-dates {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(6.5rem,1fr));
+  gap: 0.5rem;
+  min-width: 0;
+}
+.delivery-advanced { background: #fff; padding-inline: 0.1rem; }
+.delivery-advanced lightning-input { max-width: 28rem; }
+.delivery-split { grid-template-columns: minmax(0, 2fr) minmax(19rem,0.86fr); }
+.delivery-table-panel .ds-table { margin: 0; }
+.delivery-panel-heading { padding: 0.8rem 1rem; }
+.delivery-record-heading { align-items: center; }
+.delivery-page { background: #fff; }
+.delivery-page .ds-stack { gap: 0.8rem; }
+@media (max-width: 1450px) {
+  .delivery-filters { grid-template-columns: repeat(3,minmax(0,1fr)); }
+}
+@media (max-width: 850px) {
+  .delivery-split { grid-template-columns: 1fr; }
+  .delivery-filters { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 550px) {
+  .delivery-filters { grid-template-columns: 1fr; }
+  .delivery-dates { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}

@@ -50,7 +50,6 @@ export default class DevSrePipelineOverview extends NavigationMixin(
   filtersOpen = false;
   loading = true;
   dirty = false;
-  autoRefresh = false;
   lastUpdated;
   hasMore = false;
   cursorCreated = null;
@@ -59,18 +58,15 @@ export default class DevSrePipelineOverview extends NavigationMixin(
   visibleCount = 10;
   requestVersion = 0;
   organizationVersion = 0;
-  timer;
   downloadUrl;
   correlationIncomplete = false;
 
   connectedCallback() {
     this.applyFilters();
-    this.loadOrganizations();
   }
   disconnectedCallback() {
     this.requestVersion++;
     this.organizationVersion++;
-    clearInterval(this.timer);
     if (this.downloadUrl) URL.revokeObjectURL(this.downloadUrl);
   }
   get periodOptions() {
@@ -137,15 +133,8 @@ export default class DevSrePipelineOverview extends NavigationMixin(
   get pageLabel() {
     return `${Math.min(this.visibleCount, this.rows.length)} de ${this.rows.length} registros da página ${this.pageNumber}`;
   }
-  get refreshLabel() {
-    return this.autoRefresh ? "Atualização a cada 60 s" : "Atualização manual";
-  }
   get summaryUnavailable() {
     return this.summary && !this.summary.complete;
-  }
-  get scopeLabel() {
-    if (!this.applied) return "";
-    return `De ${this.applied.fromUtc.slice(0, 10)} a ${this.applied.endDate} · UTC · Resumo de todos os resultados, independente do filtro de resultado.`;
   }
   get summaryCards() {
     const valid = this.summary?.complete && !this.loading && !this.dirty;
@@ -191,10 +180,6 @@ export default class DevSrePipelineOverview extends NavigationMixin(
       }
     ];
   }
-  get summaryContext() {
-    if (!this.summary?.complete || this.loading || this.dirty) return "";
-    return `${this.summary.total} registros acessíveis no período · ${this.summary.partial} parciais · ${this.summary.notRun} não executados · ${this.summary.unknown} com resultado desconhecido`;
-  }
   handleFilter(event) {
     this.draft = {
       ...this.draft,
@@ -204,7 +189,10 @@ export default class DevSrePipelineOverview extends NavigationMixin(
     this.requestVersion++;
     this.loading = false;
     this.exportError = "";
-    if (this.customPeriod) this.filtersOpen = true;
+    if (event.target.name === "period" && !this.customPeriod) this.applyFilters();
+  }
+  handleOrganizationPicker(event) {
+    this.handleFilter({ target: { name: "organizationId", value: event.detail.recordId || "" }, detail: { value: event.detail.recordId || "" } });
   }
   handleKey(event) {
     if (event.key === "Enter") this.applyFilters();
@@ -313,7 +301,7 @@ export default class DevSrePipelineOverview extends NavigationMixin(
     }
     if (pageResult.status === "fulfilled") {
       const page = pageResult.value;
-      this.rows = page.rows.map((row) => this.presentRow(row));
+      this.rows = (page.rows || []).map((row) => this.presentRow(row));
       this.hasMore = page.hasMore;
       this.cursorCreated = page.cursorCreated;
       this.cursorId = page.cursorId;
@@ -337,6 +325,7 @@ export default class DevSrePipelineOverview extends NavigationMixin(
       title: row.branchName || row.name,
       resultLabel: result.label,
       resultClass: `result result-${result.tone}`,
+      environmentClassName: `environment-chip environment-${(row.environmentClass || "UNKNOWN").toLowerCase()}`,
       icon: result.icon,
       iconClass: `row-icon row-icon-${result.tone}`,
       environmentLabel:
@@ -363,22 +352,6 @@ export default class DevSrePipelineOverview extends NavigationMixin(
   }
   handleNext() {
     if (!this.nextDisabled) this.load(true);
-  }
-  handleAutoRefresh(event) {
-    this.autoRefresh = event.target.checked;
-    clearInterval(this.timer);
-    if (this.autoRefresh) {
-      // Explicit polling opt-in; cleared on disable/disconnect and never overlaps a request.
-      // eslint-disable-next-line @lwc/lwc/no-async-operation
-      this.timer = setInterval(() => {
-        if (
-          !this.loading &&
-          !this.dirty &&
-          document.visibilityState !== "hidden"
-        )
-          this.load(false);
-      }, 60000);
-    }
   }
   handleOpen(event) {
     this[NavigationMixin.Navigate]({

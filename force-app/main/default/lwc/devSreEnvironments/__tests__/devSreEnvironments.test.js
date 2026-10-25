@@ -36,11 +36,11 @@ function button(el, label) {
 function change(el, name, value) {
   [
     ...el.shadowRoot.querySelectorAll(
-      "lightning-input, lightning-combobox, lightning-textarea"
+      "lightning-input, lightning-combobox, lightning-textarea, lightning-record-picker"
     )
   ]
-    .find((x) => x.name === name)
-    .dispatchEvent(new CustomEvent("change", { detail: { value } }));
+    .find((x) => x.name === name || x.dataset.org === name)
+    .dispatchEvent(new CustomEvent("change", { detail: { value, recordId: value } }));
 }
 describe("vigências de ambientes", () => {
   beforeEach(() => {
@@ -56,6 +56,22 @@ describe("vigências de ambientes", () => {
   afterEach(() => {
     document.body.innerHTML = "";
     jest.restoreAllMocks();
+  });
+  it("usa record picker no relacionamento de edição e filtro histórico", async () => {
+    searchOrganizations.mockResolvedValue({ options: [], canManage: true });
+    const el = mount();
+    await flush();
+    button(el,"Classificar organização").click();
+    await flush();
+    const recordPicker = el.shadowRoot.querySelector('lightning-record-picker[data-org="organizationId"]');
+    expect(recordPicker.objectApiName).toBe("Flosum__Organisation__c");
+    button(el,"Cancelar").click();
+    button(el,"Histórico").click();
+    await flush();
+    const historyPicker = el.shadowRoot.querySelector('lightning-record-picker[data-org="organizationFilter"]');
+    historyPicker.dispatchEvent(new CustomEvent("change", { detail: { recordId: "org1" } }));
+    await flush();
+    expect(listMappings).toHaveBeenLastCalledWith({ organizationId: "org1" });
   });
   it("histórico por organização mantém a classificação original", async () => {
     listMappings.mockResolvedValue([
@@ -146,17 +162,17 @@ describe("vigências de ambientes", () => {
     await flush();
     expect(
       [
-        ...el.shadowRoot.querySelectorAll("lightning-input, lightning-combobox")
-      ].find((x) => x.name === "organizationId").disabled
+        ...el.shadowRoot.querySelectorAll("lightning-input, lightning-combobox, lightning-record-picker")
+      ].find((x) => x.name === "organizationId" || x.dataset.org === "organizationId").disabled
     ).toBe(true);
     expect(
       [
-        ...el.shadowRoot.querySelectorAll("lightning-input, lightning-combobox")
+        ...el.shadowRoot.querySelectorAll("lightning-input, lightning-combobox, lightning-record-picker")
       ].find((x) => x.name === "environmentClass").disabled
     ).toBe(true);
     expect(
       [
-        ...el.shadowRoot.querySelectorAll("lightning-input, lightning-combobox")
+        ...el.shadowRoot.querySelectorAll("lightning-input, lightning-combobox, lightning-record-picker")
       ].find((x) => x.name === "validFrom").disabled
     ).toBe(true);
   });
