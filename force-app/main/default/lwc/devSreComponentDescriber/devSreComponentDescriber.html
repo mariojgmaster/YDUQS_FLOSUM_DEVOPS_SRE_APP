@@ -93,13 +93,48 @@
               <template lwc:if={hasHistories}>
                 <template for:each={histories} for:item="history">
                   <div key={history.id} class="cd-history">
-                    <button type="button" class="cd-link" data-id={history.id} onclick={handleOpenHistory}>Abrir histórico Flosum</button>
+                    <div class="cd-history-actions">
+                      <button type="button" class="cd-link" data-id={history.id} onclick={handleOpenHistory}>Abrir no Flosum</button>
+                      <lightning-button label="Explorar ZIP" icon-name="utility:open_folder" variant="neutral" data-id={history.id} onclick={handleExploreHistory}></lightning-button>
+                    </div>
                     <lightning-formatted-date-time value={history.createdAt} time-zone="UTC" day="2-digit" month="2-digit" year="numeric" hour="2-digit" minute="2-digit"></lightning-formatted-date-time>
                   </div>
                 </template>
                 <template lwc:if={hasHistoryMore}><p class="cd-muted">Mais registros existem além dos 20 exibidos.</p></template>
               </template>
               <template lwc:else><p class="cd-muted">Nenhum histórico acessível neste vínculo consultado.</p></template>
+            </template>
+            <template lwc:if={archiveOpen}>
+              <section class="cd-archive-panel" aria-label="Explorador ZIP do histórico">
+                <div class="cd-archive-head">
+                  <div><h4>Arquivos do histórico</h4><p class="cd-muted">{archiveName} · pré-visualização de texto, somente leitura</p></div>
+                  <lightning-button-icon icon-name="utility:close" title="Fechar ZIP" alternative-text="Fechar explorador" onclick={handleArchiveClose}></lightning-button-icon>
+                </div>
+                <template lwc:if={archiveLoading}><div class="cd-loading"><lightning-spinner size="small" alternative-text="Abrindo arquivo ZIP"></lightning-spinner></div></template>
+                <template lwc:elseif={archiveError}><div class="cd-error" role="alert">{archiveError}</div></template>
+                <template lwc:elseif={hasArchiveEntries}>
+                  <div class="cd-archive-grid">
+                    <div class="cd-archive-files" role="group" aria-label="Arquivos no ZIP">
+                      <template for:each={archiveEntries} for:item="entry">
+                        <button key={entry.path} type="button" class={entry.rowClass}
+                          data-path={entry.path} onclick={handleSelectArchiveFile}
+                          disabled={entry.disabled} title={entry.path}>{entry.path}</button>
+                      </template>
+                    </div>
+                    <div class="cd-archive-preview">
+                      <template lwc:if={hasArchiveText}>
+                        <p class="cd-archive-filename">{archiveFileName}</p>
+                        <pre class="cd-archive-code"><code>{archiveContent}</code></pre>
+                      </template>
+                      <template lwc:else>
+                        <p class="cd-empty">Selecione um arquivo de texto para ler seu conteúdo. Binários e arquivos grandes ficam bloqueados.</p>
+                      </template>
+                    </div>
+                  </div>
+                </template>
+                <template lwc:else><p class="cd-empty">O ZIP não contém arquivos de texto disponíveis.</p></template>
+                <p class="cd-muted cd-archive-footnote">Pré-visualização limitada a 64 KiB por arquivo, ZIP de até 1 MiB e 200 entradas. Nenhum conteúdo é executado ou alterado.</p>
+              </section>
             </template>
             <div class="cd-caution" role="note">Versões, commits, deploys e Diff ainda não estão correlacionados a este componente. Não exibir histórico de deploy sem evidência direta.</div>
           </div>
