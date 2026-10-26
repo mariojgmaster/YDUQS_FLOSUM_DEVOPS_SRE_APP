@@ -57,7 +57,10 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     return this.results.map(r => ({
       ...r,
       rowClass: r.id === this.selectedId ? "cd-row cd-row-selected" : "cd-row",
-      typeLabel: r.componentType || "—"
+      typeLabel: r.componentType || "—",
+      displayName: r.componentName || "Nome não informado",
+      displaySource: r.source || "—",
+      displayVersion: r.version || "—"
     }));
   }
   get helpText() {
@@ -65,7 +68,13 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     if (!this.eligible) return "Informe pelo menos 2 caracteres ou deixe o nome vazio.";
     return "";
   }
-  get detailName() { return this.detail?.component?.name || ""; }
+  get detailName() { return this.detail?.component?.componentName || "Nome não informado"; }
+  get detailNumber() { return this.detail?.component?.name || ""; }
+  get detailSource() { return this.detail?.component?.source || "Não informado"; }
+  get detailSourceDetails() { return this.detail?.component?.sourceDetails || "Não informado"; }
+  get detailVersion() { return this.detail?.component?.version || "Não informada"; }
+  get detailChangedOn() { return this.detail?.component?.changedOn || null; }
+  get detailCommittedOn() { return this.detail?.component?.committedOn || null; }
   get detailBranchName() { return this.detail?.component?.branchName || ""; }
   get detailBranchId() { return this.detail?.component?.branchId; }
   get detailType() { return this.detail?.component?.componentType || "Não informado"; }
