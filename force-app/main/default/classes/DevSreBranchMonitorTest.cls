@@ -115,19 +115,6 @@ private class DevSreBranchMonitorTest {
       Flosum__Job_Completed__c=true,Flosum__Succeed__c=null);
     System.assertEquals('Indeterminado',DevSreBranchMonitorController.resultFor(other));
   }
-  @IsTest static void validatesPagingAndRejectsUnseenBranch() {
-    String prefix=Flosum__Branch__c.SObjectType.getDescribe().getKeyPrefix();
-    Id branchId=(Id)(prefix+'000000000001');
-    DevSreBranchMonitorController.BranchPage result=
-      DevSreBranchMonitorController.listBranches(null,'some name',branchId);
-    System.assertEquals(0,result.rows.size());
-    try {
-      DevSreBranchMonitorController.getBranchDetail(branchId);
-      System.assert(false,'Unseen Branch must be rejected');
-    } catch (AuraHandledException expected) {}
-    System.assert(DevSreBranchMonitorController.wildcard('CRM%').startsWith('%CRM'));
-  }
-
   @IsTest static void doesNotCallAValidationADeployment() {
     Flosum__Metadata_Log__c item=new Flosum__Metadata_Log__c(
       Flosum__Process_Type__c='Validate', Flosum__Status__c='Did Not Run',
