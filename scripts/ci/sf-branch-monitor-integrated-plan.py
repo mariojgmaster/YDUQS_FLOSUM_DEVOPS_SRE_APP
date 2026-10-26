@@ -157,6 +157,34 @@ def prepare(repo,tmp):
     print("BM_M1_INTEGRATION_STAGED: source_types=4 app=1 extra_tabs=1 preserved_original_tabs=4 scope_valid=true")
     return stage
 
+def classify_failures(result):
+    """Only whitelisted component types/names and fixed categories, no raw messages."""
+    details=result.get("details") if isinstance(result,dict) else {}
+    failures=details.get("componentFailures",[]) if isinstance(details,dict) else []
+    if isinstance(failures,dict): failures=[failures]
+    if not isinstance(failures,list): failures=[]
+    suspects=[]
+    for entry in failures[:10]:
+        if not isinstance(entry,dict): continue
+        member=entry.get("fullName")
+        kind=entry.get("componentType")
+        if kind in TARGET_TYPES and member in TARGET_TYPES[kind]:
+            suspects.append(kind+":"+member)
+        else:
+            suspects.append("unclassified")
+        problem=str(entry.get("problem","")).lower()
+        category="unclassified"
+        for code,tokens in [
+            ("ACCESS",("insufficient access","insufficient privilege","permission")),
+            ("MISSING_DEPENDENCY",("not found","does not exist","unknown")),
+            ("METADATA_SCHEMA",("invalid","unexpected","not allowed","unsupported")),
+            ("TAB_REFERENCE",("tab","lightning component","lwccomponent")),
+        ]:
+            if any(t in problem for t in tokens):
+                category=code;break
+        print("BM_M1_SAFE_FAILURE: component="+suspects[-1]+" category="+category)
+    if not failures: print("BM_M1_SAFE_FAILURE: component=not_identified category=not_identified")
+
 def plan(repo):
     if os.environ.get("GITHUB_REF")!="refs/heads/master" or (
         os.environ.get("GITHUB_ACTOR")!=os.environ.get("GITHUB_REPOSITORY_OWNER")
@@ -186,7 +214,9 @@ def plan(repo):
         print("BM_M1_INTEGRATION_DRY_RUN: success="+str(succeeded).lower()+
               " tests="+str(tests)+" test_errors="+str(test_errors)+
               " component_errors="+str(components)+" persisted=false")
-        if not succeeded: raise Block("Salesforce integrated dry-run not proven")
+        if not succeeded:
+            classify_failures(r if isinstance(r,dict) else {})
+            raise Block("Salesforce integrated dry-run not proven")
     print("PASS: BM_M1_INTEGRATION_FULL_DRY_RUN")
 
 def main():
