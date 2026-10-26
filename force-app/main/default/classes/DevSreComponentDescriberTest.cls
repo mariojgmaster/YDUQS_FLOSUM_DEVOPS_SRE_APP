@@ -65,6 +65,56 @@ private class DevSreComponentDescriberTest {
         System.assertEquals(null,inaccessible.branchId);
         System.assertEquals('Branch não acessível',inaccessible.branchName);
     }
+    @IsTest static void detailBuildRetainsVerifiedLinkAndSeparatesUnavailableHistory() {
+        String componentPrefix=Flosum__Component__c.SObjectType.getDescribe().getKeyPrefix();
+        String branchPrefix=Flosum__Branch__c.SObjectType.getDescribe().getKeyPrefix();
+        String historyPrefix=Flosum__Component_History__c.SObjectType.getDescribe().getKeyPrefix();
+        Id componentId=(Id)(componentPrefix+'000000000001');
+        Id branchId=(Id)(branchPrefix+'000000000001');
+        String foreign=DevSreComponentDescriberController.typedForeignKey(
+            Flosum__Component__c.SObjectType,Flosum__Branch__c.SObjectType);
+        Flosum__Component__c component=new Flosum__Component__c();
+        component.put('Id',componentId);
+        component.put(foreign,branchId);
+        List<SObject> histories=new List<SObject>();
+        for(Integer i=1;i<=21;i++) {
+            Flosum__Component_History__c history=new Flosum__Component_History__c();
+            history.put('Id',(Id)(historyPrefix+String.valueOf(i).leftPad(12,'0')));
+            histories.add(history);
+        }
+        DevSreComponentDescriberController.ComponentDetail detail =
+            DevSreComponentDescriberController.buildDetail(component,foreign,
+                new Map<Id,String>{branchId=>'SIT'},histories,true);
+        System.assertEquals(20,detail.histories.size());
+        System.assertEquals(true,detail.historiesHasMore);
+        System.assertEquals('TYPED_LINK_SAMPLE',detail.historyQuality);
+        System.assertEquals('UNVERIFIED',detail.deployEvidenceQuality);
+        System.assertEquals(componentId,detail.component.id);
+        System.assertEquals('SIT',detail.component.branchName);
+
+        DevSreComponentDescriberController.ComponentDetail unavailable =
+            DevSreComponentDescriberController.buildDetail(component,foreign,
+                new Map<Id,String>(),histories,false);
+        System.assertEquals('UNAVAILABLE',unavailable.historyQuality);
+        System.assertEquals(0,unavailable.histories.size());
+        System.assertEquals(false,unavailable.historiesHasMore);
+        System.assertEquals(null,unavailable.component.branchId);
+    }
+    @IsTest static void validMissingComponentAndValidCursorDoNotReturnFakeData() {
+        String prefix=Flosum__Component__c.SObjectType.getDescribe().getKeyPrefix();
+        Id unavailable=(Id)(prefix+'000000000001');
+        Test.startTest();
+        DevSreComponentDescriberController.ComponentPage result =
+            DevSreComponentDescriberController.searchComponents('BM_M2_nonexistent_999',
+                'BM_M2_nonexistent_999',unavailable);
+        Test.stopTest();
+        System.assertEquals(0,result.rows.size());
+        try {
+            DevSreComponentDescriberController.describeComponent(unavailable);
+            System.assert(false,'An absent component cannot be described');
+        } catch(AuraHandledException expected) {}
+    }
+
     @IsTest static void histSampleLimitAndNoFakeVersionOrDeploy() {
         String prefix=Flosum__Component_History__c.SObjectType.getDescribe().getKeyPrefix();
         List<SObject> history=new List<SObject>();
