@@ -8,6 +8,7 @@ on:
       - 'force-app/main/default/lwc/devSreBranchMonitor/**'
       - 'force-app/main/default/lwc/devSreComponentDescriber/**'
       - 'force-app/main/default/classes/DevSreComponentDescriber*'
+      - 'force-app/main/default/classes/DevSreHistoryArchiveReader*'
       - 'force-app/main/default/classes/DevSreBranchMonitor*'
       - 'force-app/main/default/classes/DevSrePipelineMonitorController*'
       - 'manifest/sf-devops-sre-pipeline-monitor.xml'
