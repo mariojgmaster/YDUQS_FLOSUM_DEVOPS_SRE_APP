@@ -41,7 +41,7 @@ concurrency:
 
 jobs:
   diagnose:
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'issues' && github.event.action == 'opened' && (github.event.issue.title == 'SDOA INVENTORY DevSreFeat Flosum' || github.event.issue.title == 'SDOA COMPONENTS DevSreFeat Flosum' || github.event.issue.title == 'SDOA COMPONENT LINKS DevSreFeat Flosum' || github.event.issue.title == 'SDOA APP NAVIGATION DevSreFeat Branch Monitor' || github.event.issue.title == 'SDOA BRANCH INTEGRATION PLAN DevSreFeat' || github.event.issue.title == 'SDOA VERIFY READER DevSreFeat Branch Monitor' || github.event.issue.title == 'SDOA COMPONENT TYPE DevSreFeat Flosum') && github.actor == github.repository_owner && github.event.issue.user.login == github.repository_owner && github.event.sender.login == github.repository_owner && github.ref == 'refs/heads/master' && github.run_attempt == 1) }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'issues' && github.event.action == 'opened' && (github.event.issue.title == 'SDOA INVENTORY DevSreFeat Flosum' || github.event.issue.title == 'SDOA COMPONENTS DevSreFeat Flosum' || github.event.issue.title == 'SDOA COMPONENT LINKS DevSreFeat Flosum' || github.event.issue.title == 'SDOA APP NAVIGATION DevSreFeat Branch Monitor' || github.event.issue.title == 'SDOA BRANCH INTEGRATION PLAN DevSreFeat' || github.event.issue.title == 'SDOA VERIFY READER DevSreFeat Branch Monitor' || github.event.issue.title == 'SDOA COMPONENT TYPE DevSreFeat Flosum' || github.event.issue.title == 'SDOA ARCHIVES DevSreFeat Flosum') && github.actor == github.repository_owner && github.event.issue.user.login == github.repository_owner && github.event.sender.login == github.repository_owner && github.ref == 'refs/heads/master' && github.run_attempt == 1) }}
     name: Run on DevSreFeat
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -51,7 +51,7 @@ jobs:
       SF_USERNAME: ${{ secrets.SF_USERNAME }}
       SF_JWT_KEY: ${{ secrets.SF_JWT_KEY }}
       SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
-      OPERATION: ${{ github.event_name == 'issues' && (github.event.issue.title == 'SDOA VERIFY READER DevSreFeat Branch Monitor' && 'branch-monitor-reader-verify' || github.event.issue.title == 'SDOA COMPONENT TYPE DevSreFeat Flosum' && 'flosum-component-type-probe' || github.event.issue.title == 'SDOA BRANCH INTEGRATION PLAN DevSreFeat' && 'branch-monitor-m1-integrated-plan' || github.event.issue.title == 'SDOA APP NAVIGATION DevSreFeat Branch Monitor' && 'branch-monitor-app-inspect' || github.event.issue.title == 'SDOA COMPONENT LINKS DevSreFeat Flosum' && 'flosum-components-linkage' || github.event.issue.title == 'SDOA COMPONENTS DevSreFeat Flosum' && 'flosum-components-inspect' || 'flosum-schema-inventory') || inputs.operation }}
+      OPERATION: ${{ github.event_name == 'issues' && (github.event.issue.title == 'SDOA VERIFY READER DevSreFeat Branch Monitor' && 'branch-monitor-reader-verify' || github.event.issue.title == 'SDOA COMPONENT TYPE DevSreFeat Flosum' && 'flosum-component-type-probe' || github.event.issue.title == 'SDOA ARCHIVES DevSreFeat Flosum' && 'flosum-archive-link-probe' || github.event.issue.title == 'SDOA BRANCH INTEGRATION PLAN DevSreFeat' && 'branch-monitor-m1-integrated-plan' || github.event.issue.title == 'SDOA APP NAVIGATION DevSreFeat Branch Monitor' && 'branch-monitor-app-inspect' || github.event.issue.title == 'SDOA COMPONENT LINKS DevSreFeat Flosum' && 'flosum-components-linkage' || github.event.issue.title == 'SDOA COMPONENTS DevSreFeat Flosum' && 'flosum-components-inspect' || 'flosum-schema-inventory') || inputs.operation }}
     steps:
       - name: Validate target and required configuration
         shell: bash
@@ -89,6 +89,9 @@ jobs:
               ;;
             flosum-component-type-probe)
               python3 scripts/ci/sf-flosum-component-type-probe.py --verify-issue "$GITHUB_EVENT_PATH" --owner "$EXPECTED_OWNER"
+              ;;
+            flosum-archive-link-probe)
+              python3 scripts/ci/sf-flosum-archive-link-probe.py --verify-issue "$GITHUB_EVENT_PATH" --owner "$EXPECTED_OWNER"
               ;;
             flosum-components-linkage)
               python3 scripts/ci/sf-flosum-branch-monitor-linkage.py --verify-issue "$GITHUB_EVENT_PATH" --owner "$EXPECTED_OWNER"
@@ -285,6 +288,13 @@ jobs:
                 exit 1
               fi
               python3 scripts/ci/sf-flosum-component-type-probe.py --inspect
+              ;;
+            flosum-archive-link-probe)
+              if [[ "$GITHUB_REF" != "refs/heads/master" || "$GITHUB_ACTOR" != "$GITHUB_REPOSITORY_OWNER" || "$GITHUB_RUN_ATTEMPT" != "1" ]]; then
+                echo "::error title=ARCHIVE_LINK_PROBE_DENIED::Owner-only protected master."
+                exit 1
+              fi
+              python3 scripts/ci/sf-flosum-archive-link-probe.py --inspect
               ;;
             flosum-branch-inspect)
               if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" || "$GITHUB_REF" != "refs/heads/master" || "$GITHUB_ACTOR" != "$GITHUB_REPOSITORY_OWNER" || "$GITHUB_RUN_ATTEMPT" != "1" ]]; then
