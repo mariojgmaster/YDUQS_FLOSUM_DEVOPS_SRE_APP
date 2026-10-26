@@ -12,9 +12,11 @@ jest.mock("@salesforce/apex/DevSreComponentDescriberController.describeComponent
   () => ({default: jest.fn()}), {virtual: true});
 
 const flush=async()=>{for(let i=0;i<15;i++)await Promise.resolve();};
-const X={id:"a000001",name:"Flow_Componente",componentType:"ApexClass",
-  branchId:"a0B0001",branchName:"Branch SIT"};
-const Y={id:"a000002",name:"Flow_Componente",componentType:"ApexClass",
+const X={id:"a000001",name:"C-138803",componentName:"T_DefineFlowByObjectAPP",
+  componentType:"ApexClass",source:"Snapshot",sourceDetails:"Snapshot 01",
+  version:"1.00",branchId:"a0B0001",branchName:"Branch SIT"};
+const Y={id:"a000002",name:"C-138804",componentName:"T_DefineFlowByObjectAPP",
+  componentType:"ApexClass",source:"Commit",version:"2.00",
   branchId:"a0B0002",branchName:"Branch PROD"};
 const PAGE={rows:[X,Y],hasMore:false,cursorName:Y.name,cursorId:Y.id,identityLevel:"REGISTERED_NAME_ONLY"};
 const TYPES=[{label:"Apex Class",value:"ApexClass"},{label:"Flow",value:"Flow"}];
@@ -47,6 +49,9 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     expect(el.shadowRoot.querySelectorAll(".cd-table tbody tr")).toHaveLength(2);
     expect(text(el)).toContain("Component Type");
     expect(text(el)).toContain("ApexClass");
+    expect(text(el)).toContain("T_DefineFlowByObjectAPP");
+    expect(text(el)).toContain("C-138803");
+    expect(text(el)).toContain("Snapshot");
   });
   it("não pesquisa com nome de um caractere nem um nome longo",async()=>{
     const el=mount();await flush();
@@ -88,6 +93,8 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click();await flush();
     expect(describeComponent).toHaveBeenCalledWith({componentId:X.id});
     expect(text(el)).toContain("Component Histories relacionados");
+    expect(text(el)).toContain("Snapshot 01");
+    expect(text(el)).toContain("T_DefineFlowByObjectAPP");
     expect(text(el)).toContain("Abrir histórico Flosum");
     expect(text(el)).toContain("Não exibir histórico de deploy sem evidência direta");
   });
