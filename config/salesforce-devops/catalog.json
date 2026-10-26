@@ -174,6 +174,17 @@
         "ApexClass",
         "LightningComponentBundle"
       ]
+    },
+    "branch-monitor-m2-activate": {
+      "manifest": "manifest/sf-branch-monitor-m2-activate.xml",
+      "test_level": "RunSpecifiedTests",
+      "tests": [
+        "DevSreBranchMonitorTest",
+        "DevSreComponentDescriberTest"
+      ],
+      "allowed_types": [
+        "LightningComponentBundle"
+      ]
     }
   }
 }
