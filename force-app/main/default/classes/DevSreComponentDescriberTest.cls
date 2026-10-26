@@ -193,7 +193,9 @@ private class DevSreComponentDescriberTest {
         System.assert(!allQuery.contains('WHERE Name LIKE'));
         String combined=DevSreComponentDescriberController.filteredQuery(
             branchField,typeField.getName(),true,true,true);
-        System.assert(combined.contains('Name LIKE :pattern'));
+        System.assert(combined.contains('Flosum__Component_Name__c LIKE :pattern'));
+        System.assert(combined.contains('Flosum__Source__c'));
+        System.assert(combined.contains('Flosum__Version__c'));
         System.assert(combined.contains(typeField.getName()+' = :typeValue'));
         System.assert(combined.contains('AND (Name > :cursorName'));
         try {
