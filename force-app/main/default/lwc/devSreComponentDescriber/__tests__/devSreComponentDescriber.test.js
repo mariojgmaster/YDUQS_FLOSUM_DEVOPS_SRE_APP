@@ -3,12 +3,15 @@ import Describer from "c/devSreComponentDescriber";
 import searchFilteredComponents from "@salesforce/apex/DevSreComponentDescriberController.searchFilteredComponents";
 import getComponentTypes from "@salesforce/apex/DevSreComponentDescriberController.getComponentTypes";
 import describeComponent from "@salesforce/apex/DevSreComponentDescriberController.describeComponent";
+import inspectHistoryArchive from "@salesforce/apex/DevSreComponentDescriberController.inspectHistoryArchive";
 
 jest.mock("@salesforce/apex/DevSreComponentDescriberController.searchFilteredComponents",
   () => ({default: jest.fn()}), {virtual: true});
 jest.mock("@salesforce/apex/DevSreComponentDescriberController.getComponentTypes",
   () => ({default: jest.fn()}), {virtual: true});
 jest.mock("@salesforce/apex/DevSreComponentDescriberController.describeComponent",
+  () => ({default: jest.fn()}), {virtual: true});
+jest.mock("@salesforce/apex/DevSreComponentDescriberController.inspectHistoryArchive",
   () => ({default: jest.fn()}), {virtual: true});
 
 const flush=async()=>{for(let i=0;i<15;i++)await Promise.resolve();};
@@ -40,7 +43,13 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
   beforeEach(()=>{jest.clearAllMocks();jest.useFakeTimers();
     searchFilteredComponents.mockResolvedValue(PAGE);
     getComponentTypes.mockResolvedValue(TYPES);
-    describeComponent.mockResolvedValue(DETAIL);});
+    describeComponent.mockResolvedValue(DETAIL);
+    inspectHistoryArchive.mockResolvedValue({
+      attachmentName:"ApexClass",matchingArchives:1,entries:[
+        {path:"classes/T_DefineFlowByObjectAPP.cls",size:37,previewable:true},
+        {path:"binary/icon.png",size:100,previewable:false}
+      ],selectedPath:null,text:null
+    });});
   afterEach(()=>{document.body.innerHTML="";jest.useRealTimers();});
   it("lista registros de modo paginado mesmo com nome vazio",async()=>{
     const el=mount();await flush();
@@ -130,5 +139,27 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     clear.click();await flush();
     expect(searchFilteredComponents).toHaveBeenLastCalledWith({
       search:null,componentType:null,cursorName:null,cursorId:null});
+  });
+  it("explora arquivo texto de ZIP sem tentar executar binários",async()=>{
+    const el=mount();await flush();
+    el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click();await flush();
+    const button=[...el.shadowRoot.querySelectorAll("lightning-button")].find(x=>x.label==="Explorar ZIP");
+    expect(button).toBeDefined();button.click();await flush();
+    expect(inspectHistoryArchive).toHaveBeenCalledWith({
+      historyId:HISTORY.id,entryPath:null});
+    expect(text(el)).toContain("classes/T_DefineFlowByObjectAPP.cls");
+    const files=el.shadowRoot.querySelectorAll(".cd-archive-item");
+    expect(files).toHaveLength(2);expect(files[1].disabled).toBe(true);
+    inspectHistoryArchive.mockResolvedValueOnce({
+      attachmentName:"ApexClass",matchingArchives:1,entries:[
+        {path:"classes/T_DefineFlowByObjectAPP.cls",size:37,previewable:true}
+      ],selectedPath:"classes/T_DefineFlowByObjectAPP.cls",text:"public class Foo {}"
+    });
+    files[0].click();await flush();
+    expect(inspectHistoryArchive).toHaveBeenLastCalledWith({
+      historyId:HISTORY.id,entryPath:"classes/T_DefineFlowByObjectAPP.cls"});
+    expect(text(el)).toContain("public class Foo {}");
+    el.shadowRoot.querySelector("lightning-button-icon[title='Fechar ZIP']").click();
+    await flush();expect(el.shadowRoot.querySelector(".cd-archive-panel")).toBeNull();
   });
 });
