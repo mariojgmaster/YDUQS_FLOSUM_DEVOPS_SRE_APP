@@ -162,6 +162,18 @@
       "allowed_types": [
         "PermissionSet"
       ]
+    },
+    "branch-monitor-m2-describer": {
+      "manifest": "manifest/sf-branch-monitor-m2-describer.xml",
+      "test_level": "RunSpecifiedTests",
+      "tests": [
+        "DevSreComponentDescriberTest",
+        "DevSreBranchMonitorTest"
+      ],
+      "allowed_types": [
+        "ApexClass",
+        "LightningComponentBundle"
+      ]
     }
   }
 }
