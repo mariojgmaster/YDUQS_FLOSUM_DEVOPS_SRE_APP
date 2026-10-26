@@ -53,12 +53,12 @@ public with sharing class DevSreHistoryArchiveReader {
         Compression.ZipReader reader;
         try {
             reader=new Compression.ZipReader(zip);
-            List<Compression.ZipEntry> list=reader.getEntries();
-            if (list.size()>MAX_ENTRIES)
+            List<Compression.ZipEntry> zipEntries=reader.getEntries();
+            if (zipEntries.size()>MAX_ENTRIES)
                 throw new AuraHandledException('ZIP possui entradas demais para exibição.');
             Boolean selectedFound=selected==null;
             Boolean selectedPermitted=false;
-            for (Compression.ZipEntry entry : list) {
+            for (Compression.ZipEntry entry : zipEntries) {
                 EntryRow row=new EntryRow();
                 row.path=entry.getName();
                 row.size=entry.getUncompressedSize();
