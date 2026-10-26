@@ -104,7 +104,7 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     expect(text(el)).toContain("Component Histories relacionados");
     expect(text(el)).toContain("Snapshot 01");
     expect(text(el)).toContain("T_DefineFlowByObjectAPP");
-    expect(text(el)).toContain("Abrir histórico Flosum");
+    expect(text(el)).toContain("Abrir no Flosum");
     expect(text(el)).toContain("Não exibir histórico de deploy sem evidência direta");
   });
   it("apresenta fonte indisponível de maneira explícita",async()=>{
