@@ -143,6 +143,19 @@ public with sharing class DevSreComponentDescriberController {
         return rows;
     }
 
+    @TestVisible private static ComponentDetail buildDetail(
+        SObject source, String branchField, Map<Id,String> branchNamesById,
+        List<SObject> history, Boolean available
+    ) {
+        ComponentDetail result = new ComponentDetail();
+        result.component = convert(source,branchField,branchNamesById);
+        result.histories = available ? toHistories(history) : new List<HistoryRow>();
+        result.historiesHasMore = available && history.size() > HISTORY_SIZE;
+        result.historyQuality = available ? 'TYPED_LINK_SAMPLE' : 'UNAVAILABLE';
+        result.deployEvidenceQuality = 'UNVERIFIED';
+        return result;
+    }
+
     @AuraEnabled(cacheable=true)
     public static ComponentDetail describeComponent(Id componentId) {
         if (componentId == null || componentId.getSObjectType() != Flosum__Component__c.SObjectType)
@@ -157,14 +170,10 @@ public with sharing class DevSreComponentDescriberController {
             );
             if (records.isEmpty())
                 throw new AuraHandledException('Componente não encontrado ou sem acesso.');
-            ComponentDetail detail = new ComponentDetail();
-            detail.component = convert(records[0], field, branchNames(records, field));
-            detail.histories = new List<HistoryRow>();
-            detail.historiesHasMore = false;
-            detail.historyQuality = 'UNAVAILABLE';
-            detail.deployEvidenceQuality = 'UNVERIFIED';
+            Map<Id,String> accessibleBranches = branchNames(records, field);
             if (!Flosum__Component_History__c.SObjectType.getDescribe().isAccessible())
-                return detail;
+                return buildDetail(records[0],field,accessibleBranches,
+                                   new List<SObject>(),false);
             String historyKey = typedForeignKey(
                 Flosum__Component_History__c.SObjectType, Flosum__Component__c.SObjectType
             );
@@ -174,10 +183,7 @@ public with sharing class DevSreComponentDescriberController {
                 new Map<String,Object>{ 'componentId' => componentId },
                 AccessLevel.USER_MODE
             );
-            detail.historiesHasMore = history.size() > HISTORY_SIZE;
-            detail.histories = toHistories(history);
-            detail.historyQuality = 'TYPED_LINK_SAMPLE';
-            return detail;
+            return buildDetail(records[0],field,accessibleBranches,history,true);
         } catch (AuraHandledException known) {
             throw known;
         } catch (Exception error) {
