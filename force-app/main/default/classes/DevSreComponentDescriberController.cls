@@ -10,6 +10,12 @@ public with sharing class DevSreComponentDescriberController {
     public class ComponentRow {
         @AuraEnabled public Id id { get; set; }
         @AuraEnabled public String name { get; set; }
+        @AuraEnabled public String componentName { get; set; }
+        @AuraEnabled public String source { get; set; }
+        @AuraEnabled public String sourceDetails { get; set; }
+        @AuraEnabled public String version { get; set; }
+        @AuraEnabled public Datetime changedOn { get; set; }
+        @AuraEnabled public Datetime committedOn { get; set; }
         @AuraEnabled public Id branchId { get; set; }
         @AuraEnabled public String branchName { get; set; }
         @AuraEnabled public String componentType { get; set; }
@@ -86,6 +92,18 @@ public with sharing class DevSreComponentDescriberController {
             SELECT Id, Name FROM Flosum__Branch__c WHERE Id IN :branchIds WITH USER_MODE
         ]) output.put(branch.Id, branch.Name);
         return output;
+    }
+    private static String textField(SObject source, String name) {
+        Object v = source.get(name);
+        return v == null ? null : String.valueOf(v);
+    }
+    private static void decorate(ComponentRow row, SObject source) {
+        row.componentName = textField(source, 'Flosum__Component_Name__c');
+        row.source = textField(source, 'Flosum__Source__c');
+        row.sourceDetails = textField(source, 'Flosum__Source_Details__c');
+        row.version = textField(source, 'Flosum__Version__c');
+        row.changedOn = (Datetime)source.get('Flosum__Last_Modified_Date__c');
+        row.committedOn = (Datetime)source.get('Flosum__Committed_On__c');
     }
     @TestVisible private static ComponentRow convert(SObject source, String branchField,
                                                       Map<Id,String> names) {
@@ -202,9 +220,11 @@ public with sharing class DevSreComponentDescriberController {
             !Pattern.matches('Flosum__[A-Za-z][A-Za-z0-9_]*__c',typeField))
             throw new AuraHandledException('Campo de filtro inválido.');
         String query = 'SELECT Id, Name, CreatedDate, ' + branchField + ', ' + typeField +
+            ', Flosum__Component_Name__c, Flosum__Version__c, Flosum__Source__c,' +
+            ' Flosum__Source_Details__c, Flosum__Last_Modified_Date__c, Flosum__Committed_On__c' +
             ' FROM Flosum__Component__c';
         List<String> conditions = new List<String>();
-        if (hasName) conditions.add('Name LIKE :pattern');
+        if (hasName) conditions.add('Flosum__Component_Name__c LIKE :pattern');
         if (hasType) conditions.add(typeField + ' = :typeValue');
         if (hasCursor)
             conditions.add('(Name > :cursorName OR (Name = :cursorName AND Id > :cursorId))');
@@ -234,8 +254,10 @@ public with sharing class DevSreComponentDescriberController {
                 AccessLevel.USER_MODE
             );
             ComponentPage page = toPage(records, branchField, branchNames(records,branchField));
-            for (Integer i=0; i<page.rows.size(); i++)
+            for (Integer i=0; i<page.rows.size(); i++) {
                 page.rows[i].componentType = (String)records[i].get(typeField);
+                decorate(page.rows[i], records[i]);
+            }
             return page;
         } catch (AuraHandledException known) {
             throw known;
@@ -277,6 +299,8 @@ public with sharing class DevSreComponentDescriberController {
         try {
             List<SObject> records = Database.queryWithBinds(
                 'SELECT Id, Name, CreatedDate, ' + field + ', ' + typeField +
+                ', Flosum__Component_Name__c, Flosum__Version__c, Flosum__Source__c,' +
+                ' Flosum__Source_Details__c, Flosum__Last_Modified_Date__c, Flosum__Committed_On__c' +
                 ' FROM Flosum__Component__c WHERE Id = :componentId LIMIT 1',
                 new Map<String,Object>{ 'componentId' => componentId },
                 AccessLevel.USER_MODE
@@ -288,6 +312,7 @@ public with sharing class DevSreComponentDescriberController {
                 ComponentDetail unavailable = buildDetail(records[0],field,accessibleBranches,
                     new List<SObject>(),false);
                 unavailable.component.componentType = (String)records[0].get(typeField);
+                decorate(unavailable.component, records[0]);
                 return unavailable;
             }
             String historyKey = typedForeignKey(
@@ -300,6 +325,7 @@ public with sharing class DevSreComponentDescriberController {
             );
             ComponentDetail details = buildDetail(records[0],field,accessibleBranches,history,true);
             details.component.componentType = (String)records[0].get(typeField);
+            decorate(details.component, records[0]);
             return details;
         } catch (AuraHandledException known) {
             throw known;
