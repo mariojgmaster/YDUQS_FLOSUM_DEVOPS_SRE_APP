@@ -12,6 +12,7 @@ public with sharing class DevSreComponentDescriberController {
         @AuraEnabled public String name { get; set; }
         @AuraEnabled public Id branchId { get; set; }
         @AuraEnabled public String branchName { get; set; }
+        @AuraEnabled public String componentType { get; set; }
         @AuraEnabled public Datetime createdAt { get; set; }
     }
     public class ComponentPage {
@@ -20,6 +21,10 @@ public with sharing class DevSreComponentDescriberController {
         @AuraEnabled public String cursorName { get; set; }
         @AuraEnabled public Id cursorId { get; set; }
         @AuraEnabled public String identityLevel { get; set; }
+    }
+    public class ComponentTypeOption {
+        @AuraEnabled public String label { get; set; }
+        @AuraEnabled public String value { get; set; }
     }
     public class HistoryRow {
         @AuraEnabled public Id id { get; set; }
@@ -144,6 +149,101 @@ public with sharing class DevSreComponentDescriberController {
         }
     }
 
+    /**
+     * Select the unique readable Flosum Component Type picklist by described API name.
+     * The DevSreFeat schema inventory confirmed 1 picklist and 1 unrelated reference.
+     */
+    @TestVisible private static Schema.DescribeFieldResult typeDescribe() {
+        List<Schema.DescribeFieldResult> matches = new List<Schema.DescribeFieldResult>();
+        for (Schema.SObjectField sf : Flosum__Component__c.SObjectType.getDescribe().fields.getMap().values()) {
+            Schema.DescribeFieldResult field = sf.getDescribe();
+            String api = field.getName().toLowerCase();
+            if (field.getType() == Schema.DisplayType.PICKLIST && field.isAccessible() &&
+                api.startsWith('flosum__') && api.contains('component') && api.contains('type') &&
+                Pattern.matches('Flosum__[A-Za-z][A-Za-z0-9_]*__c',field.getName()))
+                matches.add(field);
+        }
+        if (matches.size()!=1)
+            throw new AuraHandledException('Campo Component Type não disponível ou ambíguo.');
+        return matches[0];
+    }
+
+    @AuraEnabled(cacheable=true)
+    public static List<ComponentTypeOption> getComponentTypes(String searchTerm) {
+        if (searchTerm != null && searchTerm.length() > 80)
+            throw new AuraHandledException('Pesquisa de tipos limitada a 80 caracteres.');
+        String term = String.isBlank(searchTerm) ? '' : searchTerm.trim().toLowerCase();
+        List<ComponentTypeOption> output = new List<ComponentTypeOption>();
+        for (Schema.PicklistEntry entry : typeDescribe().getPicklistValues()) {
+            if (!entry.isActive()) continue;
+            if (!entry.getLabel().toLowerCase().contains(term) &&
+                !entry.getValue().toLowerCase().contains(term)) continue;
+            ComponentTypeOption item = new ComponentTypeOption();
+            item.label = entry.getLabel();
+            item.value = entry.getValue();
+            output.add(item);
+            if (output.size() >= 20) break;
+        }
+        return output;
+    }
+
+    @TestVisible private static void validateTypeValue(String candidate) {
+        if (candidate == null) return;
+        if (candidate.length() > 255) throw new AuraHandledException('Tipo de componente inválido.');
+        for (Schema.PicklistEntry entry : typeDescribe().getPicklistValues()) {
+            if (entry.isActive() && entry.getValue() == candidate) return;
+        }
+        throw new AuraHandledException('Selecione um Component Type válido.');
+    }
+
+    @TestVisible private static String filteredQuery(String branchField, String typeField,
+                Boolean hasName, Boolean hasType, Boolean hasCursor) {
+        if (!Pattern.matches('Flosum__[A-Za-z][A-Za-z0-9_]*__c',branchField) ||
+            !Pattern.matches('Flosum__[A-Za-z][A-Za-z0-9_]*__c',typeField))
+            throw new AuraHandledException('Campo de filtro inválido.');
+        String query = 'SELECT Id, Name, CreatedDate, ' + branchField + ', ' + typeField +
+            ' FROM Flosum__Component__c';
+        List<String> conditions = new List<String>();
+        if (hasName) conditions.add('Name LIKE :pattern');
+        if (hasType) conditions.add(typeField + ' = :typeValue');
+        if (hasCursor)
+            conditions.add('(Name > :cursorName OR (Name = :cursorName AND Id > :cursorId))');
+        if (!conditions.isEmpty()) query += ' WHERE ' + String.join(conditions,' AND ');
+        return query + ' ORDER BY Name ASC, Id ASC LIMIT 26';
+    }
+
+    @AuraEnabled(cacheable=true)
+    public static ComponentPage searchFilteredComponents(
+        String search, String componentType, String cursorName, Id cursorId
+    ) {
+        validateCursor(cursorName, cursorId);
+        String branchField = componentBranchField();
+        String typeField = typeDescribe().getName();
+        String pattern = String.isBlank(search) ? null : likeTerm(search);
+        String typeValue = String.isBlank(componentType) ? null : componentType;
+        validateTypeValue(typeValue);
+        try {
+            String query = filteredQuery(branchField,typeField,
+                pattern!=null,typeValue!=null,cursorId!=null);
+            List<SObject> records = Database.queryWithBinds(
+                query,
+                new Map<String,Object>{
+                    'pattern'=>pattern, 'typeValue'=>typeValue,
+                    'cursorName'=>cursorName, 'cursorId'=>cursorId
+                },
+                AccessLevel.USER_MODE
+            );
+            ComponentPage page = toPage(records, branchField, branchNames(records,branchField));
+            for (Integer i=0; i<page.rows.size(); i++)
+                page.rows[i].componentType = (String)records[i].get(typeField);
+            return page;
+        } catch (AuraHandledException known) {
+            throw known;
+        } catch (Exception error) {
+            throw new AuraHandledException('Não foi possível consultar o inventário Flosum acessível.');
+        }
+    }
+
     @TestVisible private static List<HistoryRow> toHistories(List<SObject> history) {
         List<HistoryRow> rows = new List<HistoryRow>();
         for (Integer i = 0; i < Math.min(HISTORY_SIZE, history.size()); i++) {
@@ -173,9 +273,10 @@ public with sharing class DevSreComponentDescriberController {
         if (componentId == null || componentId.getSObjectType() != Flosum__Component__c.SObjectType)
             throw new AuraHandledException('Selecione um componente Flosum válido.');
         String field = componentBranchField();
+        String typeField = typeDescribe().getName();
         try {
             List<SObject> records = Database.queryWithBinds(
-                'SELECT Id, Name, CreatedDate, ' + field +
+                'SELECT Id, Name, CreatedDate, ' + field + ', ' + typeField +
                 ' FROM Flosum__Component__c WHERE Id = :componentId LIMIT 1',
                 new Map<String,Object>{ 'componentId' => componentId },
                 AccessLevel.USER_MODE
@@ -183,9 +284,12 @@ public with sharing class DevSreComponentDescriberController {
             if (records.isEmpty())
                 throw new AuraHandledException('Componente não encontrado ou sem acesso.');
             Map<Id,String> accessibleBranches = branchNames(records, field);
-            if (!Flosum__Component_History__c.SObjectType.getDescribe().isAccessible())
-                return buildDetail(records[0],field,accessibleBranches,
-                                   new List<SObject>(),false);
+            if (!Flosum__Component_History__c.SObjectType.getDescribe().isAccessible()) {
+                ComponentDetail unavailable = buildDetail(records[0],field,accessibleBranches,
+                    new List<SObject>(),false);
+                unavailable.component.componentType = (String)records[0].get(typeField);
+                return unavailable;
+            }
             String historyKey = typedForeignKey(
                 Flosum__Component_History__c.SObjectType, Flosum__Component__c.SObjectType
             );
@@ -194,7 +298,9 @@ public with sharing class DevSreComponentDescriberController {
                 new Map<String,Object>{ 'componentId' => componentId },
                 AccessLevel.USER_MODE
             );
-            return buildDetail(records[0],field,accessibleBranches,history,true);
+            ComponentDetail details = buildDetail(records[0],field,accessibleBranches,history,true);
+            details.component.componentType = (String)records[0].get(typeField);
+            return details;
         } catch (AuraHandledException known) {
             throw known;
         } catch (Exception error) {

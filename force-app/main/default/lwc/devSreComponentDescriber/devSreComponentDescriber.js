@@ -1,10 +1,17 @@
 import { LightningElement } from "lwc";
 import { NavigationMixin } from "lightning/navigation";
-import searchComponents from "@salesforce/apex/DevSreComponentDescriberController.searchComponents";
+import searchFilteredComponents from "@salesforce/apex/DevSreComponentDescriberController.searchFilteredComponents";
+import getComponentTypes from "@salesforce/apex/DevSreComponentDescriberController.getComponentTypes";
 import describeComponent from "@salesforce/apex/DevSreComponentDescriberController.describeComponent";
 
 export default class DevSreComponentDescriber extends NavigationMixin(LightningElement) {
   search = "";
+  typeText = "";
+  typeValue = null;
+  typeOptions = [];
+  typeMenuOpen = false;
+  typeLoading = false;
+  typeError;
   results = [];
   cursorName;
   cursorId;
@@ -18,15 +25,24 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   selectedId;
   _searchRequest = 0;
   _detailRequest = 0;
+  _typeRequest = 0;
   _debounce;
+  _typeDebounce;
 
+  connectedCallback() { this.load(false); }
   disconnectedCallback() {
     clearTimeout(this._debounce);
+    clearTimeout(this._typeDebounce);
     ++this._searchRequest;
     ++this._detailRequest;
+    ++this._typeRequest;
   }
+
   get tooLong() { return this.search.length > 80; }
-  get eligible() { return this.search.trim().length >= 2 && !this.tooLong; }
+  get eligible() {
+    const length = this.search.trim().length;
+    return !this.tooLong && (length === 0 || length >= 2);
+  }
   get hasResults() { return this.results.length > 0; }
   get hasDetail() { return Boolean(this.detail); }
   get histories() { return this.detail?.histories || []; }
@@ -34,43 +50,65 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   get historyUnavailable() { return this.detail?.historyQuality !== "TYPED_LINK_SAMPLE"; }
   get hasHistoryMore() { return Boolean(this.detail?.historiesHasMore); }
   get nextDisabled() { return !this.hasMore || this.loading || !this.eligible; }
+  get hasTypeOptions() { return this.typeOptions.length > 0; }
+  get isTypeSelected() { return Boolean(this.typeValue); }
+  get emptyWithoutFilters() { return !this.search.trim() && !this.typeValue; }
   get entries() {
     return this.results.map(r => ({
-      ...r, selected: r.id === this.selectedId,
-      rowClass: r.id === this.selectedId ? "cd-row cd-row-selected" : "cd-row"
+      ...r,
+      rowClass: r.id === this.selectedId ? "cd-row cd-row-selected" : "cd-row",
+      typeLabel: r.componentType || "—"
     }));
   }
   get helpText() {
     if (this.tooLong) return "A pesquisa permite até 80 caracteres.";
-    if (!this.eligible) return "Informe pelo menos 2 caracteres para pesquisar.";
+    if (!this.eligible) return "Informe pelo menos 2 caracteres ou deixe o nome vazio.";
     return "";
   }
   get detailName() { return this.detail?.component?.name || ""; }
   get detailBranchName() { return this.detail?.component?.branchName || ""; }
   get detailBranchId() { return this.detail?.component?.branchId; }
+  get detailType() { return this.detail?.component?.componentType || "Não informado"; }
   get noMatches() { return this.searched && !this.loading && !this.error && !this.hasResults; }
 
-  handleChange(event) {
-    this.search = event.target.value || "";
-    clearTimeout(this._debounce);
-    ++this._searchRequest; // Invalidate outstanding results when typing.
+  resetResults() {
+    ++this._searchRequest;
     ++this._detailRequest;
     this.results = [];
-    this.searched = false;
     this.loading = false;
+    this.searched = false;
     this.hasMore = false;
     this.cursorName = undefined;
     this.cursorId = undefined;
     this.error = undefined;
     this.detail = undefined;
+    this.detailError = undefined;
     this.selectedId = undefined;
+  }
+  handleChange(event) {
+    this.search = event.target.value || "";
+    clearTimeout(this._debounce);
+    this.resetResults();
     if (!this.eligible) return;
     // eslint-disable-next-line @lwc/lwc/no-async-operation
     this._debounce = setTimeout(() => this.load(false), 350);
   }
   handleRefresh() {
     clearTimeout(this._debounce);
+    this.typeMenuOpen = false;
     if (this.eligible) this.load(false);
+  }
+  handleReset() {
+    clearTimeout(this._debounce);
+    clearTimeout(this._typeDebounce);
+    ++this._typeRequest;
+    this.search = "";
+    this.typeText = "";
+    this.typeValue = null;
+    this.typeOptions = [];
+    this.typeError = undefined;
+    this.typeMenuOpen = false;
+    this.load(false);
   }
   handleNext() { if (!this.nextDisabled) this.load(true); }
   handleSelect(event) { this.loadDetail(event.currentTarget.dataset.id); }
@@ -91,6 +129,82 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     });
   }
   message(error, fallback) { return error?.body?.message || fallback; }
+
+  handleTypeFocus() {
+    this.typeMenuOpen = true;
+    this.loadTypeOptions();
+  }
+  handleTypeChange(event) {
+    this.typeText = event.target.value || "";
+    clearTimeout(this._typeDebounce);
+    ++this._typeRequest;
+    if (this.typeValue) {
+      this.typeValue = null;
+      this.resetResults();
+      if (this.eligible) this.load(false);
+    }
+    this.typeMenuOpen = true;
+    this.typeOptions = [];
+    if (this.typeText.length > 80) {
+      this.typeError = "A pesquisa de tipos permite até 80 caracteres.";
+      return;
+    }
+    this.typeError = undefined;
+    // eslint-disable-next-line @lwc/lwc/no-async-operation
+    this._typeDebounce = setTimeout(() => this.loadTypeOptions(), 250);
+  }
+  handleTypeKey(event) {
+    if (event.key === "Escape") {
+      this.typeMenuOpen = false;
+    } else if (event.key === "ArrowDown" && this.hasTypeOptions) {
+      event.preventDefault();
+      this.template.querySelector(".cd-type-option")?.focus();
+    } else if (event.key === "Enter" && this.hasTypeOptions && this.typeMenuOpen) {
+      event.preventDefault();
+      this.selectType(this.typeOptions[0]);
+    }
+  }
+  handleTypeSelect(event) {
+    const option = this.typeOptions.find(o => o.value === event.currentTarget.dataset.value);
+    if (option) this.selectType(option);
+  }
+  selectType(option) {
+    clearTimeout(this._typeDebounce);
+    ++this._typeRequest;
+    this.typeText = option.label;
+    this.typeValue = option.value;
+    this.typeMenuOpen = false;
+    this.typeError = undefined;
+    this.load(false);
+  }
+  handleTypeClear() {
+    clearTimeout(this._typeDebounce);
+    ++this._typeRequest;
+    this.typeText = "";
+    this.typeValue = null;
+    this.typeMenuOpen = false;
+    this.typeOptions = [];
+    this.typeError = undefined;
+    if (this.eligible) this.load(false);
+  }
+  async loadTypeOptions() {
+    if (this.typeText.length > 80) return;
+    const request = ++this._typeRequest;
+    this.typeLoading = true;
+    this.typeError = undefined;
+    try {
+      const options = await getComponentTypes({ searchTerm: this.typeValue ? "" : this.typeText.trim() });
+      if (request === this._typeRequest) this.typeOptions = options || [];
+    } catch (error) {
+      if (request === this._typeRequest) {
+        this.typeOptions = [];
+        this.typeError = this.message(error, "Não foi possível consultar os tipos.");
+      }
+    } finally {
+      if (request === this._typeRequest) this.typeLoading = false;
+    }
+  }
+
   async load(append) {
     if (!this.eligible) return;
     const request = ++this._searchRequest;
@@ -106,13 +220,14 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
       this.detail = undefined;
     }
     try {
-      const page = await searchComponents({
-        search: this.search.trim(),
+      const page = await searchFilteredComponents({
+        search: this.search.trim() || null,
+        componentType: this.typeValue || null,
         cursorName: append ? this.cursorName : null,
         cursorId: append ? this.cursorId : null
       });
       if (request !== this._searchRequest) return;
-      this.results = append ? [...this.results, ...(page.rows || [])] : page.rows || [];
+      this.results = append ? [...this.results, ...(page.rows || [])] : (page.rows || []);
       this.cursorName = page.cursorName;
       this.cursorId = page.cursorId;
       this.hasMore = Boolean(page.hasMore);

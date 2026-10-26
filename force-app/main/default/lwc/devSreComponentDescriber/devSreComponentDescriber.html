@@ -8,8 +8,32 @@
       </div>
     </header>
     <section class="cd-controls" aria-label="Pesquisa de componentes">
-      <lightning-input type="search" label="Nome do componente no Flosum" placeholder="Ex.: nome cadastrado do componente…" value={search} onchange={handleChange} max-length="81"></lightning-input>
-      <lightning-button-icon icon-name="utility:refresh" alternative-text="Atualizar pesquisa" title="Atualizar pesquisa" disabled={loading} onclick={handleRefresh}></lightning-button-icon>
+      <div class="cd-search-field">
+        <lightning-input type="search" label="Nome do componente no Flosum" placeholder="Pesquisar nome (opcional)…" value={search} onchange={handleChange} max-length="81"></lightning-input>
+      </div>
+      <div class="cd-type-field">
+        <lightning-input type="search" label="Component Type" placeholder="Pesquisar tipo de componente…" value={typeText} onfocus={handleTypeFocus} onchange={handleTypeChange} onkeydown={handleTypeKey} max-length="81"></lightning-input>
+        <template lwc:if={typeMenuOpen}>
+          <div class="cd-type-menu">
+            <template lwc:if={typeLoading}><div class="cd-type-message" role="status">Consultando tipos…</div></template>
+            <template lwc:elseif={typeError}><div class="cd-type-message" role="alert">{typeError}</div></template>
+            <template lwc:elseif={hasTypeOptions}>
+              <ul class="cd-type-list" role="listbox" aria-label="Tipos de componente">
+                <template for:each={typeOptions} for:item="option">
+                  <li role="presentation" key={option.value}><button class="cd-type-option" type="button" role="option" data-value={option.value} onclick={handleTypeSelect} title={option.label}>{option.label}</button></li>
+                </template>
+              </ul>
+              <p class="cd-type-hint">Até 20 opções. Digite para refinar a pesquisa.</p>
+            </template>
+            <template lwc:else><div class="cd-type-message" role="status">Nenhum tipo encontrado.</div></template>
+          </div>
+        </template>
+      </div>
+      <div class="cd-control-actions">
+        <template lwc:if={isTypeSelected}><lightning-button label="Limpar tipo" onclick={handleTypeClear}></lightning-button></template>
+        <lightning-button-icon icon-name="utility:refresh" alternative-text="Atualizar pesquisa" title="Atualizar pesquisa" disabled={loading} onclick={handleRefresh}></lightning-button-icon>
+        <lightning-button label="Limpar filtros" onclick={handleReset}></lightning-button>
+      </div>
       <template lwc:if={helpText}><p class="cd-help" role="status">{helpText}</p></template>
     </section>
     <div class="cd-notice" role="note">
@@ -26,11 +50,12 @@
           <template lwc:if={hasResults}>
             <div class="cd-scroller">
               <table class="cd-table">
-                <thead><tr><th scope="col">Nome Flosum</th><th scope="col">Branch associada</th><th scope="col">Acessar</th></tr></thead>
+                <thead><tr><th scope="col">Nome Flosum</th><th scope="col">Component Type</th><th scope="col">Branch associada</th><th scope="col">Acessar</th></tr></thead>
                 <tbody>
                   <template for:each={entries} for:item="entry">
                     <tr key={entry.id} class={entry.rowClass}>
                       <td><button type="button" class="cd-link" data-id={entry.id} onclick={handleSelect} title={entry.name}>{entry.name}</button></td>
+                      <td><span title={entry.typeLabel}>{entry.typeLabel}</span></td>
                       <td><template lwc:if={entry.branchId}><button type="button" class="cd-link" data-id={entry.branchId} onclick={handleOpenBranch} title={entry.branchName}>{entry.branchName}</button></template><template lwc:else><span title={entry.branchName}>{entry.branchName}</span></template></td>
                       <td><button type="button" class="cd-link" data-id={entry.id} onclick={handleOpenComponent}>Flosum</button></td>
                     </tr>
@@ -40,8 +65,11 @@
             </div>
             <div class="cd-pager"><span>Consulta paginada; não representa o inventário global.</span><lightning-button label="Carregar mais" onclick={handleNext} disabled={nextDisabled}></lightning-button></div>
           </template>
-          <template lwc:elseif={noMatches}><p class="cd-empty">Nenhum componente acessível encontrado para o nome informado.</p></template>
-          <template lwc:else><p class="cd-empty">Pesquise pelo nome do componente para visualizar suas ocorrências por Branch.</p></template>
+          <template lwc:elseif={noMatches}>
+            <template lwc:if={emptyWithoutFilters}><p class="cd-empty">Nenhum componente acessível nesta consulta. Verifique permissões e compartilhamento de registros Flosum.</p></template>
+            <template lwc:else><p class="cd-empty">Nenhum componente acessível corresponde aos filtros informados. Experimente limpar o nome ou o tipo.</p></template>
+          </template>
+          <template lwc:else><p class="cd-empty">Carregando o inventário acessível de componentes Flosum.</p></template>
         </template>
       </section>
       <aside class="cd-panel cd-detail" aria-label="Detalhes do componente selecionado">
@@ -50,6 +78,7 @@
         <template lwc:elseif={hasDetail}>
           <header class="cd-panel-head"><h3 title={detailName}>{detailName}</h3><lightning-button-icon icon-name="utility:close" alternative-text="Fechar detalhe" onclick={handleClose}></lightning-button-icon></header>
           <div class="cd-detail-body">
+            <p><strong>Component Type:</strong> {detailType}</p>
             <p><strong>Branch vinculada:</strong> <template lwc:if={detailBranchId}><button type="button" class="cd-link" title={detailBranchName} data-id={detailBranchId} onclick={handleOpenBranch}>{detailBranchName}</button></template><template lwc:else>{detailBranchName}</template></p>
             <p class="cd-muted">Vínculo tipado no Flosum; não comprova implantação.</p>
             <h4>Component Histories relacionados</h4>
