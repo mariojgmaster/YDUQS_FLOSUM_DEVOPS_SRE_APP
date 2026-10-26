@@ -16,7 +16,7 @@
 ## Interpretações e conflitos resolvidos
 1. O catálogo de Branch Monitor não substitui a classificação legada de ambiente ainda utilizada em outros cálculos.
 2. `Flosum__Components__c` não é objeto comprovado; usar o singular verificado.
-3. O campo `Last_Commit` não é a versão canônica.
+3. O campo `Last_Commit` não é a versão canônica. Lookup History→Component confirmado no schema, mas revisão e preenchimento permanecem pendentes.
 4. Presença em Branch ≠ participação em Deployment.
 5. Resultado do Diff inventário não é por si uma diferença no conteúdo da versão.
 
