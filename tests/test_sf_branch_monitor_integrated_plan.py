@@ -48,6 +48,19 @@ class BranchIntegratedPlanTest(unittest.TestCase):
             self.assertEqual(m.members(out.read_bytes()),m.TARGET_TYPES)
             rogue=out.read_bytes().replace(b"branchMonitor",b"accountExplorer")
             self.assertNotEqual(m.members(rogue),m.TARGET_TYPES)
+    def test_safe_component_diagnostic_hides_raw_problems(self):
+        from contextlib import redirect_stdout
+        import io
+        log=io.StringIO()
+        with redirect_stdout(log):
+            m.classify_failures({"details":{"componentFailures":[{
+                "fullName":m.APP,
+                "componentType":"CustomApplication",
+                "problem":"INVALID_FIELD secret access token for internal user"
+            }]}})
+        self.assertIn("CustomApplication:"+m.APP,log.getvalue())
+        self.assertNotIn("secret",log.getvalue())
+        self.assertNotIn("internal user",log.getvalue())
     def test_app_only_exact_metadata_shape(self):
         with tempfile.TemporaryDirectory() as d:
             from zipfile import ZipFile
