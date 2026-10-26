@@ -47,7 +47,6 @@ private class DevSreComponentDescriberTest {
             Flosum__Component__c row = new Flosum__Component__c();
             String suffix=String.valueOf(i).leftPad(12,'0');
             row.put('Id',(Id)(cp+suffix));
-            row.put('Name','Flow_Component');
             row.put(foreign,branchId);
             records.add(row);
         }
@@ -56,7 +55,7 @@ private class DevSreComponentDescriberTest {
             DevSreComponentDescriberController.toPage(records,foreign,names);
         System.assertEquals(25,page.rows.size());
         System.assertEquals(true,page.hasMore);
-        System.assertEquals('Flow_Component',page.cursorName);
+        System.assertEquals(null,page.cursorName);
         System.assertEquals('integration',page.rows[0].branchName);
         System.assertEquals(branchId,page.rows[0].branchId);
         System.assertNotEquals(page.rows[0].id,page.rows[1].id);
