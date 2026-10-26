@@ -119,7 +119,7 @@ public with sharing class DevSreBranchMonitorController {
     row.completedAt=src.Flosum__Completed_Date__c;
     row.createdAt=src.CreatedDate;
     if (row.startedAt != null && row.completedAt != null && row.completedAt >= row.startedAt)
-      row.durationSeconds=Decimal.valueOf((row.completedAt.getTime()-row.startedAt.getTime())/1000.0);
+      row.durationSeconds=(row.completedAt.getTime()-row.startedAt.getTime())/1000.0;
     return row;
   }
   private static Map<Id,String> namesFor(List<Flosum__Metadata_Log__c> logs) {
@@ -151,7 +151,9 @@ public with sharing class DevSreBranchMonitorController {
       Overview page=new Overview();
       page.complete=logs.size()<=SUMMARY_LIMIT;
       page.recent=new List<ActivityRow>();
-      Map<Id,String> branchNames=namesFor(logs.subList(0, Math.min(logs.size(),8)));
+      List<Flosum__Metadata_Log__c> preview=new List<Flosum__Metadata_Log__c>();
+      for (Integer i=0;i<Math.min(logs.size(),8);i++) preview.add(logs[i]);
+      Map<Id,String> branchNames=namesFor(preview);
       for (Integer i=0;i<Math.min(logs.size(),8);i++)
         page.recent.add(toActivity(logs[i],branchNames));
       if (!page.complete) return page;
