@@ -22,6 +22,7 @@ on:
           - flosum-components-inspect
           - flosum-components-linkage
           - branch-monitor-app-inspect
+          - branch-monitor-m1-integrated-plan
       branch_id:
         description: "ID da Branch Flosum (15 ou 18 caracteres), somente para flosum-branch-inspect"
         required: false
@@ -39,7 +40,7 @@ concurrency:
 
 jobs:
   diagnose:
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'issues' && github.event.action == 'opened' && (github.event.issue.title == 'SDOA INVENTORY DevSreFeat Flosum' || github.event.issue.title == 'SDOA COMPONENTS DevSreFeat Flosum' || github.event.issue.title == 'SDOA COMPONENT LINKS DevSreFeat Flosum' || github.event.issue.title == 'SDOA APP NAVIGATION DevSreFeat Branch Monitor') && github.actor == github.repository_owner && github.event.issue.user.login == github.repository_owner && github.event.sender.login == github.repository_owner && github.ref == 'refs/heads/master' && github.run_attempt == 1) }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'issues' && github.event.action == 'opened' && (github.event.issue.title == 'SDOA INVENTORY DevSreFeat Flosum' || github.event.issue.title == 'SDOA COMPONENTS DevSreFeat Flosum' || github.event.issue.title == 'SDOA COMPONENT LINKS DevSreFeat Flosum' || github.event.issue.title == 'SDOA APP NAVIGATION DevSreFeat Branch Monitor' || github.event.issue.title == 'SDOA BRANCH INTEGRATION PLAN DevSreFeat') && github.actor == github.repository_owner && github.event.issue.user.login == github.repository_owner && github.event.sender.login == github.repository_owner && github.ref == 'refs/heads/master' && github.run_attempt == 1) }}
     name: Run on DevSreFeat
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -49,7 +50,7 @@ jobs:
       SF_USERNAME: ${{ secrets.SF_USERNAME }}
       SF_JWT_KEY: ${{ secrets.SF_JWT_KEY }}
       SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
-      OPERATION: ${{ github.event_name == 'issues' && (github.event.issue.title == 'SDOA APP NAVIGATION DevSreFeat Branch Monitor' && 'branch-monitor-app-inspect' || github.event.issue.title == 'SDOA COMPONENT LINKS DevSreFeat Flosum' && 'flosum-components-linkage' || github.event.issue.title == 'SDOA COMPONENTS DevSreFeat Flosum' && 'flosum-components-inspect' || 'flosum-schema-inventory') || inputs.operation }}
+      OPERATION: ${{ github.event_name == 'issues' && (github.event.issue.title == 'SDOA BRANCH INTEGRATION PLAN DevSreFeat' && 'branch-monitor-m1-integrated-plan' || github.event.issue.title == 'SDOA APP NAVIGATION DevSreFeat Branch Monitor' && 'branch-monitor-app-inspect' || github.event.issue.title == 'SDOA COMPONENT LINKS DevSreFeat Flosum' && 'flosum-components-linkage' || github.event.issue.title == 'SDOA COMPONENTS DevSreFeat Flosum' && 'flosum-components-inspect' || 'flosum-schema-inventory') || inputs.operation }}
     steps:
       - name: Validate target and required configuration
         shell: bash
@@ -90,6 +91,9 @@ jobs:
               ;;
             branch-monitor-app-inspect)
               python3 scripts/ci/sf-branch-monitor-app-inspect.py --verify-issue "$GITHUB_EVENT_PATH" --owner "$EXPECTED_OWNER"
+              ;;
+            branch-monitor-m1-integrated-plan)
+              python3 scripts/ci/sf-branch-monitor-integrated-plan.py --verify-issue "$GITHUB_EVENT_PATH" --owner "$EXPECTED_OWNER"
               ;;
             *) echo "::error::Unknown issue operation"; exit 2 ;;
           esac
@@ -232,6 +236,13 @@ jobs:
                 exit 1
               fi
               python3 scripts/ci/sf-flosum-schema-inventory.py --inventory
+              ;;
+            branch-monitor-m1-integrated-plan)
+              if [[ "$GITHUB_REF" != "refs/heads/master" || "$GITHUB_ACTOR" != "$GITHUB_REPOSITORY_OWNER" || "$GITHUB_RUN_ATTEMPT" != "1" ]]; then
+                echo "::error title=BM_INTEGRATION_PLAN_DENIED::Owner-only non-mutating integrated validation."
+                exit 1
+              fi
+              python3 scripts/ci/sf-branch-monitor-integrated-plan.py --plan
               ;;
             branch-monitor-app-inspect)
               if [[ "$GITHUB_REF" != "refs/heads/master" || "$GITHUB_ACTOR" != "$GITHUB_REPOSITORY_OWNER" || "$GITHUB_RUN_ATTEMPT" != "1" ]]; then
