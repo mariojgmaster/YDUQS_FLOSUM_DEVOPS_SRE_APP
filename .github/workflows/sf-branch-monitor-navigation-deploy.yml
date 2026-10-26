@@ -1,0 +1,115 @@
+# SPEC-006 Branch Monitor, Phase 2 ONLY: explicitly manual, owner-only,
+# SHA-locked, same-run dry-run & deployment, no permissive manifest changes.
+name: Salesforce DevSreFeat - Branch Monitor Navigation Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: "SHA completo (40 caracteres) do commit protegido na master"
+        required: true
+        type: string
+      confirmation:
+        description: "Digite exatamente DEPLOY DevSreFeat branch-monitor-m1-navigation"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sf-devsrefeat-branch-monitor-nav-write
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' && github.actor == github.repository_owner && github.run_attempt == 1 }}
+    name: Dry-run e deploy explicitamente autorizado de navegacao M1
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: sf-devsrefeat-read
+    env:
+      SF_CLIENT_ID: ${{ secrets.SF_CLIENT_ID }}
+      SF_USERNAME: ${{ secrets.SF_USERNAME }}
+      SF_JWT_KEY: ${{ secrets.SF_JWT_KEY }}
+      SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
+      REQUESTED_SHA: ${{ inputs.commit_sha }}
+      CONFIRMATION: ${{ inputs.confirmation }}
+    steps:
+      - name: Checkout approved protected master SHA
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify immutable target, input, actor and manifest
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          EVENT_ACTOR: ${{ github.actor }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_REF: ${{ github.ref }}
+          EVENT_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          [[ "$EVENT_NAME" == "workflow_dispatch" ]] || exit 1
+          [[ "$EVENT_REF" == "refs/heads/master" ]] || exit 1
+          [[ "$EVENT_RUN_ATTEMPT" == "1" ]] || exit 1
+          [[ "$EVENT_ACTOR" == "$REPO_OWNER" ]] || exit 1
+          [[ "$REQUESTED_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 1
+          [[ "$REQUESTED_SHA" == "$EXPECTED_SHA" ]] || exit 1
+          [[ "$REQUESTED_SHA" == "$(git rev-parse HEAD)" ]] || exit 1
+          [[ "$CONFIRMATION" == "DEPLOY DevSreFeat branch-monitor-m1-navigation" ]] || exit 1
+          [[ "$SF_INSTANCE_URL" == "https://yduqs--devsrefeat.sandbox.my.salesforce.com" ]] || exit 1
+          for required in SF_CLIENT_ID SF_USERNAME SF_JWT_KEY; do
+            [[ -n "${!required:-}" ]] || { echo "::error title=BM_NAV_SECRET_MISSING::Missing configured Environment authentication field."; exit 2; }
+          done
+          python3 - <<'PY'
+          import importlib.util
+          from pathlib import Path
+          x=Path('scripts/ci/sf-branch-monitor-integrated-plan.py')
+          s=importlib.util.spec_from_file_location('bm_navigation_plan', x)
+          m=importlib.util.module_from_spec(s)
+          s.loader.exec_module(m)
+          m.check_manifest(Path(m.SRC_MANIFEST))
+          if m.TARGET_TYPES != {
+              "CustomTab":{"branchMonitor"},
+              "PermissionSet":{"DevSreBranchMonitor_Reader"},
+              "CustomApplication":{"DevOps_SRE_Analytics"}
+          }: raise SystemExit(1)
+          print('BM_NAV_SCOPE_VERIFIED: custom_tab=1 reader_permission_set=1 existing_app=1 destructive=false')
+          PY
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install Salesforce CLI
+        run: npm install --global @salesforce/cli
+      - name: Authenticate with existing DevSreFeat ECA/JWT
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          KEY="$RUNNER_TEMP/bm-nav-jwt.key"
+          trap 'rm -f "$KEY" "$RUNNER_TEMP/bm-nav-auth.json" "$RUNNER_TEMP/bm-nav-auth.err"' EXIT
+          printf '%s' "$SF_JWT_KEY" > "$KEY"
+          if ! openssl pkey -in "$KEY" -noout -passin pass: >/dev/null 2>&1; then
+            echo "::error title=BM_NAV_INVALID_KEY::ECA JWT key validation failed."; exit 1
+          fi
+          if ! sf org login jwt --client-id "$SF_CLIENT_ID" --username "$SF_USERNAME" \
+             --jwt-key-file "$KEY" --instance-url "$SF_INSTANCE_URL" --alias devsrefeat-ci \
+             --json > "$RUNNER_TEMP/bm-nav-auth.json" 2> "$RUNNER_TEMP/bm-nav-auth.err"; then
+            echo "::error title=BM_NAV_AUTH_FAILED::Salesforce JWT login unsuccessful."; exit 1
+          fi
+          echo "PASS: BM_NAV_DEV_SRE_FEAT_JWT_AUTHENTICATED"
+      - name: Safe preflight, dry-run, real deploy and verification
+        shell: bash
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/sf-branch-monitor-navigation-deploy.py --sha "$REQUESTED_SHA" --confirmation "$CONFIRMATION"
