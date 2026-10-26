@@ -1,0 +1,125 @@
+<template>
+  <section class="bm-shell" aria-label="Branch Monitor">
+    <header class="bm-header">
+      <div class="bm-heading">
+        <span class="bm-icon" aria-hidden="true"><lightning-icon icon-name="utility:flow" variant="inverse" size="small"></lightning-icon></span>
+        <div class="bm-heading-text"><span class="bm-title">Branch Monitor</span><span class="bm-chevron" aria-hidden="true">›</span><span class="bm-crumb">{sectionLabel}</span></div>
+      </div>
+      <span class="bm-source" title="Fontes reais Salesforce Flosum">Dados Flosum</span>
+    </header>
+    <nav class="bm-tabs" role="tablist" aria-label="Seções do Branch Monitor">
+      <template for:each={tabItems} for:item="tab">
+        <button key={tab.value} id={tab.domId} type="button" role="tab" data-tab={tab.value}
+          class={tab.className} aria-selected={tab.selected} tabindex={tab.tabIndex}
+          onclick={handleTabClick} onkeydown={handleTabKey}>{tab.label}</button>
+      </template>
+    </nav>
+    <div id={sectionId} role="tabpanel" aria-labelledby={activeTabId} class="bm-view">
+      <template lwc:if={isOverview}>
+        <div class="bm-panel-heading">
+          <div><p class="bm-eyebrow">OBSERVABILIDADE DE BRANCHES</p><h2>Visão geral</h2><p>Atividade registrada no Metadata Log do Flosum.</p></div>
+          <div class="bm-actions"><lightning-combobox variant="label-hidden" aria-label="Período" label="Período" value={period} options={periodOptions} onchange={handlePeriod}></lightning-combobox>
+            <lightning-button-icon icon-name="utility:refresh" alternative-text="Atualizar atividades" title="Atualizar atividades" onclick={handleRefreshSummary} disabled={summaryLoading}></lightning-button-icon></div>
+        </div>
+        <template lwc:if={summaryLoading}><div class="bm-loading"><lightning-spinner size="small" alternative-text="Carregando atividades"></lightning-spinner></div></template>
+        <template lwc:elseif={summaryError}><div class="bm-message bm-error" role="alert">{summaryError}</div></template>
+        <template lwc:else>
+          <template lwc:if={summaryIncomplete}><div class="bm-message" role="status">O período excede 500 Metadata Logs acessíveis. Indicadores globais ocultos para evitar totais parciais; os registros recentes continuam disponíveis.</div></template>
+          <template lwc:if={summaryComplete}>
+            <div class="bm-metrics">
+              <template for:each={cards} for:item="card"><article key={card.id} class="bm-metric"><p title={card.label}>{card.label}</p><strong>{card.value}</strong></article></template>
+            </div>
+          </template>
+          <section class="bm-panel">
+            <div class="bm-panel-title"><h3>Atividade recente</h3><span>Metadata Logs — até 8 registros</span></div>
+            <template lwc:if={hasRecentLogs}>
+              <div class="bm-table-scroller">
+                <table class="bm-table">
+                  <thead><tr><th scope="col">Metadata Log</th><th scope="col">Branch</th><th scope="col">Operação</th><th scope="col">Resultado</th><th scope="col">Criado em (UTC)</th></tr></thead>
+                  <tbody><template for:each={recentLogs} for:item="log">
+                    <tr key={log.id}>
+                      <td><button type="button" class="bm-link" title={log.name} data-id={log.id} onclick={handleOpenLog}>{log.name}</button></td>
+                      <td><template lwc:if={log.branchId}><button type="button" class="bm-link" title={log.branchName} data-id={log.branchId} onclick={handleOpenBranch}>{log.branchName}</button></template><template lwc:else>—</template></td>
+                      <td><span class="bm-ellipsis" title={log.processType}>{log.processType}</span></td>
+                      <td><span class="bm-ellipsis" title={log.outcome}>{log.outcome}</span></td>
+                      <td><lightning-formatted-date-time value={log.createdAt} time-zone="UTC" day="2-digit" month="2-digit" year="numeric" hour="2-digit" minute="2-digit"></lightning-formatted-date-time></td>
+                    </tr>
+                  </template></tbody>
+                </table>
+              </div>
+            </template>
+            <template lwc:else><div class="bm-empty">Nenhuma atividade encontrada no período consultado.</div></template>
+          </section>
+          <p class="bm-footnote">Branches com atividade são identificadas por logs com referência à Branch, não representam o total de branches do Flosum. Deployment e Validate são operações distintas. Métricas DORA não certificadas.</p>
+        </template>
+      </template>
+
+      <template lwc:elseif={isBranches}>
+        <div class="bm-panel-heading">
+          <div><p class="bm-eyebrow">INVENTÁRIO FLOSum</p><h2>Branches</h2><p>Pesquise e examine logs operacionais por Branch.</p></div>
+          <lightning-button-icon icon-name="utility:refresh" alternative-text="Atualizar branches" title="Atualizar branches" onclick={handleRefreshBranches} disabled={branchesLoading}></lightning-button-icon>
+        </div>
+        <div class="bm-filterbar">
+          <lightning-input type="search" label="Pesquisar Branch" variant="label-hidden" placeholder="Pesquisar pelo nome da Branch…" value={branchSearch} onchange={handleSearch}></lightning-input>
+          <template lwc:if={searchTooLong}><span class="bm-error" role="alert">A pesquisa permite até 80 caracteres.</span></template>
+        </div>
+        <div class="bm-layout">
+          <section class="bm-panel">
+            <div class="bm-panel-title"><h3>Branches encontradas</h3><span>{branches.length} nesta consulta</span></div>
+            <template lwc:if={branchesLoading}><div class="bm-loading"><lightning-spinner size="small" alternative-text="Consultando branches"></lightning-spinner></div></template>
+            <template lwc:elseif={branchError}><div class="bm-message bm-error" role="alert">{branchError}</div></template>
+            <template lwc:else>
+              <template lwc:if={hasBranches}>
+                <div class="bm-table-scroller"><table class="bm-table bm-branch-table">
+                  <thead><tr><th scope="col">Branch Flosum</th><th scope="col">Modificada em (UTC)</th><th scope="col">Ações</th></tr></thead>
+                  <tbody><template for:each={selectedRows} for:item="branchRow">
+                    <tr key={branchRow.id} class={branchRow.rowClass}>
+                      <td><button type="button" class="bm-link" data-id={branchRow.id} title={branchRow.name} onclick={handleSelectBranch}>{branchRow.name}</button></td>
+                      <td><lightning-formatted-date-time value={branchRow.modifiedAt} time-zone="UTC" year="numeric" month="2-digit" day="2-digit"></lightning-formatted-date-time></td>
+                      <td><button type="button" class="bm-action-link" data-id={branchRow.id} onclick={handleOpenBranch}>Abrir <lightning-icon icon-name="utility:new_window" size="xx-small"></lightning-icon></button></td>
+                    </tr>
+                  </template></tbody>
+                </table></div>
+                <div class="bm-pagination"><span>Resultados paginados; não representa total global.</span><lightning-button label="Carregar mais" disabled={disableNext} onclick={handleNext}></lightning-button></div>
+              </template>
+              <template lwc:else><div class="bm-empty">Nenhuma Branch encontrada com estes filtros.</div></template>
+            </template>
+          </section>
+          <aside class="bm-panel bm-detail" aria-label="Detalhes da Branch">
+            <template lwc:if={detailLoading}><div class="bm-loading"><lightning-spinner size="small" alternative-text="Carregando detalhes"></lightning-spinner></div></template>
+            <template lwc:elseif={detailError}><div class="bm-message bm-error" role="alert">{detailError}</div></template>
+            <template lwc:elseif={hasDetail}>
+              <div class="bm-panel-title"><h3 title={detail.name}>{detail.name}</h3><lightning-button-icon icon-name="utility:close" alternative-text="Fechar detalhes" title="Fechar detalhes" onclick={handleCloseDetail}></lightning-button-icon></div>
+              <div class="bm-detail-body">
+                <p class="bm-muted">Metadata Logs associados nos últimos 90 dias, com base na data de criação.</p>
+                <lightning-button label="Abrir Branch no Flosum" data-id={detail.id} variant="brand-outline" onclick={handleOpenBranch}></lightning-button>
+                <h4>Operações recentes</h4>
+                <template lwc:if={hasSelectedLogs}>
+                  <template for:each={selectedLogs} for:item="log">
+                    <div key={log.id} class="bm-log-row">
+                      <button type="button" class="bm-link" title={log.name} data-id={log.id} onclick={handleOpenLog}>{log.name}</button>
+                      <div class="bm-log-meta"><span title={log.processType}>{log.processType}</span><span title={log.outcome}>{log.outcome}</span></div>
+                    </div>
+                  </template>
+                  <template lwc:if={detail.hasMore}><p class="bm-muted">Exibindo até 50 registros. Há mais logs não apresentados.</p></template>
+                </template>
+                <template lwc:else><div class="bm-empty">Sem operações acessíveis nos últimos 90 dias.</div></template>
+              </div>
+            </template>
+            <template lwc:else><div class="bm-empty">Selecione uma Branch para consultar seus detalhes operacionais.</div></template>
+          </aside>
+        </div>
+        <p class="bm-footnote">Última modificação da Branch não equivale a última entrega. A presença de uma Branch em um Metadata Log não comprova quais componentes foram implantados.</p>
+      </template>
+
+      <template lwc:elseif={isCompare}>
+        <div class="bm-panel-heading"><div><p class="bm-eyebrow">PRÓXIMO INCREMENTO</p><h2>Comparar Branches</h2><p>Metadata Diff com identidade de versão e proveniência.</p></div></div>
+        <div class="bm-coming"><lightning-icon icon-name="utility:diff" size="large" alternative-text=""></lightning-icon><h3>Comparação ainda indisponível</h3><p>Estamos validando identidade, snapshots e conteúdo histórico. Não vamos comparar apenas nomes e apresentar diferenças não comprovadas.</p></div>
+      </template>
+      <template lwc:elseif={isComponents}>
+        <div class="bm-panel-heading"><div><p class="bm-eyebrow">PRÓXIMO INCREMENTO</p><h2>Branch Describer</h2><p>Pesquisar um componente e rastrear branches e versões.</p></div></div>
+        <div class="bm-coming"><lightning-icon icon-name="utility:search" size="large" alternative-text=""></lightning-icon><h3>Pesquisa por componente em preparação</h3><p>O vínculo History → Component → Branch foi confirmado, mas precisamos identificar versão e FullName antes de liberar as consultas de histórico.</p></div>
+      </template>
+    </div>
+  </section>
+</template>
