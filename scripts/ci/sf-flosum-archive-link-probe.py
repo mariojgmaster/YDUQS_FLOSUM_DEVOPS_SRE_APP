@@ -36,10 +36,22 @@ def probe(read=rows):
     values=",".join("'"+x+"'" for x in ids)
     result={"histories":len(ids)}
     try:
-        attach=read("SELECT Id, Name, BodyLength FROM Attachment WHERE ParentId IN ("+values+") LIMIT 51",51)
+        attach=read("SELECT Id, Name, BodyLength, ContentType FROM Attachment WHERE ParentId IN ("+values+") LIMIT 51",51)
         result["attachment_count"]=len(attach)
         result["attachment_zip_count"]=sum(
             1 for a in attach if isinstance(a.get("Name"),str) and a["Name"].lower().endswith(".zip"))
+        result["attachment_zip_mime_count"]=sum(
+            1 for a in attach if isinstance(a.get("ContentType"),str) and
+            ("zip" in a["ContentType"].lower() or "compressed" in a["ContentType"].lower()))
+        result["attachment_octet_mime_count"]=sum(
+            1 for a in attach if isinstance(a.get("ContentType"),str) and
+            "octet-stream" in a["ContentType"].lower())
+        result["attachment_small_count"]=sum(
+            1 for a in attach if isinstance(a.get("BodyLength"),int) and
+            a["BodyLength"]<=1048576)
+        result["attachment_unknown_size_count"]=sum(
+            1 for a in attach if not isinstance(a.get("BodyLength"),int))
+
         result["attachment_small_zip_count"]=sum(
             1 for a in attach if isinstance(a.get("Name"),str) and a["Name"].lower().endswith(".zip")
             and isinstance(a.get("BodyLength"),int) and a["BodyLength"]<=1048576)
