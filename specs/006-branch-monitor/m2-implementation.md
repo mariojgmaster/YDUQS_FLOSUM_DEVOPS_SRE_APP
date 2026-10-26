@@ -29,3 +29,9 @@
 - **Fase M2A-activate**: pacote `branch-monitor-m2-activate`, somente `devSreBranchMonitor`, após o filho estar instalado e validado. Dry-run distinto.
 - **Permissão Reader** para o novo controlador é uma terceira mudança específica e deverá usar processo seguro com manifest revisado, após testar classe Apex; não alterar o PermissionSet da Fase 1 implicitamente.
 - Nenhuma implantação real aconteceu no dry-run rejeitado; source versionado não é prova de presença na org.
+
+## Reader M2 — pacote preparado (não implantado)
+- Atualiza o mesmo PermissionSet já atribuído aos leitores, `DevSreBranchMonitor_Reader`, com acesso Apex **somente** para `DevSreBranchMonitorController` e `DevSreComponentDescriberController`, mantendo `branchMonitor=Visible`.
+- Package `branch-monitor-m2-reader` contém **exatamente um PermissionSet**, com `RunSpecifiedTests`. Política fail-closed rejeita classe extra, outros tabSettings, permissões de usuário adicionadas e package_id não registrado.
+- Ordem segura: **M2-core → M2-activate + M2-reader**, com dry-run na sandbox e deploys específicos autorizados. `M2-reader` não deve rodar antes do Apex controller existir na org.
+- Nenhuma atribuição adicional é necessária para usuários que já possuem o Reader, mas testar após implantação real.
