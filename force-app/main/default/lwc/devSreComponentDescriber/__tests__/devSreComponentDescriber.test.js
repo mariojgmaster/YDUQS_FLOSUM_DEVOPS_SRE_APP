@@ -69,7 +69,7 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     expect(el.shadowRoot.querySelectorAll(".cd-table tbody tr")).toHaveLength(2);
     expect(text(el)).toContain("Branch SIT");
     expect(text(el)).toContain("Branch PROD");
-    expect(text(el)).toContain("Não é possível afirmar");
+    expect(text(el)).toContain("não comprova, sozinho, o FullName canônico");
   });
   it("exibe sugestões reais de picklist e combina Component Type e Nome",async()=>{
     const el=mount();await flush();
