@@ -185,6 +185,17 @@
       "allowed_types": [
         "LightningComponentBundle"
       ]
+    },
+    "branch-monitor-m2-reader": {
+      "manifest": "manifest/sf-branch-monitor-m2-reader.xml",
+      "test_level": "RunSpecifiedTests",
+      "tests": [
+        "DevSreComponentDescriberTest",
+        "DevSreBranchMonitorTest"
+      ],
+      "allowed_types": [
+        "PermissionSet"
+      ]
     }
   }
 }
