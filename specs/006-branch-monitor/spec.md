@@ -38,7 +38,7 @@ Deploy/merge/rollback, alterações de dados Flosum, inferir disponibilidade/sa�
 ## Critérios de aceite verificáveis
 - Reader enxerga somente registros acessíveis. Nenhuma ação de escrita é exposta.
 - Busca por componente de nome repetido devolve identidades distintas ou ambiguidade explícita.
-- Component History sem lookup tipado não gera join presumido; requer teste de correlação.
+- O lookup tipado History→Component está confirmado, mas não prova preenchimento, cardinalidade ou revisão; exigir teste de correlação antes de usar dados históricos.
 - A comparação de inventário com um lado incompleto retorna `incomplete`, nunca contagens globais definitivas.
 - Falha de acesso ao conteúdo bloqueia Diff textual, mas não as visões de identidade e inventário comprovado.
 - Todas as telas responsivas, com teclado, foco, cabeçalho único e reticências nas tabelas.
