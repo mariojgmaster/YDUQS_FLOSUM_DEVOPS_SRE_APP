@@ -57,4 +57,49 @@ private class DevSreHistoryArchiveReaderTest {
             System.assert(false, 'Invalid archive should fail');
         } catch (AuraHandledException expected) {}
     }
+
+    @IsTest static void selectsAccessibleMimeZipWithoutFileExtension() {
+        Attachment ignored = new Attachment(
+            Name='text attachment', ContentType='text/plain', Body=Blob.valueOf('text'));
+        Attachment accepted = new Attachment(
+            Name='ApexClass', ContentType='application/zip', Body=syntheticArchive());
+        Attachment second = new Attachment(
+            Name='Other', ContentType='application/x-zip-compressed', Body=syntheticArchive());
+        DevSreHistoryArchiveReader.ArchiveView view =
+            DevSreHistoryArchiveReader.inspectSelectedAttachments(
+                new List<SObject>{ignored, accepted, second}, null);
+        System.assertEquals('ApexClass', view.attachmentName);
+        System.assertEquals(2, view.matchingArchives);
+        System.assert(view.entries.size() > 0);
+        System.assertEquals(null, view.text);
+    }
+    @IsTest static void previewsOnlyRequestedContentAndRejectsMissingMimeZip() {
+        Attachment raw = new Attachment(
+            Name='ApexClass', ContentType='application/zip', Body=syntheticArchive());
+        DevSreHistoryArchiveReader.ArchiveView view =
+            DevSreHistoryArchiveReader.inspectSelectedAttachments(
+                new List<SObject>{raw}, 'classes/Example.cls');
+        System.assertEquals('public class Example {}', view.text);
+        try {
+            DevSreHistoryArchiveReader.inspectSelectedAttachments(
+                new List<SObject>{new Attachment(
+                    Name='OnlyText', ContentType='text/plain', Body=Blob.valueOf('hello'))},
+                null);
+            System.assert(false, 'Only ZIP MIME attachments are allowed');
+        } catch (AuraHandledException expected) {}
+    }
+    @IsTest static void rejectsMissingArchiveAndInvalidEntryPaths() {
+        try {
+            DevSreHistoryArchiveReader.inspectSelectedAttachments(new List<SObject>(),null);
+            System.assert(false, 'Missing archive must fail');
+        } catch (AuraHandledException expected) {}
+        try {
+            DevSreHistoryArchiveReader.parseArchive(null,null);
+            System.assert(false, 'Null archive must fail');
+        } catch (AuraHandledException expected) {}
+        for (String path : new List<String>{'', 'folder/', 'C:disk.cls',
+            'folder\\escape.cls', '../../secret.xml', 'file.exe'}) {
+            System.assertEquals(false, DevSreHistoryArchiveReader.isTextPath(path));
+        }
+    }
 }
