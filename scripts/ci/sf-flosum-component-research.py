@@ -14,11 +14,48 @@ BODY = "SDOA-FLOSUM-COMPONENTS/1\noperation=component-schema\ntarget=DevSreFeat"
 OBJECTS = ("Flosum__Components__c", "Flosum__Component__c", "Flosum__Component_History__c")
 TARGETS = {
     "branch": {"Flosum__Branch__c"},
-    "component": {"Flosum__Components__c"},
+    "component": {"Flosum__Component__c", "Flosum__Components__c"},
     "history": {"Flosum__Component_History__c"},
     "log": {"Flosum__Metadata_Log__c"},
 }
+# Heuristic only: field-name tokens are NOT verified entity relationships.
+ROLE_TOKENS = ("branch", "component", "commit", "version", "revision",
+               "content", "body", "xml", "metadata", "fullname",
+               "namespace", "type", "checksum", "hash")
+PUBLIC_TYPES = frozenset(("reference", "string", "textarea", "id", "datetime",
+                          "date", "boolean", "picklist", "double", "int",
+                          "base64", "encryptedstring", "long", "integer"))
+
 class Block(Exception): pass
+
+def role_profile(description):
+    """Count type-level candidates without leaking internal field API names or data."""
+    fields = description.get("fields")
+    if not isinstance(fields, list) or len(fields) > 5000:
+        raise Block("Invalid schema")
+    grouped = {token: {} for token in ROLE_TOKENS}
+    for field in fields:
+        if not isinstance(field, dict):
+            continue
+        name = field.get("name")
+        kind = field.get("type")
+        if not isinstance(name, str) or not isinstance(kind, str):
+            continue
+        kind = kind.lower() if kind.lower() in PUBLIC_TYPES else "other"
+        normalized = name.lower()
+        for token in ROLE_TOKENS:
+            if token in normalized:
+                grouped[token][kind] = grouped[token].get(kind, 0) + 1
+    return {token: values for token, values in grouped.items() if values}
+
+def print_role_profile(name, description):
+    roles = role_profile(description)
+    for role, values in sorted(roles.items()):
+        types = ",".join(f"{kind}:{count}" for kind,count in sorted(values.items()))
+        print(f"FLOSUM_COMPONENT_ROLE: object={name} role={role} candidate_types={types} evidence=heuristic_only")
+    print(f"FLOSUM_COMPONENT_ROLE_SUMMARY: object={name} roles={len(roles)} evidence=metadata_only")
+
+
 
 def verify_issue(event_path, owner):
     data=json.loads(Path(event_path).read_text("utf-8"))
@@ -64,6 +101,7 @@ def summarize(name, description):
           " "+" ".join(f"{role}={len(found)}" for role,found in refs.items()))
     print(f"FLOSUM_COMPONENT_SIGNALS: object={name} body_candidates={binary} version_candidates={versions} commit_candidates={commits}")
     print("FLOSUM_COMPONENT_NAME_SIGNALS: object="+name+" "+" ".join(f"{k}={v}" for k,v in name_signals.items()))
+    print_role_profile(name, description)
     return refs
 
 def inspect():

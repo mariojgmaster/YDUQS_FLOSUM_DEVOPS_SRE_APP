@@ -34,6 +34,39 @@ class ComponentsResearchSafety(unittest.TestCase):
         self.assertEqual(len(refs["branch"]),1)
         self.assertEqual(len(refs["component"]),1)
         self.assertEqual(len(refs["log"]),0)
+    def test_role_profile_is_typed_but_does_not_expose_field_names(self):
+        description={"fields":[
+            {"name":"Flosum__Branch__c","type":"reference","referenceTo":["Flosum__Branch__c"]},
+            {"name":"Flosum__Component_Key__c","type":"string"},
+            {"name":"Flosum__Component_Link__c","type":"reference","referenceTo":["Flosum__Component__c"]},
+            {"name":"Flosum__Version__c","type":"string"},
+            {"name":"Flosum__Code_Body__c","type":"textarea"},
+            {"name":"Flosum__SecretKey__c","type":"encryptedstring"},
+        ]}
+        roles=mod.role_profile(description)
+        self.assertEqual(roles["branch"],{"reference":1})
+        self.assertEqual(roles["component"],{"reference":1,"string":1})
+        self.assertEqual(roles["version"],{"string":1})
+        self.assertEqual(roles["body"],{"textarea":1})
+        self.assertNotIn("secret",roles)
+        import io
+        from contextlib import redirect_stdout
+        buf=io.StringIO()
+        with redirect_stdout(buf): mod.print_role_profile("Flosum__Component_History__c",description)
+        output=buf.getvalue()
+        self.assertIn("candidate_types=reference:1,string:1",output)
+        self.assertNotIn("Component_Key",output)
+        self.assertNotIn("SecretKey",output)
+    def test_invalid_schema_blocked(self):
+        with self.assertRaises(mod.Block): mod.role_profile({"fields":None})
+        with self.assertRaises(mod.Block): mod.role_profile({"fields":[{}]*5001})
+    def test_singular_component_reference_classified(self):
+        result=mod.summarize("Flosum__Component_History__c",{"fields":[
+            {"name":"Flosum__Component__c","type":"reference",
+             "referenceTo":["Flosum__Component__c"]},
+        ]})
+        self.assertEqual(len(result["component"]),1)
+
     def test_fixed_object_allowlist(self):
         self.assertEqual(mod.OBJECTS,("Flosum__Components__c","Flosum__Component__c","Flosum__Component_History__c"))
 
