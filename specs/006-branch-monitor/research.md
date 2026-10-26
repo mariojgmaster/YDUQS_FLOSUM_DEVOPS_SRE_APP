@@ -40,3 +40,14 @@ O nome exato dos campos de identidade, FullName, conteúdo, revisão e vínculos
 
 ## Confiança
 `confirmed`: relação/timestamp/schema comprovados em resultado da fonte. `candidate`: indício estrutural ainda não correlacionado. `unverified`: ausência de evidência. `unavailable`: fonte sem acesso ou limite. `incomplete`: consulta truncada/escopo parcial. Nunca transformar unverified em false.
+
+## Evidência complementar — referências reais (26/10/2026 UTC)
+
+A consulta limitada e somente leitura [run #40252592308](https://github.com/mariojgmaster/YDUQS_FLOSUM_DEVOPS_SRE_APP/actions/runs/40252592308) na DevSreFeat retornou:
+- 14 registros `Flosum__Component__c` acessíveis na amostra com referência Branch preenchida.
+- 18 registros `Flosum__Component_History__c` com referência Component preenchida.
+- Os 18 históricos referenciam 14 componentes distintos; os 14 foram resolvidos por Id para Component acessível e todos possuem Branch vinculada.
+- `component_sample_more=false`, `history_sample_more=false`, dentro do teto de 100 por amostra.
+- Resultado do coletor: `link_quality=positive_sample_only`.
+
+**Interpretar corretamente:** isto comprova a cadeia de relacionamento preenchida nos registros acessíveis selecionados, mas não prova ausência de registros com referência nula, cobertura global, semântica de revisão, conteúdo XML/código ou quais componentes entraram em cada deployment. Não houve leitura de código, nome de registro ou XML.
