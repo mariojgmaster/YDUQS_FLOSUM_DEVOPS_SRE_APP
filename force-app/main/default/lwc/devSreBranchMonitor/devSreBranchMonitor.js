@@ -50,9 +50,11 @@ export default class DevSreBranchMonitor extends NavigationMixin(LightningElemen
   get isComponents() { return this.activeTab === "components"; }
   get sectionLabel() { return TABS.find(t => t.value === this.activeTab)?.label || "Visão geral"; }
   get sectionId() { return "bm-panel-" + this.activeTab; }
+  get activeTabId() { return "bm-tab-" + this.activeTab; }
   get tabItems() {
     return this.tabs.map(t => ({
       ...t,
+      domId: "bm-tab-" + t.value,
       className: t.value === this.activeTab ? "bm-tab bm-tab_active" : "bm-tab",
       selected: t.value === this.activeTab,
       tabIndex: t.value === this.activeTab ? "0" : "-1"
