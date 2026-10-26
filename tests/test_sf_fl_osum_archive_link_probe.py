@@ -18,13 +18,16 @@ class ArchiveProbeTests(unittest.TestCase):
             recorded.append(query)
             if "Component_History__c" in query:return [{"Id":"a0B000000000001"}]
             if " FROM Attachment " in query:return [
-                {"Id":"00P000000000001","Name":"Private.zip","BodyLength":250},
-                {"Id":"00P000000000002","Name":"Private.txt","BodyLength":250}]
+                {"Id":"00P000000000001","Name":"ApexClass","ContentType":"application/zip","BodyLength":250},
+                {"Id":"00P000000000002","Name":"Other.txt","ContentType":"application/octet-stream","BodyLength":250}]
             if " FROM ContentDocumentLink " in query:return []
             raise AssertionError(query)
         x=m.probe(read)
-        self.assertEqual(1,x["attachment_zip_count"])
-        self.assertEqual(1,x["attachment_small_zip_count"])
+        self.assertEqual(0,x["attachment_zip_count"])
+        self.assertEqual(1,x["attachment_zip_mime_count"])
+        self.assertEqual(1,x["attachment_octet_mime_count"])
+        self.assertEqual(2,x["attachment_small_count"])
+        self.assertEqual(0,x["attachment_small_zip_count"])
         self.assertEqual(0,x["files_count"])
         self.assertNotIn("Private",json.dumps(x))
         self.assertTrue(all("Body FROM" not in q for q in recorded))
