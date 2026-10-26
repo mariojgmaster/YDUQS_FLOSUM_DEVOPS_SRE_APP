@@ -141,6 +141,17 @@
         "ApexClass",
         "LightningComponentBundle"
       ]
+    },
+    "branch-monitor-m1": {
+      "manifest": "manifest/sf-branch-monitor-m1.xml",
+      "test_level": "RunSpecifiedTests",
+      "tests": [
+        "DevSreBranchMonitorTest"
+      ],
+      "allowed_types": [
+        "ApexClass",
+        "LightningComponentBundle"
+      ]
     }
   }
 }
