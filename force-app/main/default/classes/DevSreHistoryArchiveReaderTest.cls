@@ -7,15 +7,15 @@ private class DevSreHistoryArchiveReaderTest {
         writer.addEntry('images/icon.png',Blob.valueOf('not a supported preview'));
         Blob zip=writer.getArchive();
         Test.startTest();
-        DevSreHistoryArchiveReader.ArchiveView list=
+        DevSreHistoryArchiveReader.ArchiveView manifestView=
             DevSreHistoryArchiveReader.parseArchive(zip,null);
         DevSreHistoryArchiveReader.ArchiveView preview=
             DevSreHistoryArchiveReader.parseArchive(zip,'classes/Example.cls');
         Test.stopTest();
-        System.assertEquals(3,list.entries.size());
-        System.assertEquals(null,list.text);
-        System.assertEquals(true,list.entries[0].previewable);
-        System.assertEquals(false,list.entries[2].previewable);
+        System.assertEquals(3,manifestView.entries.size());
+        System.assertEquals(null,manifestView.text);
+        System.assertEquals(true,manifestView.entries[0].previewable);
+        System.assertEquals(false,manifestView.entries[2].previewable);
         System.assertEquals('public class Example {}',preview.text);
         System.assertEquals('classes/Example.cls',preview.selectedPath);
         try {
