@@ -9,7 +9,7 @@ Origem: GitHub Actions read-only [run 40225283951](https://github.com/mariojgmas
 | `Flosum__Metadata_Log__c` | Confirmado | lookup Branch e organização, Process_Type, Status, Job_Completed, Succeed, Is_Error, Start_Date, Completed_Date |
 | `Flosum__Components__c` | **Describe indisponível** | não utilizar como API name confirmado |
 | `Flosum__Component__c` | Describe OK, **37 campos** | exatamente 1 referência tipada a `Flosum__Branch__c`; sinais de versão/commit; nenhum body detectado por tipo textarea/base64/encryptedstring |
-| `Flosum__Component_History__c` | Describe OK, **32 campos** | nenhuma referência tipada a Branch/Component/Metadata Log; sinais nominais: branch=1, component=1, commit=4, version=3; possível campo tipo texto longo |
+| `Flosum__Component_History__c` | Describe OK, **32 campos** | **1 referência tipada a \`Flosum__Component__c\` (singular)**, sem referência tipada direta ao objeto Branch ou Metadata Log; sinais nominais branch=1, component=1, commit=4, version=3; possível campo tipo texto longo |
 
 O nome exato dos campos de identidade, FullName, conteúdo, revisão e vínculos internos do histórico **ainda não está documentado como comprovado**. Os sinais de nomes são heurísticos: não criam relações. `Flosum__Last_Commit__c` é texto e não deve ser a fonte exclusiva de revisão.
 
