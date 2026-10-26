@@ -115,6 +115,58 @@ private class DevSreComponentDescriberTest {
         } catch(AuraHandledException expected) {}
     }
 
+    @IsTest static void checkedQueriesAndBoundaryExceptions() {
+        String branchField=DevSreComponentDescriberController.typedForeignKey(
+            Flosum__Component__c.SObjectType,Flosum__Branch__c.SObjectType);
+        String historyField=DevSreComponentDescriberController.typedForeignKey(
+            Flosum__Component_History__c.SObjectType,Flosum__Component__c.SObjectType);
+        String base=DevSreComponentDescriberController.searchQuery(branchField,false);
+        String paginated=DevSreComponentDescriberController.searchQuery(branchField,true);
+        System.assert(base.contains('ORDER BY Name ASC, Id ASC LIMIT 26'));
+        System.assert(!base.contains('Name > :cursorName'));
+        System.assert(paginated.contains('Name > :cursorName'));
+        System.assert(paginated.contains('Id > :cursorId'));
+        System.assert(DevSreComponentDescriberController.historyQuery(historyField).contains(
+            'ORDER BY CreatedDate DESC, Id DESC LIMIT 21'));
+        for (String candidate : new List<String>{'Name','Bad Field','Flosum__Invalid__r'}) {
+            try {
+                DevSreComponentDescriberController.searchQuery(candidate,false);
+                System.assert(false,'Unexpected search query field');
+            } catch(AuraHandledException expected) {}
+            try {
+                DevSreComponentDescriberController.historyQuery(candidate);
+                System.assert(false,'Unexpected history query field');
+            } catch(AuraHandledException expected) {}
+        }
+        try {
+            DevSreComponentDescriberController.typedForeignKey(
+                Flosum__Component__c.SObjectType,User.SObjectType);
+            System.assert(false,'No typed Component to User link expected');
+        } catch(AuraHandledException expected) {}
+        System.assertEquals('%A\\%B%',DevSreComponentDescriberController.likeTerm('A%B'));
+        System.assertEquals('%A\\_B%',DevSreComponentDescriberController.likeTerm('A_B'));
+    }
+    @IsTest static void emptyAndUnlinkedFixturesDoNotClaimHistory() {
+        String fk=DevSreComponentDescriberController.typedForeignKey(
+            Flosum__Component__c.SObjectType,Flosum__Branch__c.SObjectType);
+        Flosum__Component__c source=new Flosum__Component__c();
+        source.put('Id',(Id)(Flosum__Component__c.SObjectType.getDescribe().getKeyPrefix()+'000000000001'));
+        DevSreComponentDescriberController.ComponentRow row=
+            DevSreComponentDescriberController.convert(source,fk,new Map<Id,String>());
+        System.assertEquals('Sem Branch vinculada',row.branchName);
+        System.assertEquals(null,row.branchId);
+        DevSreComponentDescriberController.ComponentDetail details=
+            DevSreComponentDescriberController.buildDetail(source,fk,
+                new Map<Id,String>(),new List<SObject>(),true);
+        System.assertEquals(false,details.historiesHasMore);
+        System.assertEquals(0,details.histories.size());
+        System.assertEquals('TYPED_LINK_SAMPLE',details.historyQuality);
+        System.assertEquals('UNVERIFIED',details.deployEvidenceQuality);
+        DevSreComponentDescriberController.ComponentPage page=
+            DevSreComponentDescriberController.toPage(new List<SObject>(),fk,new Map<Id,String>());
+        System.assertEquals(false,page.hasMore);
+        System.assertEquals(null,page.cursorId);
+    }
     @IsTest static void histSampleLimitAndNoFakeVersionOrDeploy() {
         String prefix=Flosum__Component_History__c.SObjectType.getDescribe().getKeyPrefix();
         List<SObject> history=new List<SObject>();
