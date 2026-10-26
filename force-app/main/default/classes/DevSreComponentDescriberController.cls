@@ -109,6 +109,22 @@ public with sharing class DevSreComponentDescriberController {
         return page;
     }
 
+    @TestVisible private static String searchQuery(String field, Boolean hasCursor) {
+        if (!Pattern.matches('Flosum__[A-Za-z][A-Za-z0-9_]*__c',field))
+            throw new AuraHandledException('Relação de Branch inválida.');
+        String query = 'SELECT Id, Name, CreatedDate, ' + field +
+            ' FROM Flosum__Component__c WHERE Name LIKE :pattern';
+        if (hasCursor)
+            query += ' AND (Name > :cursorName OR (Name = :cursorName AND Id > :cursorId))';
+        return query + ' ORDER BY Name ASC, Id ASC LIMIT 26';
+    }
+    @TestVisible private static String historyQuery(String field) {
+        if (!Pattern.matches('Flosum__[A-Za-z][A-Za-z0-9_]*__c',field))
+            throw new AuraHandledException('Relação de histórico inválida.');
+        return 'SELECT Id, CreatedDate FROM Flosum__Component_History__c WHERE ' +
+            field + ' = :componentId ORDER BY CreatedDate DESC, Id DESC LIMIT 21';
+    }
+
     @AuraEnabled(cacheable=true)
     public static ComponentPage searchComponents(String search, String cursorName, Id cursorId) {
         String pattern = likeTerm(search);
@@ -118,11 +134,7 @@ public with sharing class DevSreComponentDescriberController {
             Map<String,Object> binds = new Map<String,Object>{
                 'pattern' => pattern, 'cursorName' => cursorName, 'cursorId' => cursorId
             };
-            String query = 'SELECT Id, Name, CreatedDate, ' + field +
-                ' FROM Flosum__Component__c WHERE Name LIKE :pattern';
-            if (cursorId != null)
-                query += ' AND (Name > :cursorName OR (Name = :cursorName AND Id > :cursorId))';
-            query += ' ORDER BY Name ASC, Id ASC LIMIT 26';
+            String query = searchQuery(field,cursorId != null);
             List<SObject> records = Database.queryWithBinds(query, binds, AccessLevel.USER_MODE);
             return toPage(records, field, branchNames(records, field));
         } catch (AuraHandledException known) {
@@ -178,8 +190,7 @@ public with sharing class DevSreComponentDescriberController {
                 Flosum__Component_History__c.SObjectType, Flosum__Component__c.SObjectType
             );
             List<SObject> history = Database.queryWithBinds(
-                'SELECT Id, CreatedDate FROM Flosum__Component_History__c WHERE ' +
-                historyKey + ' = :componentId ORDER BY CreatedDate DESC, Id DESC LIMIT 21',
+                historyQuery(historyKey),
                 new Map<String,Object>{ 'componentId' => componentId },
                 AccessLevel.USER_MODE
             );
