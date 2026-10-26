@@ -290,6 +290,17 @@ public with sharing class DevSreComponentDescriberController {
         return result;
     }
 
+    /**
+     * On-demand read-only ZIP browser. Caller must have Attachment and History
+     * access in USER_MODE; no ZIP bytes are cached or written to Salesforce.
+     */
+    @AuraEnabled
+    public static DevSreHistoryArchiveReader.ArchiveView inspectHistoryArchive(
+        Id historyId, String entryPath
+    ) {
+        return DevSreHistoryArchiveReader.inspect(historyId, entryPath);
+    }
+
     @AuraEnabled(cacheable=true)
     public static ComponentDetail describeComponent(Id componentId) {
         if (componentId == null || componentId.getSObjectType() != Flosum__Component__c.SObjectType)
