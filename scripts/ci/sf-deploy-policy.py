@@ -14,7 +14,7 @@ NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
 KEY = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{0,59}$")
 ENV = re.compile(r"^sf-[a-z0-9-]{4,80}$")
 FOLDERS = {"ApexClass": "classes", "LightningComponentBundle": "lwc", "PermissionSet": "permissionsets"}
-PERMISSIONSET_PACKAGE = "branch-monitor-reader-visibility"
+PERMISSIONSET_PACKAGES = {"branch-monitor-reader-visibility", "branch-monitor-m2-reader"}
 PERMISSIONSET_MEMBER = "DevSreBranchMonitor_Reader"
 NS = {"m": "http://soap.sforce.com/2006/04/metadata"}
 MAX_FILE = 2_000_000
@@ -44,7 +44,7 @@ def pkg_info(d, package):
     allowed = info.get("allowed_types")
     if not isinstance(allowed, list) or not allowed or len(allowed) != len(set(allowed)) or any(t not in FOLDERS for t in allowed):
         raise PolicyError("Metadata type not supported")
-    if "PermissionSet" in allowed and (package != PERMISSIONSET_PACKAGE or allowed != ["PermissionSet"]):
+    if "PermissionSet" in allowed and (package not in PERMISSIONSET_PACKAGES or allowed != ["PermissionSet"]):
         raise PolicyError("Only reviewed Branch Monitor Reader permission change allowed")
     return info
 
@@ -221,24 +221,34 @@ def verify_reader_visibility_change(raw):
     if root.tag != ns+"PermissionSet" or root.attrib:
         raise PolicyError("Invalid Reader PermissionSet schema")
     children = list(root)
-    if len(children) != 3 or sorted(x.tag for x in children) != sorted([
-            ns+"label", ns+"classAccesses", ns+"tabSettings"]):
-        raise PolicyError("PermissionSet outside reviewed members")
+    if len(children) != 4 or sorted(x.tag for x in children) != sorted([
+            ns+"label",ns+"classAccesses",ns+"classAccesses",ns+"tabSettings"]):
+        raise PolicyError("Reader PermissionSet outside two-class approved scope")
     if root.findtext(ns+"label") != "DevOps SRE - Leitura Branch Monitor":
         raise PolicyError("Reader PermissionSet label drift")
-    apex = root.find(ns+"classAccesses")
+    classes = root.findall(ns+"classAccesses")
+    names = []
+    for elem in classes:
+        if len(elem)!=2 or elem.attrib:
+            raise PolicyError("Reader class access invalid")
+        child_values = {child.tag:child.text for child in elem}
+        if len(child_values)!=2 or child_values.get(ns+"enabled")!="true":
+            raise PolicyError("Reader class access invalid")
+        names.append(child_values.get(ns+"apexClass"))
+        if any(child.attrib or len(child) for child in elem):
+            raise PolicyError("Nested class privilege invalid")
+    if sorted(names)!=sorted([
+        "DevSreBranchMonitorController","DevSreComponentDescriberController"
+    ]):
+        raise PolicyError("Reader class grant outside approved scope")
     tab = root.find(ns+"tabSettings")
-    if apex is None or tab is None or len(apex) != 2 or len(tab) != 2:
-        raise PolicyError("Reader PermissionSet privilege shape drift")
-    if ({child.tag: child.text for child in apex} != {
-           ns+"apexClass":"DevSreBranchMonitorController",ns+"enabled":"true"} or
-        {child.tag: child.text for child in tab} != {
-           ns+"tab":"branchMonitor",ns+"visibility":"Visible"}):
-        raise PolicyError("Unexpected Reader permissions")
-    if any(el.attrib or len(el) for el in children if el.tag != ns+"label"):
-        # Nested scalar children must not contain additional privilege fields.
-        if any(grand.attrib or len(grand) for parent in (apex,tab) for grand in parent):
-            raise PolicyError("Unexpected nested permission settings")
+    if tab is None or len(tab)!=2 or tab.attrib:
+        raise PolicyError("Tab visibility shape drift")
+    settings = {child.tag:child.text for child in tab}
+    if len(settings)!=2 or settings!={ns+"tab":"branchMonitor",ns+"visibility":"Visible"}:
+        raise PolicyError("Unexpected tab access")
+    if any(child.attrib or len(child) for child in tab):
+        raise PolicyError("Tab settings are not scalar")
     return True
 
 def compare(a, b, manifest):
