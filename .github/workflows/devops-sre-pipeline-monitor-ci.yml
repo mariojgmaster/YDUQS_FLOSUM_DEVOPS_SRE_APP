@@ -5,6 +5,8 @@ on:
     paths:
       - '.github/workflows/devops-sre-pipeline-monitor-ci.yml'
       - 'force-app/main/default/lwc/devSrePipelineMonitor/**'
+      - 'force-app/main/default/lwc/devSreBranchMonitor/**'
+      - 'force-app/main/default/classes/DevSreBranchMonitor*'
       - 'force-app/main/default/classes/DevSrePipelineMonitorController*'
       - 'manifest/sf-devops-sre-pipeline-monitor.xml'
       - '.github/workflows/sf-devsrefeat-diagnostics.yml'
@@ -38,5 +40,9 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: ESLint Pipeline Monitor
         run: npx eslint force-app/main/default/lwc/devSrePipelineMonitor/devSrePipelineMonitor.js
+      - name: ESLint Branch Monitor
+        run: npx eslint force-app/main/default/lwc/devSreBranchMonitor/devSreBranchMonitor.js
+      - name: Jest Branch Monitor
+        run: npm run test:unit -- -- --runInBand --runTestsByPath force-app/main/default/lwc/devSreBranchMonitor/__tests__/devSreBranchMonitor.test.js
       - name: Jest Pipeline Monitor
         run: npm run test:unit -- -- --runInBand --runTestsByPath force-app/main/default/lwc/devSrePipelineMonitor/__tests__/devSrePipelineMonitor.test.js
