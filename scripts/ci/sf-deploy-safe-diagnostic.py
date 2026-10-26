@@ -163,7 +163,7 @@ def _safe_component_problem_code(problem):
     checks = (
         ("MISSING_LWC_MODULE", r"no module named|cannot find module|failed to resolve.*module|unable to resolve.*module|module.*not found"),
         ("MISSING_COMPONENT_REFERENCE", r"(component|bundle|reference).*(not found|does not exist|unknown|missing)|cannot find.*component"),
-        ("LWC_COMPILATION", r"\\blwc[0-9]{3,5}\\b|compil(e|ation|er)|syntax error|parsing error|parse error"),
+        ("LWC_COMPILATION", r"\blwc[0-9]{3,5}\b|compil(e|ation|er)|syntax error|parsing error|parse error"),
         ("INVALID_TEMPLATE", r"invalid.*template|template.*invalid|markup.*invalid|unexpected.*tag"),
         ("INVALID_DIRECTIVE", r"invalid.*directive|unsupported.*directive|directive.*not supported"),
         ("DEPLOY_DEPENDENCY", r"dependenc(y|ies)|dependent|cannot resolve|unresolved"),
