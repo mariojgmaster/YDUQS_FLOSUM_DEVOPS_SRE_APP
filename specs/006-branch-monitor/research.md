@@ -26,7 +26,7 @@ O nome exato dos campos de identidade, FullName, conteúdo, revisão e vínculos
 
 ## Lacunas prioritárias — bloquear até resolver
 1. API names, data types, acessibilidade/FLS, referência e significado dos campos de `Flosum__Component__c` usados para identidade de componente, tipo e versão.
-2. Método de ligação `Flosum__Component_History__c` → componente/branch/commit e cardinalidade verdadeira, incluindo casos sem vínculo.
+2. **Lookup History→Component tipado confirmado**. Validar preenchimento e cardinalidade real, assim como vínculos de commit/versão e registros sem relacionamento.
 3. Se há snapshot/código/XML acessível por API para **duas revisões** da mesma identidade de componente e o que significa uma versão.
 4. Fonte de associação componente → tentativa de deploy/validate; a presença de um componente na Branch não basta.
 5. Completude por branch: limite de registros, deletes, renames, namespaces e mudanças concorrentes; captura de watermark/revisão.
