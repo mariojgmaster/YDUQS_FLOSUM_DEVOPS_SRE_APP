@@ -177,6 +177,28 @@ def _safe_component_problem_code(problem):
     return "UNCLASSIFIED_COMPONENT"
 
 
+
+# Fixed lexical indicators only; never return fragments of an org-origin message.
+SAFE_COMPONENT_TOKENS = frozenset((
+    "access", "already", "apex", "api", "attribute", "available", "bundle",
+    "cannot", "class", "compile", "component", "create", "custom", "delete",
+    "dependency", "deploy", "different", "duplicate", "error", "exception",
+    "exist", "exists", "failed", "field", "file", "html", "invalid",
+    "javascript", "js", "lightning", "locked", "lwc", "markup", "metadata",
+    "missing", "module", "name", "namespace", "not", "object", "package",
+    "page", "permission", "property", "reference", "required", "resource",
+    "source", "template", "type", "unable", "unexpected", "unknown", "update",
+    "used", "using", "version", "visibility", "visible", "with"
+))
+
+def _safe_component_problem_markers(problem):
+    if not isinstance(problem, str):
+        return []
+    # Literal known generic words only; never copy strings, IDs, URLs or names.
+    tokens = set(re.findall(r"[a-z]+", problem.lower()))
+    return sorted(tokens.intersection(SAFE_COMPONENT_TOKENS))[:28]
+
+
 def detailed_report(payload, cli_exit, phase, allowed_names, method_root=None):
     """Full *enumeration* of failure records, not full raw org data.
 
@@ -235,9 +257,13 @@ def detailed_report(payload, cli_exit, phase, allowed_names, method_root=None):
                 record["problem_type"] = _safe_enum(
                     item.get("problemType"), {"Error", "Warning", "error", "warning"}
                 )
-                record["problem_code"] = _safe_component_problem_code(
-                    item.get("problem") if isinstance(item.get("problem"), str)
-                    else item.get("message")
+                problem = item.get("problem") if isinstance(item.get("problem"), str) else item.get("message")
+                record["problem_code"] = _safe_component_problem_code(problem)
+                record["problem_markers"] = _safe_component_problem_markers(problem)
+                record["message_source"] = (
+                    "problem" if isinstance(item.get("problem"), str)
+                    else "message" if isinstance(item.get("message"), str)
+                    else "none"
                 )
             report["failures"].append(record)
     report["enumerated_failures"] = len(report["failures"])
