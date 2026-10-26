@@ -152,6 +152,16 @@
         "ApexClass",
         "LightningComponentBundle"
       ]
+    },
+    "branch-monitor-reader-visibility": {
+      "manifest": "manifest/sf-branch-monitor-reader-visibility.xml",
+      "test_level": "RunSpecifiedTests",
+      "tests": [
+        "DevSreBranchMonitorTest"
+      ],
+      "allowed_types": [
+        "PermissionSet"
+      ]
     }
   }
 }
