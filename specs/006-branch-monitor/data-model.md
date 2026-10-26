@@ -7,7 +7,7 @@ Modelo de leitura derivado dos objetos Flosum; nomes a seguir são **DTOs propos
 | `BranchRef` | `id, name, organizationId?, updatedAt?, status?` | Id de `Flosum__Branch__c`; outros campos sujeitos a schema |
 | `ComponentKey` | `metadataType, fullName, namespace?` | regras por tipo e normalização Unicode/case definidas |
 | `BranchPresence` | `branchId, componentId, key, revisionRef?, observedAt?, completeness` | `Flosum__Component__c` + lookup Branch confirmado |
-| `HistoryVersion` | `historyId, componentRef?, revisionRef?, commitRef?, timestamp?, payloadRef?, linkage` | contrato de `Flosum__Component_History__c` ainda pendente |
+| `HistoryVersion` | `historyId, componentRef?, revisionRef?, commitRef?, timestamp?, payloadRef?, linkage` | lookup tipado History→Component confirmado no schema; preenchimento, revisão e conteúdo ainda pendentes |
 | `OperationEvidence` | `metadataLogId, branchId, processType, outcome, startedAt?, completedAt?, organizationId?` | Metadata Log; associação ao componente precisa de trilha adicional |
 | `DiffResult` | `key, leftPresence?, rightPresence?, state, textDiff?, semanticDiff?, provenance` | A/B completos ou explicitamente incompletos |
 | `ComponentDescriberResult` | `key, branchOccurrences[], history[], operationEvidence[], quality` | joins independentes, cada um com qualidade declarada |
