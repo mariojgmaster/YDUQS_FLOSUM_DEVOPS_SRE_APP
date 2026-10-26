@@ -15,6 +15,7 @@ class ComponentProblemCodeTests(unittest.TestCase):
         cases = [
             ("No MODULE named markup://c:devSreComponentDescriber " + org_private, "MISSING_LWC_MODULE"),
             ("LWC1010: Compilation failed " + org_private, "LWC_COMPILATION"),
+            ("LWC1010: " + org_private, "LWC_COMPILATION"),
             ("Invalid directive " + org_private, "INVALID_DIRECTIVE"),
             ("Dependency failed: " + org_private, "DEPLOY_DEPENDENCY"),
             ("Unexpected failure " + org_private, "UNCLASSIFIED_COMPONENT"),
