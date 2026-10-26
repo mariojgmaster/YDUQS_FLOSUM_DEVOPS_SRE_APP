@@ -12,7 +12,7 @@
 **Describer:** pesquisa indexável por `ComponentKey`, drilldown por BranchPresence, união com HistoryVersion somente após prova de ligação e associação a OperationEvidence somente se o vínculo exato da versão com a execução existir.
 
 ## Fases / gates
-- **G0 Descoberta confiável:** contrato real de Component e History (schema e ligação, testes) — andamento.
+- **G0 Descoberta confiável:** lookup History→Component tipado confirmado; ainda falta validar dados, cardinalidade, identidade de revisão, conteúdo e acesso; testes — andamento.
 - **G1 Directory + Overview:** leitura de Branch e logs confirmados, sem inventar indicadores, testes Jest/Apex, primeira demo em sandbox sob autorização específica.
 - **G2 Component Describer:** buscar identidade + BranchPresence; timeline/history opcional e explicitamente indisponível até G0.
 - **G3 Diff inventário:** comparar duas listas completas de BranchPresence em snapshot/revisão conhecida; estados Unknown se ausência de evidência.

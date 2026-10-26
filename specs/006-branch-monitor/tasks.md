@@ -9,7 +9,8 @@ Status: `[x]` concluído nesta fase de SPEC; `[ ]` pendente. Tasks sem autoriza�
 - [x] T004 Definir fases G0–G5 e política de rollout.
 - [ ] T005 Inventariar tipos/roles dos campos de Component e Component History sem revelar schema privado em GitHub público.
 - [ ] T006 Identificar nome/tipo de FullName, metadataType, namespace, revisão/commit e política FLS reais.
-- [ ] T007 Provar cardinalidade do vínculo History→Component→Branch em amostra read-only, inclusive nulos/duplicatas.
+- [x] T007a Verificar a existência de referência tipada \`Component_History → Component\` via describe autenticado.
+- [ ] T007b Provar preenchimento/cardinalidade History→Component→Branch em amostra read-only, inclusive nulos e duplicatas.
 - [ ] T008 Provar acesso ao conteúdo de **duas versões** e mecanismo de replay de snapshot de Branch, ou marcar Diff textual indisponível.
 - [ ] T009 Investigar ligação componente/revisão→Metadata Log por evidência direta, sem join por Branch isoladamente.
 - [ ] T010 Validar UX/contratos finais com estado completo/incompleto e pesquisa por nomes duplicados.
