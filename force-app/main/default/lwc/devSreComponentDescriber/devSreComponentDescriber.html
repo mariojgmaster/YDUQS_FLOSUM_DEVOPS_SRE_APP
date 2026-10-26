@@ -9,7 +9,7 @@
     </header>
     <section class="cd-controls" aria-label="Pesquisa de componentes">
       <div class="cd-search-field">
-        <lightning-input type="search" label="Nome do componente no Flosum" placeholder="Pesquisar nome (opcional)…" value={search} onchange={handleChange} max-length="81"></lightning-input>
+        <lightning-input type="search" label="Component Name" placeholder="Pesquisar nome real do componente…" value={search} onchange={handleChange} max-length="81"></lightning-input>
       </div>
       <div class="cd-type-field">
         <lightning-input type="search" label="Component Type" placeholder="Pesquisar tipo de componente…" value={typeText} onfocus={handleTypeFocus} onchange={handleTypeChange} onkeydown={handleTypeKey} max-length="81"></lightning-input>
@@ -37,9 +37,9 @@
       <template lwc:if={helpText}><p class="cd-help" role="status">{helpText}</p></template>
     </section>
     <div class="cd-notice" role="note">
-      <strong>Identidade ainda em validação:</strong> a pesquisa usa o campo <code>Name</code> de Flosum Component.
-      Não é possível afirmar que ele representa o FullName canônico ou a versão do metadata.
-      Componentes homônimos permanecem registros separados.
+      <strong>Identidade:</strong> a pesquisa utiliza <code>Flosum__Component_Name__c</code>, e não o número automático (<code>Name</code>).
+      O nome registrado no Flosum não comprova, sozinho, o FullName canônico. A versão exibida é o campo registrado no Component,
+      não uma revisão verificada de código nem prova de deploy.
     </div>
     <div class="cd-layout">
       <section class="cd-panel" aria-label="Componentes encontrados">
@@ -50,12 +50,13 @@
           <template lwc:if={hasResults}>
             <div class="cd-scroller">
               <table class="cd-table">
-                <thead><tr><th scope="col">Nome Flosum</th><th scope="col">Component Type</th><th scope="col">Branch associada</th><th scope="col">Acessar</th></tr></thead>
+                <thead><tr><th scope="col">Component Name / Nº</th><th scope="col">Component Type</th><th scope="col">Source / Versão</th><th scope="col">Branch</th><th scope="col">Acessar</th></tr></thead>
                 <tbody>
                   <template for:each={entries} for:item="entry">
                     <tr key={entry.id} class={entry.rowClass}>
-                      <td><button type="button" class="cd-link" data-id={entry.id} onclick={handleSelect} title={entry.name}>{entry.name}</button></td>
+                      <td><button type="button" class="cd-link" data-id={entry.id} onclick={handleSelect} title={entry.displayName}>{entry.displayName}</button><span class="cd-record-number">{entry.name}</span></td>
                       <td><span title={entry.typeLabel}>{entry.typeLabel}</span></td>
+                      <td><span title={entry.displaySource}>{entry.displaySource}</span><span class="cd-record-number">v{entry.displayVersion}</span></td>
                       <td><template lwc:if={entry.branchId}><button type="button" class="cd-link" data-id={entry.branchId} onclick={handleOpenBranch} title={entry.branchName}>{entry.branchName}</button></template><template lwc:else><span title={entry.branchName}>{entry.branchName}</span></template></td>
                       <td><button type="button" class="cd-link" data-id={entry.id} onclick={handleOpenComponent}>Flosum</button></td>
                     </tr>
@@ -76,9 +77,14 @@
         <template lwc:if={detailLoading}><div class="cd-loading"><lightning-spinner size="small" alternative-text="Carregando histórico"></lightning-spinner></div></template>
         <template lwc:elseif={detailError}><div class="cd-error" role="alert">{detailError}</div></template>
         <template lwc:elseif={hasDetail}>
-          <header class="cd-panel-head"><h3 title={detailName}>{detailName}</h3><lightning-button-icon icon-name="utility:close" alternative-text="Fechar detalhe" onclick={handleClose}></lightning-button-icon></header>
+          <header class="cd-panel-head"><div class="cd-detail-heading"><h3 title={detailName}>{detailName}</h3><span class="cd-record-number">{detailNumber}</span></div><lightning-button-icon icon-name="utility:close" alternative-text="Fechar detalhe" onclick={handleClose}></lightning-button-icon></header>
           <div class="cd-detail-body">
             <p><strong>Component Type:</strong> {detailType}</p>
+            <p><strong>Versão registrada:</strong> {detailVersion}</p>
+            <p><strong>Source:</strong> {detailSource}</p>
+            <p><strong>Source Details:</strong> {detailSourceDetails}</p>
+            <template lwc:if={detailChangedOn}><p><strong>Alterado em (UTC):</strong> <lightning-formatted-date-time value={detailChangedOn} time-zone="UTC" day="2-digit" month="2-digit" year="numeric" hour="2-digit" minute="2-digit"></lightning-formatted-date-time></p></template>
+            <template lwc:if={detailCommittedOn}><p><strong>Commit registrado em (UTC):</strong> <lightning-formatted-date-time value={detailCommittedOn} time-zone="UTC" day="2-digit" month="2-digit" year="numeric" hour="2-digit" minute="2-digit"></lightning-formatted-date-time></p></template>
             <p><strong>Branch vinculada:</strong> <template lwc:if={detailBranchId}><button type="button" class="cd-link" title={detailBranchName} data-id={detailBranchId} onclick={handleOpenBranch}>{detailBranchName}</button></template><template lwc:else>{detailBranchName}</template></p>
             <p class="cd-muted">Vínculo tipado no Flosum; não comprova implantação.</p>
             <h4>Component Histories relacionados</h4>
