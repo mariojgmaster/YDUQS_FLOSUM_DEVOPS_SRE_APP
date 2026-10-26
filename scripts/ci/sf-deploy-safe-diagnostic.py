@@ -155,6 +155,28 @@ def _reviewed_test_methods(test_class, root):
         return set()
 
 
+
+def _safe_component_problem_code(problem):
+    """Return a fixed public-safe error category without logging org-origin text."""
+    if not isinstance(problem, str):
+        return "NO_MESSAGE"
+    checks = (
+        ("MISSING_LWC_MODULE", r"no module named|cannot find module|failed to resolve.*module|unable to resolve.*module|module.*not found"),
+        ("MISSING_COMPONENT_REFERENCE", r"(component|bundle|reference).*(not found|does not exist|unknown|missing)|cannot find.*component"),
+        ("LWC_COMPILATION", r"\blwc[0-9]{3,5}\b|compil(e|ation|er)|syntax error|parsing error|parse error"),
+        ("INVALID_TEMPLATE", r"invalid.*template|template.*invalid|markup.*invalid|unexpected.*tag"),
+        ("INVALID_DIRECTIVE", r"invalid.*directive|unsupported.*directive|directive.*not supported"),
+        ("DEPLOY_DEPENDENCY", r"dependenc(y|ies)|dependent|cannot resolve|unresolved"),
+        ("API_VERSION", r"api.?version|api level"),
+        ("ACCESS_OR_VISIBILITY", r"insufficient.*access|permission|not authorized|not visible|not accessible"),
+        ("INVALID_COMPONENT", r"invalid component|invalid attribute|unknown property|not a valid component"),
+    )
+    for label, pattern in checks:
+        if re.search(pattern, problem, flags=re.IGNORECASE):
+            return label
+    return "UNCLASSIFIED_COMPONENT"
+
+
 def detailed_report(payload, cli_exit, phase, allowed_names, method_root=None):
     """Full *enumeration* of failure records, not full raw org data.
 
@@ -212,6 +234,10 @@ def detailed_report(payload, cli_exit, phase, allowed_names, method_root=None):
             if kind == "component":
                 record["problem_type"] = _safe_enum(
                     item.get("problemType"), {"Error", "Warning", "error", "warning"}
+                )
+                record["problem_code"] = _safe_component_problem_code(
+                    item.get("problem") if isinstance(item.get("problem"), str)
+                    else item.get("message")
                 )
             report["failures"].append(record)
     report["enumerated_failures"] = len(report["failures"])
