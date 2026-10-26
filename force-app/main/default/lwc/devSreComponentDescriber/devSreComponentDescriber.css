@@ -45,3 +45,18 @@
 .cd-record-number{display:block;color:var(--ds-color-text-tertiary,#627795);font-size:.68rem;margin-top:.22rem;font-weight:400}
 .cd-detail-heading{min-width:0;overflow:hidden}
 .cd-detail-heading h3{white-space:normal;word-break:break-word}
+
+.cd-history-actions{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+.cd-archive-panel{border:1px solid var(--ds-color-border-default,#dbe2eb);border-radius:.4rem;min-width:0;overflow:hidden}
+.cd-archive-head{padding:.75rem;display:flex;justify-content:space-between;gap:.5rem;border-bottom:1px solid var(--ds-color-border-subtle,#edf0f5);align-items:start}
+.cd-archive-head h4{margin:0;padding:0;border:0}
+.cd-archive-grid{display:grid;grid-template-columns:minmax(8rem,1fr) minmax(0,1.7fr);min-height:10rem;max-height:28rem;overflow:hidden}
+.cd-archive-files{padding:.25rem;overflow:auto;border-right:1px solid var(--ds-color-border-subtle,#edf0f5)}
+.cd-archive-item{font:inherit;text-align:left;padding:.45rem .5rem;display:block;width:100%;border:0;border-radius:.25rem;background:transparent;color:var(--ds-color-text-link,#0176d3);cursor:pointer;overflow-wrap:anywhere}
+.cd-archive-item:hover,.cd-archive-item:focus-visible,.cd-archive-item_selected{background:var(--ds-color-surface-selected,#edf6ff)}
+.cd-archive-item:disabled{opacity:.5;cursor:not-allowed}
+.cd-archive-preview{min-width:0;overflow:auto}
+.cd-archive-filename{padding:.5rem .75rem;margin:0;font-weight:700;border-bottom:1px solid var(--ds-color-border-subtle,#edf0f5);overflow-wrap:anywhere}
+.cd-archive-code{padding:.75rem;margin:0;overflow:auto;white-space:pre;tab-size:2;font:normal .74rem/1.5 Consolas,Monaco,monospace;background:var(--ds-color-surface-secondary,#f5f8fb);color:var(--ds-color-text-primary,#1d293b)}
+.cd-archive-footnote{padding:.5rem .75rem;border-top:1px solid var(--ds-color-border-subtle,#edf0f5)}
+@media(max-width:48rem){.cd-archive-grid{grid-template-columns:1fr;max-height:none}.cd-archive-files{max-height:10rem;border-right:0;border-bottom:1px solid var(--ds-color-border-subtle,#edf0f5)}.cd-archive-preview{max-height:20rem}}

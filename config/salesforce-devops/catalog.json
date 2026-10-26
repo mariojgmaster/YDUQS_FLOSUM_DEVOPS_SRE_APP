@@ -208,6 +208,19 @@
         "ApexClass",
         "LightningComponentBundle"
       ]
+    },
+    "branch-monitor-m2-archive-preview": {
+      "manifest": "manifest/sf-branch-monitor-m2-archive-preview.xml",
+      "test_level": "RunSpecifiedTests",
+      "tests": [
+        "DevSreComponentDescriberTest",
+        "DevSreHistoryArchiveReaderTest",
+        "DevSreBranchMonitorTest"
+      ],
+      "allowed_types": [
+        "ApexClass",
+        "LightningComponentBundle"
+      ]
     }
   }
 }

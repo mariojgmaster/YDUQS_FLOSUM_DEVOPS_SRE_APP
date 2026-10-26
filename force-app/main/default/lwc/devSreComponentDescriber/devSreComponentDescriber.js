@@ -3,6 +3,7 @@ import { NavigationMixin } from "lightning/navigation";
 import searchFilteredComponents from "@salesforce/apex/DevSreComponentDescriberController.searchFilteredComponents";
 import getComponentTypes from "@salesforce/apex/DevSreComponentDescriberController.getComponentTypes";
 import describeComponent from "@salesforce/apex/DevSreComponentDescriberController.describeComponent";
+import inspectHistoryArchive from "@salesforce/apex/DevSreComponentDescriberController.inspectHistoryArchive";
 
 export default class DevSreComponentDescriber extends NavigationMixin(LightningElement) {
   search = "";
@@ -26,6 +27,12 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   _searchRequest = 0;
   _detailRequest = 0;
   _typeRequest = 0;
+  archiveOpen = false;
+  archiveLoading = false;
+  archiveError;
+  archiveData;
+  archiveHistoryId;
+  _archiveRequest = 0;
   _debounce;
   _typeDebounce;
 
@@ -36,6 +43,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     ++this._searchRequest;
     ++this._detailRequest;
     ++this._typeRequest;
+    ++this._archiveRequest;
   }
 
   get tooLong() { return this.search.length > 80; }
@@ -53,6 +61,19 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   get hasTypeOptions() { return this.typeOptions.length > 0; }
   get isTypeSelected() { return Boolean(this.typeValue); }
   get emptyWithoutFilters() { return !this.search.trim() && !this.typeValue; }
+  get hasArchiveEntries() { return (this.archiveData?.entries || []).length > 0; }
+  get archiveEntries() {
+    return (this.archiveData?.entries || []).map(x => ({
+      ...x,
+      disabled: !x.previewable,
+      rowClass: x.path === this.archiveData?.selectedPath ?
+        "cd-archive-item cd-archive-item_selected" : "cd-archive-item"
+    }));
+  }
+  get hasArchiveText() { return this.archiveData?.text !== null && this.archiveData?.text !== undefined; }
+  get archiveContent() { return this.archiveData?.text || ""; }
+  get archiveFileName() { return this.archiveData?.selectedPath || ""; }
+  get archiveName() { return this.archiveData?.attachmentName || "Arquivo Flosum"; }
   get entries() {
     return this.results.map(r => ({
       ...r,
@@ -81,6 +102,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   get noMatches() { return this.searched && !this.loading && !this.error && !this.hasResults; }
 
   resetResults() {
+    this.handleArchiveClose();
     ++this._searchRequest;
     ++this._detailRequest;
     this.results = [];
@@ -122,6 +144,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   handleNext() { if (!this.nextDisabled) this.load(true); }
   handleSelect(event) { this.loadDetail(event.currentTarget.dataset.id); }
   handleClose() {
+    this.handleArchiveClose();
     ++this._detailRequest;
     this.detail = undefined;
     this.selectedId = undefined;
@@ -130,6 +153,41 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   handleOpenComponent(event) { this.open(event.currentTarget.dataset.id, "Flosum__Component__c"); }
   handleOpenBranch(event) { this.open(event.currentTarget.dataset.id, "Flosum__Branch__c"); }
   handleOpenHistory(event) { this.open(event.currentTarget.dataset.id, "Flosum__Component_History__c"); }
+
+  handleArchiveClose() {
+    ++this._archiveRequest;
+    this.archiveOpen = false;
+    this.archiveLoading = false;
+    this.archiveData = undefined;
+    this.archiveError = undefined;
+    this.archiveHistoryId = undefined;
+  }
+  handleExploreHistory(event) {
+    const historyId = event.currentTarget.dataset.id;
+    if (!historyId) return;
+    this.archiveHistoryId = historyId;
+    this.archiveOpen = true;
+    this.loadArchive(null);
+  }
+  handleSelectArchiveFile(event) {
+    const path = event.currentTarget.dataset.path;
+    if (path) this.loadArchive(path);
+  }
+  async loadArchive(entryPath) {
+    const request = ++this._archiveRequest;
+    this.archiveLoading = true;
+    this.archiveError = undefined;
+    try {
+      const response = await inspectHistoryArchive({historyId: this.archiveHistoryId, entryPath});
+      if (request === this._archiveRequest) this.archiveData = response;
+    } catch (error) {
+      if (request === this._archiveRequest) {
+        this.archiveError = this.message(error, "Não foi possível abrir o ZIP acessível.");
+      }
+    } finally {
+      if (request === this._archiveRequest) this.archiveLoading = false;
+    }
+  }
   open(id, objectApiName) {
     if (!id) return;
     this[NavigationMixin.Navigate]({
@@ -252,6 +310,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   }
   async loadDetail(id) {
     if (!id) return;
+    this.handleArchiveClose();
     const request = ++this._detailRequest;
     this.selectedId = id;
     this.detail = undefined;
