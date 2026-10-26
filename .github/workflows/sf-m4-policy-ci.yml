@@ -19,6 +19,7 @@ on:
       - 'manifest/**'
       - 'tests/test_sf_*'
       - 'force-app/main/default/classes/ClonePipelineController.cls'
+      - 'force-app/main/default/classes/DevSreHistoryArchiveReader*'
   workflow_dispatch:
 
 permissions:
