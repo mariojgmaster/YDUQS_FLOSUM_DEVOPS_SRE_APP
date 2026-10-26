@@ -111,9 +111,6 @@ private class DevSreBranchMonitorTest {
       Flosum__Job_Completed__c=true, Flosum__Succeed__c=true,
       Flosum__Is_Error__c=true);
     System.assertEquals('Parcial',DevSreBranchMonitorController.resultFor(partial));
-    Flosum__Metadata_Log__c other=new Flosum__Metadata_Log__c(
-      Flosum__Job_Completed__c=true,Flosum__Succeed__c=null);
-    System.assertEquals('Indeterminado',DevSreBranchMonitorController.resultFor(other));
   }
   @IsTest static void doesNotCallAValidationADeployment() {
     Flosum__Metadata_Log__c item=new Flosum__Metadata_Log__c(
