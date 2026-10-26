@@ -13,7 +13,9 @@ CATALOG = ROOT / "config/salesforce-devops/catalog.json"
 NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
 KEY = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{0,59}$")
 ENV = re.compile(r"^sf-[a-z0-9-]{4,80}$")
-FOLDERS = {"ApexClass": "classes", "LightningComponentBundle": "lwc"}
+FOLDERS = {"ApexClass": "classes", "LightningComponentBundle": "lwc", "PermissionSet": "permissionsets"}
+PERMISSIONSET_PACKAGE = "branch-monitor-reader-visibility"
+PERMISSIONSET_MEMBER = "DevSreBranchMonitor_Reader"
 NS = {"m": "http://soap.sforce.com/2006/04/metadata"}
 MAX_FILE = 2_000_000
 MAX_FILES = 300
@@ -42,6 +44,8 @@ def pkg_info(d, package):
     allowed = info.get("allowed_types")
     if not isinstance(allowed, list) or not allowed or len(allowed) != len(set(allowed)) or any(t not in FOLDERS for t in allowed):
         raise PolicyError("Metadata type not supported")
+    if "PermissionSet" in allowed and (package != PERMISSIONSET_PACKAGE or allowed != ["PermissionSet"]):
+        raise PolicyError("Only reviewed Branch Monitor Reader permission change allowed")
     return info
 
 def members(info):
@@ -179,21 +183,63 @@ def selected(files, manifest):
         for name in names:
             if typ == "ApexClass":
                 required.update([f"classes/{name}.cls", f"classes/{name}.cls-meta.xml"])
-            else:
+            elif typ == "LightningComponentBundle":
                 required.add(f"lwc/{name}/{name}.js-meta.xml")
+            elif typ == "PermissionSet":
+                required.add(f"permissionsets/{name}.permissionset")
+            else:
+                raise PolicyError("Unsupported metadata type")
+    for name in manifest.get("PermissionSet", []):
+        # Exact member only. A broad permission set can grant unintended privileges.
+        if name != PERMISSIONSET_MEMBER or manifest != {"PermissionSet": [PERMISSIONSET_MEMBER]}:
+            raise PolicyError("PermissionSet member outside reviewed scope")
     actual = set(files) - {"package.xml"}
     for path in actual:
         parts = PurePosixPath(path).parts
         allowed = any(
             (typ == "ApexClass" and len(parts) == 2 and parts[0] == "classes" and parts[1] in {f"{n}.cls" for n in names} | {f"{n}.cls-meta.xml" for n in names})
             or (typ == "LightningComponentBundle" and len(parts) >= 3 and parts[0] == "lwc" and parts[1] in names)
+            or (typ == "PermissionSet" and len(parts) == 2 and parts[0] == "permissionsets" and parts[1] in {f"{n}.permissionset" for n in names})
             for typ, names in manifest.items()
         )
         if not allowed:
             raise PolicyError("Package contains components outside manifest")
     if not required.issubset(actual):
         raise PolicyError("Required source file is absent")
+    if "PermissionSet" in manifest:
+        verify_reader_visibility_change(files[f"permissionsets/{PERMISSIONSET_MEMBER}.permissionset"])
     return actual
+
+
+def verify_reader_visibility_change(raw):
+    """Fail closed on unrelated classes, permissions or tab settings in the reviewed PS."""
+    try:
+        root = ET.fromstring(raw)
+    except ET.ParseError as exc:
+        raise PolicyError("Invalid Reader PermissionSet XML") from exc
+    ns = "{http://soap.sforce.com/2006/04/metadata}"
+    if root.tag != ns+"PermissionSet" or root.attrib:
+        raise PolicyError("Invalid Reader PermissionSet schema")
+    children = list(root)
+    if len(children) != 3 or sorted(x.tag for x in children) != sorted([
+            ns+"label", ns+"classAccesses", ns+"tabSettings"]):
+        raise PolicyError("PermissionSet outside reviewed members")
+    if root.findtext(ns+"label") != "DevOps SRE - Leitura Branch Monitor":
+        raise PolicyError("Reader PermissionSet label drift")
+    apex = root.find(ns+"classAccesses")
+    tab = root.find(ns+"tabSettings")
+    if apex is None or tab is None or len(apex) != 2 or len(tab) != 2:
+        raise PolicyError("Reader PermissionSet privilege shape drift")
+    if ({child.tag: child.text for child in apex} != {
+           ns+"apexClass":"DevSreBranchMonitorController",ns+"enabled":"true"} or
+        {child.tag: child.text for child in tab} != {
+           ns+"tab":"branchMonitor",ns+"visibility":"Visible"}):
+        raise PolicyError("Unexpected Reader permissions")
+    if any(el.attrib or len(el) for el in children if el.tag != ns+"label"):
+        # Nested scalar children must not contain additional privilege fields.
+        if any(grand.attrib or len(grand) for parent in (apex,tab) for grand in parent):
+            raise PolicyError("Unexpected nested permission settings")
+    return True
 
 def compare(a, b, manifest):
     aa, bb = selected(a, manifest), selected(b, manifest)
@@ -218,6 +264,8 @@ def mismatched_components(left, right, manifest):
                 own = {f"classes/{name}.cls", f"classes/{name}.cls-meta.xml"}
             elif typ == "LightningComponentBundle":
                 own = {path for path in paths if path.startswith(f"lwc/{name}/")}
+            elif typ == "PermissionSet":
+                own = {f"permissionsets/{name}.permissionset"}
             else:
                 raise PolicyError("Unsupported metadata type")
             if any(
@@ -256,6 +304,11 @@ def mismatched_file_types(left, right, manifest):
                     for p in paths
                 ):
                     result.append(f"LightningComponentBundle:{name}:bundle")
+            elif typ == "PermissionSet":
+                path = f"permissionsets/{name}.permissionset"
+                if (path not in left or path not in right or
+                        normalized(left[path], path) != normalized(right[path], path)):
+                    result.append(f"PermissionSet:{name}:metadata")
             else:
                 raise PolicyError("Unsupported metadata type")
     return sorted(result)
