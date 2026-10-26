@@ -81,23 +81,26 @@ public with sharing class DevSreBranchMonitorController {
       if (cursorId != null) soql += ' AND (Name > :cursorName OR (Name = :cursorName AND Id > :cursorId))';
       soql += ' ORDER BY Name ASC, Id ASC LIMIT 31';
       List<Flosum__Branch__c> data = Database.queryWithBinds(soql, binds, AccessLevel.USER_MODE);
-      BranchPage result = new BranchPage();
-      result.rows = new List<BranchRow>();
-      result.hasMore = data.size() > PAGE_SIZE;
-      for (Integer i=0; i<Math.min(data.size(),PAGE_SIZE); i++) {
-        Flosum__Branch__c source = data[i];
-        BranchRow row = new BranchRow();
-        row.id=source.Id; row.name=source.Name; row.modifiedAt=source.LastModifiedDate;
-        result.rows.add(row);
-        result.cursorName=row.name;
-        result.cursorId=row.id;
-      }
-      return result;
+      return toBranchPage(data);
     } catch (AuraHandledException known) {
       throw known;
     } catch (Exception unexpected) {
       throw new AuraHandledException('Não foi possível consultar as Branches acessíveis.');
     }
+  }
+
+  @TestVisible private static BranchPage toBranchPage(List<Flosum__Branch__c> data) {
+    BranchPage result = new BranchPage();
+    result.rows = new List<BranchRow>();
+    result.hasMore = data.size() > PAGE_SIZE;
+    for (Integer i=0; i<Math.min(data.size(),PAGE_SIZE); i++) {
+      Flosum__Branch__c source=data[i];
+      BranchRow row=new BranchRow();
+      row.id=source.Id; row.name=source.Name; row.modifiedAt=source.LastModifiedDate;
+      result.rows.add(row);
+      result.cursorName=row.name; result.cursorId=row.id;
+    }
+    return result;
   }
 
   @TestVisible private static String resultFor(Flosum__Metadata_Log__c log) {
@@ -109,7 +112,7 @@ public with sharing class DevSreBranchMonitorController {
       return 'Parcial';
     return log.Flosum__Succeed__c == false ? 'Falha' : 'Indeterminado';
   }
-  private static ActivityRow toActivity(Flosum__Metadata_Log__c src, Map<Id,String> names) {
+  @TestVisible private static ActivityRow toActivity(Flosum__Metadata_Log__c src, Map<Id,String> names) {
     ActivityRow row = new ActivityRow();
     row.id=src.Id; row.name=src.Name; row.branchId=src.Flosum__Branch__c;
     row.branchName=names.containsKey(row.branchId) ? names.get(row.branchId) : 'Branch não acessível';
@@ -148,28 +151,7 @@ public with sharing class DevSreBranchMonitorController {
         FROM Flosum__Metadata_Log__c WHERE CreatedDate>=:fromUtc
         WITH USER_MODE ORDER BY CreatedDate DESC, Id DESC LIMIT 501
       ];
-      Overview page=new Overview();
-      page.complete=logs.size()<=SUMMARY_LIMIT;
-      page.recent=new List<ActivityRow>();
-      List<Flosum__Metadata_Log__c> preview=new List<Flosum__Metadata_Log__c>();
-      for (Integer i=0;i<Math.min(logs.size(),8);i++) preview.add(logs[i]);
-      Map<Id,String> branchNames=namesFor(preview);
-      for (Integer i=0;i<Math.min(logs.size(),8);i++)
-        page.recent.add(toActivity(logs[i],branchNames));
-      if (!page.complete) return page;
-      page.operations=logs.size(); page.deployments=0; page.validations=0;
-      page.succeeded=0; page.failed=0;
-      Set<Id> touched=new Set<Id>();
-      for (Flosum__Metadata_Log__c log : logs) {
-        if (log.Flosum__Process_Type__c=='Deployment') page.deployments++;
-        if (log.Flosum__Process_Type__c=='Validate') page.validations++;
-        String outcome=resultFor(log);
-        if (outcome=='Sucesso') page.succeeded++;
-        if (outcome=='Falha') page.failed++;
-        if (log.Flosum__Branch__c!=null) touched.add(log.Flosum__Branch__c);
-      }
-      page.activeBranches=touched.size();
-      return page;
+      return toOverview(logs);
     } catch (AuraHandledException known) {
       throw known;
     } catch (Exception unexpected) {
@@ -198,19 +180,49 @@ public with sharing class DevSreBranchMonitorController {
         WHERE Flosum__Branch__c=:branchId AND CreatedDate>=:fromUtc
         WITH USER_MODE ORDER BY CreatedDate DESC, Id DESC LIMIT 51
       ];
-      BranchDetail detail=new BranchDetail();
-      detail.id=branches[0].Id; detail.name=branches[0].Name;
-      detail.modifiedAt=branches[0].LastModifiedDate;
-      detail.recent=new List<ActivityRow>();
-      detail.hasMore=logs.size()>50;
-      Map<Id,String> names=new Map<Id,String>{branchId=>detail.name};
-      for (Integer i=0;i<Math.min(logs.size(),50);i++)
-        detail.recent.add(toActivity(logs[i], names));
-      return detail;
+      return toDetail(branches[0], logs);
     } catch (AuraHandledException known) {
       throw known;
     } catch (Exception unexpected) {
       throw new AuraHandledException('Não foi possível consultar os detalhes desta Branch.');
     }
   }
+  @TestVisible private static Overview toOverview(List<Flosum__Metadata_Log__c> logs) {
+      Overview page=new Overview();
+      page.complete=logs.size()<=SUMMARY_LIMIT;
+      page.recent=new List<ActivityRow>();
+      List<Flosum__Metadata_Log__c> preview=new List<Flosum__Metadata_Log__c>();
+      for (Integer i=0;i<Math.min(logs.size(),8);i++) preview.add(logs[i]);
+      Map<Id,String> branchNames=namesFor(preview);
+      for (Integer i=0;i<Math.min(logs.size(),8);i++)
+        page.recent.add(toActivity(logs[i],branchNames));
+      if (!page.complete) return page;
+      page.operations=logs.size(); page.deployments=0; page.validations=0;
+      page.succeeded=0; page.failed=0;
+      Set<Id> touched=new Set<Id>();
+      for (Flosum__Metadata_Log__c log : logs) {
+        if (log.Flosum__Process_Type__c=='Deployment') page.deployments++;
+        if (log.Flosum__Process_Type__c=='Validate') page.validations++;
+        String outcome=resultFor(log);
+        if (outcome=='Sucesso') page.succeeded++;
+        if (outcome=='Falha') page.failed++;
+        if (log.Flosum__Branch__c!=null) touched.add(log.Flosum__Branch__c);
+      }
+      page.activeBranches=touched.size();
+      return page;
+  }
+
+  @TestVisible private static BranchDetail toDetail(Flosum__Branch__c source,
+      List<Flosum__Metadata_Log__c> logs) {
+      BranchDetail detail=new BranchDetail();
+      detail.id=source.Id; detail.name=source.Name;
+      detail.modifiedAt=source.LastModifiedDate;
+      detail.recent=new List<ActivityRow>();
+      detail.hasMore=logs.size()>50;
+      Map<Id,String> names=new Map<Id,String>{source.Id=>detail.name};
+      for (Integer i=0;i<Math.min(logs.size(),50);i++)
+        detail.recent.add(toActivity(logs[i], names));
+      return detail;
+  }
+
 }
