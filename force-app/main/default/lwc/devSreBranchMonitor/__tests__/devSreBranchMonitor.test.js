@@ -61,7 +61,8 @@ describe("Branch Monitor M1 — fonte real e experiência de leitura",()=>{
     tab(el,"branches").click();await flush();
     expect(listBranches).toHaveBeenCalledWith({search:null,cursorName:null,cursorId:null});
     const input=el.shadowRoot.querySelector("lightning-input");
-    input.dispatchEvent(new CustomEvent("change",{target:{value:"feature"}}));
+    input.value="feature";
+    input.dispatchEvent(new CustomEvent("change"));
     jest.advanceTimersByTime(350);
     await flush();
     expect(listBranches).toHaveBeenLastCalledWith({search:"feature",cursorName:null,cursorId:null});
