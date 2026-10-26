@@ -4,7 +4,7 @@
 | --- | --- | --- |
 | Constituição: Trusted/Easy/Adaptable | OK planejado | LWC enxuto, read-only, versionamento de source |
 | Sharing, CRUD/FLS | Requisito obrigatório | Apex with sharing + USER_MODE, testes por persona |
-| Fonte Flosum real | Parcial | Branch, singular Component, Metadata Log confirmados; history sem join tipado |
+| Fonte Flosum real | Parcial | Branch, singular Component, Metadata Log confirmados; history com lookup tipado para Component, ainda sem prova de preenchimento/correspondência das versões |
 | Semântica de versão | **BLOCK** para Diff textual | T006/T007/T008; não usar Last_Commit |
 | Associação componente/deploy | **BLOCK** para timeline de deploy por componente | T009; não unir somente por Branch |
 | UX aprovado | Aprovado | Quatro wireframes anotados; sem inventar dados de tela |
