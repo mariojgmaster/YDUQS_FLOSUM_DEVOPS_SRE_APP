@@ -103,6 +103,14 @@ public with sharing class DevSreHistoryArchiveReader {
             ' ORDER BY CreatedDate DESC LIMIT 11',
             new Map<String,Object>{'historyId'=>historyId,'maxBytes'=>MAX_ZIP_BYTES},
             AccessLevel.USER_MODE);
+        return inspectSelectedAttachments(raw, entryPath);
+    }
+
+    // Separate the pure archive-selection policy from the USER_MODE query.
+    // Tests can exercise this path without inserting managed Flosum records.
+    @TestVisible private static ArchiveView inspectSelectedAttachments(
+        List<SObject> raw, String entryPath
+    ) {
         Attachment first;
         Integer matching=0;
         for(SObject rec : raw) {
