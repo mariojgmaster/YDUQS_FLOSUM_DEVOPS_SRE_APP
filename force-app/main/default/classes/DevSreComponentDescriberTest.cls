@@ -180,4 +180,65 @@ private class DevSreComponentDescriberTest {
         System.assertEquals(20,rows.size());
         System.assertNotEquals(rows[0].id,rows[1].id);
     }
+
+    @IsTest static void componentTypePicklistAndFilteredInventoryContract() {
+        Schema.DescribeFieldResult typeField = DevSreComponentDescriberController.typeDescribe();
+        System.assertEquals(Schema.DisplayType.PICKLIST, typeField.getType());
+        System.assert(typeField.isAccessible());
+        String branchField = DevSreComponentDescriberController.typedForeignKey(
+            Flosum__Component__c.SObjectType,Flosum__Branch__c.SObjectType);
+        String allQuery=DevSreComponentDescriberController.filteredQuery(
+            branchField,typeField.getName(),false,false,false);
+        System.assert(allQuery.contains('FROM Flosum__Component__c ORDER BY Name'));
+        System.assert(!allQuery.contains('WHERE Name LIKE'));
+        String combined=DevSreComponentDescriberController.filteredQuery(
+            branchField,typeField.getName(),true,true,true);
+        System.assert(combined.contains('Name LIKE :pattern'));
+        System.assert(combined.contains(typeField.getName()+' = :typeValue'));
+        System.assert(combined.contains('AND (Name > :cursorName'));
+        try {
+            DevSreComponentDescriberController.filteredQuery('Name',typeField.getName(),
+                false,false,false);
+            System.assert(false,'Untrusted dynamic field should fail.');
+        } catch (AuraHandledException expected) {}
+        List<DevSreComponentDescriberController.ComponentTypeOption> opts =
+            DevSreComponentDescriberController.getComponentTypes(null);
+        System.assert(opts.size() <= 20);
+        if (!opts.isEmpty()) {
+            DevSreComponentDescriberController.validateTypeValue(opts[0].value);
+            List<DevSreComponentDescriberController.ComponentTypeOption> matches =
+                DevSreComponentDescriberController.getComponentTypes(opts[0].label);
+            System.assert(!matches.isEmpty());
+        }
+        try {
+            DevSreComponentDescriberController.validateTypeValue('not_an_approved_component_type_9999');
+            System.assert(false,'Untrusted type should fail');
+        } catch (AuraHandledException expected) {}
+        try {
+            DevSreComponentDescriberController.getComponentTypes(
+                'abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdef');
+            System.assert(false,'Overlong lookup should fail.');
+        } catch (AuraHandledException expected) {}
+    }
+    @IsTest static void userModeUnfilteredAndCombinedSearchRespectAccess() {
+        Test.startTest();
+        DevSreComponentDescriberController.ComponentPage all =
+            DevSreComponentDescriberController.searchFilteredComponents(null,null,null,null);
+        DevSreComponentDescriberController.ComponentPage missing =
+            DevSreComponentDescriberController.searchFilteredComponents(
+                'BM_M2_nonexistent_999',null,null,null);
+        Test.stopTest();
+        System.assert(all.rows.size() <= 25);
+        System.assertEquals('REGISTERED_NAME_ONLY',all.identityLevel);
+        System.assertEquals(0,missing.rows.size());
+        try {
+            DevSreComponentDescriberController.searchFilteredComponents('a',null,null,null);
+            System.assert(false,'One-character name invalid');
+        } catch (AuraHandledException expected) {}
+        try {
+            DevSreComponentDescriberController.searchFilteredComponents(
+                null,'not_a_picklist_value',null,null);
+            System.assert(false,'Unknown type invalid');
+        } catch (AuraHandledException expected) {}
+    }
 }
