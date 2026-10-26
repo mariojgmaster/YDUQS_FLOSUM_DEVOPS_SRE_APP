@@ -76,6 +76,7 @@ def call_deploy(stage,root,dry):
     return deploy_status(p)
 
 def retrieve_app(repo,directory):
+    directory=Path(tempfile.mkdtemp(prefix="bm-retrieve-",dir=str(directory)))
     isolated=directory/"org-preview"
     (isolated/"empty").mkdir(parents=True)
     (isolated/"sfdx-project.json").write_text(json.dumps({
