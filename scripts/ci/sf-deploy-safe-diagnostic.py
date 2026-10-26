@@ -142,7 +142,20 @@ def _allowed_names(package, catalog_path, manifest_base):
         return set()
 
 
-def detailed_report(payload, cli_exit, phase, allowed_names):
+def _reviewed_test_methods(test_class, root):
+    """Report only method identifiers that literally exist in a reviewed Apex test."""
+    if not isinstance(test_class,str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*Test",test_class):
+        return set()
+    source = root / "force-app" / "main" / "default" / "classes" / (test_class+".cls")
+    try:
+        body = source.read_text(encoding="utf-8")
+        if len(body)>200_000: return set()
+        return set(re.findall(r"@IsTest\s+static\s+void\s+([A-Za-z][A-Za-z0-9_]*)\s*\(", body))
+    except (OSError,ValueError):
+        return set()
+
+
+def detailed_report(payload, cli_exit, phase, allowed_names, method_root=None):
     """Full *enumeration* of failure records, not full raw org data.
 
     No messages, stack traces, org URLs, IDs, arbitrary names, file paths,
@@ -188,6 +201,14 @@ def detailed_report(payload, cli_exit, phase, allowed_names):
                 "line": _positive_integer(item.get("lineNumber")),
                 "column": _positive_integer(item.get("columnNumber")),
             }
+            if kind == "apex_test" and method_root is not None:
+                test_class = item.get("name")
+                method = item.get("methodName")
+                if not isinstance(method,str):
+                    method = item.get("method")
+                if test_class in allowed_names and isinstance(method,str) and (
+                        method in _reviewed_test_methods(test_class,method_root)):
+                    record["reviewed_test_method"] = method
             if kind == "component":
                 record["problem_type"] = _safe_enum(
                     item.get("problemType"), {"Error", "Warning", "error", "warning"}
@@ -202,7 +223,7 @@ def detailed_report(payload, cli_exit, phase, allowed_names):
 
 def write_report(payload, cli_exit, phase, output_path, package, catalog, root):
     allowed = _allowed_names(package, catalog, root)
-    report = detailed_report(payload, cli_exit, phase, allowed)
+    report = detailed_report(payload, cli_exit, phase, allowed, method_root=root)
     # No append to arbitrary paths; caller places report in RUNNER_TEMP.
     output_path.write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8")
     print(f"SDOA_M53_DETAIL_REPORT: phase={phase} enumerated_failures="
