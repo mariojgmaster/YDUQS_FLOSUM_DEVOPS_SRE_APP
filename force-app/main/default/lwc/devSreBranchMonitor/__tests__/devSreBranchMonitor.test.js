@@ -40,7 +40,7 @@ describe("Branch Monitor M1 — fonte real e experiência de leitura",()=>{
     expect(text(el)).toContain("Comparação ainda indisponível");
     expect(text(el)).not.toContain("ML-01");
     tab(el,"components").click();await flush();
-    expect(text(el)).toContain("Pesquisa por componente em preparação");
+    expect(el.shadowRoot.querySelector("c-dev-sre-component-describer")).not.toBeNull();
     expect(getBranchDetail).not.toHaveBeenCalled();
   });
   it("filtra período instantaneamente e esconde totais quando incompletos",async()=>{

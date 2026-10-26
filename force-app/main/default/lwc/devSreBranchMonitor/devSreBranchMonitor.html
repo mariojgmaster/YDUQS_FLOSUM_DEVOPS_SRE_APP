@@ -117,8 +117,7 @@
         <div class="bm-coming"><lightning-icon icon-name="utility:diff" size="large" alternative-text=""></lightning-icon><h3>Comparação ainda indisponível</h3><p>Estamos validando identidade, snapshots e conteúdo histórico. Não vamos comparar apenas nomes e apresentar diferenças não comprovadas.</p></div>
       </template>
       <template lwc:elseif={isComponents}>
-        <div class="bm-panel-heading"><div><p class="bm-eyebrow">PRÓXIMO INCREMENTO</p><h2>Branch Describer</h2><p>Pesquisar um componente e rastrear branches e versões.</p></div></div>
-        <div class="bm-coming"><lightning-icon icon-name="utility:search" size="large" alternative-text=""></lightning-icon><h3>Pesquisa por componente em preparação</h3><p>O vínculo History → Component → Branch foi confirmado, mas precisamos identificar versão e FullName antes de liberar as consultas de histórico.</p></div>
+        <c-dev-sre-component-describer></c-dev-sre-component-describer>
       </template>
     </div>
   </section>

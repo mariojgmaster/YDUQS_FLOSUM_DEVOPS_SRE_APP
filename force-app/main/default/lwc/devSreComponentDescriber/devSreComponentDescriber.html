@@ -1,0 +1,76 @@
+<template>
+  <div class="cd-shell">
+    <header class="cd-heading">
+      <div>
+        <p class="cd-eyebrow">PESQUISA POR COMPONENTE · FLOSum</p>
+        <h2>Branch Describer</h2>
+        <p>Localize registros de componentes e suas Branches vinculadas, usando dados acessíveis do Flosum.</p>
+      </div>
+    </header>
+    <section class="cd-controls" aria-label="Pesquisa de componentes">
+      <lightning-input type="search" label="Nome do componente no Flosum" placeholder="Ex.: nome cadastrado do componente…" value={search} onchange={handleChange} max-length="81"></lightning-input>
+      <lightning-button-icon icon-name="utility:refresh" alternative-text="Atualizar pesquisa" title="Atualizar pesquisa" disabled={loading} onclick={handleRefresh}></lightning-button-icon>
+      <template lwc:if={helpText}><p class="cd-help" role="status">{helpText}</p></template>
+    </section>
+    <div class="cd-notice" role="note">
+      <strong>Identidade ainda em validação:</strong> a pesquisa usa o campo <code>Name</code> de Flosum Component.
+      Não é possível afirmar que ele representa o FullName canônico ou a versão do metadata.
+      Componentes homônimos permanecem registros separados.
+    </div>
+    <div class="cd-layout">
+      <section class="cd-panel" aria-label="Componentes encontrados">
+        <header class="cd-panel-head"><h3>Ocorrências encontradas</h3><span>{results.length} nesta consulta</span></header>
+        <template lwc:if={loading}><div class="cd-loading"><lightning-spinner size="small" alternative-text="Buscando componentes"></lightning-spinner></div></template>
+        <template lwc:elseif={error}><div class="cd-error" role="alert">{error}</div></template>
+        <template lwc:else>
+          <template lwc:if={hasResults}>
+            <div class="cd-scroller">
+              <table class="cd-table">
+                <thead><tr><th scope="col">Nome Flosum</th><th scope="col">Branch associada</th><th scope="col">Acessar</th></tr></thead>
+                <tbody>
+                  <template for:each={entries} for:item="entry">
+                    <tr key={entry.id} class={entry.rowClass}>
+                      <td><button type="button" class="cd-link" data-id={entry.id} onclick={handleSelect} title={entry.name}>{entry.name}</button></td>
+                      <td><template lwc:if={entry.branchId}><button type="button" class="cd-link" data-id={entry.branchId} onclick={handleOpenBranch} title={entry.branchName}>{entry.branchName}</button></template><template lwc:else><span title={entry.branchName}>{entry.branchName}</span></template></td>
+                      <td><button type="button" class="cd-link" data-id={entry.id} onclick={handleOpenComponent}>Flosum</button></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+            <div class="cd-pager"><span>Consulta paginada; não representa o inventário global.</span><lightning-button label="Carregar mais" onclick={handleNext} disabled={nextDisabled}></lightning-button></div>
+          </template>
+          <template lwc:elseif={noMatches}><p class="cd-empty">Nenhum componente acessível encontrado para o nome informado.</p></template>
+          <template lwc:else><p class="cd-empty">Pesquise pelo nome do componente para visualizar suas ocorrências por Branch.</p></template>
+        </template>
+      </section>
+      <aside class="cd-panel cd-detail" aria-label="Detalhes do componente selecionado">
+        <template lwc:if={detailLoading}><div class="cd-loading"><lightning-spinner size="small" alternative-text="Carregando histórico"></lightning-spinner></div></template>
+        <template lwc:elseif={detailError}><div class="cd-error" role="alert">{detailError}</div></template>
+        <template lwc:elseif={hasDetail}>
+          <header class="cd-panel-head"><h3 title={detailName}>{detailName}</h3><lightning-button-icon icon-name="utility:close" alternative-text="Fechar detalhe" onclick={handleClose}></lightning-button-icon></header>
+          <div class="cd-detail-body">
+            <p><strong>Branch vinculada:</strong> <template lwc:if={detailBranchId}><button type="button" class="cd-link" title={detailBranchName} data-id={detailBranchId} onclick={handleOpenBranch}>{detailBranchName}</button></template><template lwc:else>{detailBranchName}</template></p>
+            <p class="cd-muted">Vínculo tipado no Flosum; não comprova implantação.</p>
+            <h4>Component Histories relacionados</h4>
+            <template lwc:if={historyUnavailable}><p class="cd-muted">A fonte histórica não está acessível ou não foi possível comprovar sua ligação.</p></template>
+            <template lwc:else>
+              <template lwc:if={hasHistories}>
+                <template for:each={histories} for:item="history">
+                  <div key={history.id} class="cd-history">
+                    <button type="button" class="cd-link" data-id={history.id} onclick={handleOpenHistory}>Abrir histórico Flosum</button>
+                    <lightning-formatted-date-time value={history.createdAt} time-zone="UTC" day="2-digit" month="2-digit" year="numeric" hour="2-digit" minute="2-digit"></lightning-formatted-date-time>
+                  </div>
+                </template>
+                <template lwc:if={hasHistoryMore}><p class="cd-muted">Mais registros existem além dos 20 exibidos.</p></template>
+              </template>
+              <template lwc:else><p class="cd-muted">Nenhum histórico acessível neste vínculo consultado.</p></template>
+            </template>
+            <div class="cd-caution" role="note">Versões, commits, deploys e Diff ainda não estão correlacionados a este componente. Não exibir histórico de deploy sem evidência direta.</div>
+          </div>
+        </template>
+        <template lwc:else><p class="cd-empty">Selecione uma ocorrência para visualizar a Branch e os históricos diretamente relacionados.</p></template>
+      </aside>
+    </div>
+  </div>
+</template>
