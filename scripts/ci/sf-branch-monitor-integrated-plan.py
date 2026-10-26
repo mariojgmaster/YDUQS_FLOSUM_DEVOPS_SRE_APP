@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """SPEC-006 M1. Deterministic, sandbox-only dry-run: Apex + LWC + Tab + Reader + live App.
 Never commits, uploads or prints original Salesforce application metadata.
-Deploying persistently is NOT implemented by this script.
+Phase 1 Apex/LWC must already be installed; validates Phase 2 navigation only.\nDeploying persistently is NOT implemented by this script.
 """
 import argparse
 import hashlib
@@ -23,8 +23,6 @@ BODY = "SDOA-BRANCH-INTEGRATION/1\noperation=plan\ntarget=DevSreFeat\npackage=br
 NS = "{http://soap.sforce.com/2006/04/metadata}"
 SRC_MANIFEST = "manifest/sf-branch-monitor-m1-integration-source.xml"
 SOURCE_TYPES = {
-    "ApexClass": {"DevSreBranchMonitorController","DevSreBranchMonitorTest"},
-    "LightningComponentBundle": {"devSreBranchMonitor"},
     "CustomTab": {"branchMonitor"},
     "PermissionSet": {"DevSreBranchMonitor_Reader"}
 }
@@ -130,8 +128,6 @@ def prepare(repo,tmp):
     if not (stage/"package.xml").is_file() or members((stage/"package.xml").read_bytes())!=SOURCE_TYPES:
         raise Block("Metadata conversion scope incomplete")
     for required in [
-        "classes/DevSreBranchMonitorController.cls",
-        "classes/DevSreBranchMonitorTest.cls",
         "tabs/branchMonitor.tab",
         "permissionsets/DevSreBranchMonitor_Reader.permissionset"
     ]:
@@ -154,7 +150,7 @@ def prepare(repo,tmp):
     all_files=[f.relative_to(stage).as_posix() for f in stage.rglob("*") if f.is_file()]
     if len(all_files)>150 or any(".." in PurePosixPath(f).parts for f in all_files):
         raise Block("Unbounded staging package")
-    print("BM_M1_INTEGRATION_STAGED: source_types=4 app=1 extra_tabs=1 preserved_original_tabs=4 scope_valid=true")
+    print("BM_M1_INTEGRATION_STAGED: source_types=2 app=1 extra_tabs=1 preserved_original_tabs=4 scope_valid=true")
     return stage
 
 def classify_failures(result):
@@ -185,11 +181,30 @@ def classify_failures(result):
         print("BM_M1_SAFE_FAILURE: component="+suspects[-1]+" category="+category)
     if not failures: print("BM_M1_SAFE_FAILURE: component=not_identified category=not_identified")
 
+def preflight_m1_installed():
+    """Confirm Phase 1 is already installed before changing app metadata."""
+    output=cli(["data","query","--use-tooling-api",
+        "--query","SELECT Name FROM ApexClass WHERE Name IN ('DevSreBranchMonitorController','DevSreBranchMonitorTest') LIMIT 3",
+        "--target-org","devsrefeat-ci"],timeout=120)
+    names={r.get("Name") for r in output.get("records",[])
+           if isinstance(r,dict)} if isinstance(output,dict) else set()
+    if names!={"DevSreBranchMonitorController","DevSreBranchMonitorTest"}:
+        print("BM_M1_DEPENDENCY: phase1_code_deployed=false")
+        raise Block("Install Phase 1 first")
+    bundles=cli(["org","list","metadata","--metadata-type","LightningComponentBundle",
+        "--target-org","devsrefeat-ci"],timeout=120)
+    if not isinstance(bundles,list) or not any(
+        isinstance(x,dict) and x.get("fullName")=="devSreBranchMonitor" for x in bundles):
+        print("BM_M1_DEPENDENCY: phase1_code_deployed=false")
+        raise Block("LWC not yet installed")
+    print("BM_M1_DEPENDENCY: phase1_code_deployed=true")
+
 def plan(repo):
     if os.environ.get("GITHUB_REF")!="refs/heads/master" or (
         os.environ.get("GITHUB_ACTOR")!=os.environ.get("GITHUB_REPOSITORY_OWNER")
     ) or os.environ.get("GITHUB_RUN_ATTEMPT")!="1":
         raise Block("Only trusted master owner may validate")
+    preflight_m1_installed()
     with tempfile.TemporaryDirectory(prefix="bm-m1-integration-") as directory:
         stage=prepare(repo,Path(directory))
         # Sandbox dry-run only. No deploy mode. Full specified Apex test coverage.
