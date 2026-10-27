@@ -128,6 +128,11 @@
                   <span class="cd-history-count" aria-live="polite">{historyCountLabel}</span>
                 </template>
               </header>
+
+              <template lwc:if={canCompareHistories}>
+                <lightning-button label="Comparar históricos" icon-name="utility:compare"
+                  onclick={handleCompareToggle} variant="neutral"></lightning-button>
+              </template>
               <template lwc:if={historyUnavailable}>
                 <p class="cd-muted">A fonte histórica não está acessível ou não foi possível comprovar sua ligação.</p>
               </template>
@@ -158,6 +163,66 @@
                 </template>
               </template>
             </section>
+            <template lwc:if={compareOpen}>
+              <section class="cd-compare-panel" aria-label="Comparação de históricos do Flosum">
+                <header class="cd-compare-head">
+                  <div>
+                    <h4 class="cd-section-title">Diff entre históricos</h4>
+                    <p class="cd-muted">Comparação do mesmo caminho de arquivo em dois ZIPs vinculados a este registro. Não comprova commit nem deploy.</p>
+                  </div>
+                  <lightning-button-icon icon-name="utility:close" alternative-text="Fechar comparação"
+                    title="Fechar comparação" onclick={handleCompareClose}></lightning-button-icon>
+                </header>
+                <div class="cd-compare-selectors">
+                  <lightning-combobox label="Histórico base" data-side="base"
+                    options={historyCompareOptions} value={compareBaseId}
+                    onchange={handleCompareHistoryChange}></lightning-combobox>
+                  <lightning-combobox label="Comparar com" data-side="target"
+                    options={historyCompareOptions} value={compareTargetId}
+                    onchange={handleCompareHistoryChange}></lightning-combobox>
+                </div>
+                <template lwc:if={compareLoading}>
+                  <div class="cd-loading"><lightning-spinner size="small" alternative-text="Consultando arquivos para comparação"></lightning-spinner></div>
+                </template>
+                <template lwc:elseif={compareError}>
+                  <p class="cd-error" role="alert">{compareError}</p>
+                </template>
+                <template lwc:elseif={hasComparePaths}>
+                  <div class="cd-compare-file">
+                    <lightning-combobox label="Arquivo de texto presente nos dois ZIPs"
+                      placeholder="Selecione um arquivo para comparar" value={comparePath}
+                      options={compareFileOptions} onchange={handleCompareFileChange}></lightning-combobox>
+                  </div>
+                  <template lwc:if={compareWarning}><p class="cd-empty" role="status">{compareWarning}</p></template>
+                  <template lwc:if={hasCompareRows}>
+                    <div class="cd-compare-summary" role="status">
+                      <span>+{compareAdded} linhas adicionadas</span>
+                      <span>−{compareRemoved} linhas removidas</span>
+                      <template lwc:if={compareUnchanged}><span>Conteúdo idêntico</span></template>
+                    </div>
+                    <div class="cd-compare-scroll" role="region" aria-label="Diferenças do arquivo" tabindex="0">
+                      <table class="cd-compare-table">
+                        <thead><tr><th scope="col">Base</th><th scope="col">Destino</th><th scope="col">Δ</th><th scope="col">Conteúdo</th></tr></thead>
+                        <tbody>
+                          <template for:each={compareRows} for:item="line">
+                            <tr key={line.key} class={line.rowClass}>
+                              <td>{line.oldLine}</td>
+                              <td>{line.newLine}</td>
+                              <td>{line.sign}</td>
+                              <td><pre><code>{line.text}</code></pre></td>
+                            </tr>
+                          </template>
+                        </tbody>
+                      </table>
+                    </div>
+                  </template>
+                </template>
+                <template lwc:else>
+                  <p class="cd-empty" role="status">Não há arquivos de texto com o mesmo caminho, acessíveis nos dois ZIPs selecionados.</p>
+                </template>
+                <p class="cd-muted cd-compare-foot">Somente leitura · nomes/caminhos exatos · até 600 linhas por arquivo · comparação executada no navegador.</p>
+              </section>
+            </template>
             <template lwc:if={archiveOpen}>
               <section class="cd-archive-panel" aria-label="Explorador ZIP do histórico">
                 <div class="cd-archive-head">
@@ -197,7 +262,7 @@
                 <p class="cd-muted cd-archive-footnote">Pré-visualização limitada a 64 KiB por arquivo, ZIP de até 1 MiB e 200 entradas. Nenhum conteúdo é executado ou alterado.</p>
               </section>
             </template>
-            <div class="cd-caution" role="note">Versões, commits, deploys e Diff ainda não estão correlacionados a este componente. Não exibir histórico de deploy sem evidência direta.</div>
+            <div class="cd-caution" role="note">O Diff compara somente conteúdo de arquivos ZIP de dois Histories vinculados ao mesmo Component. Não estabelece identidade canônica, equivalência a versões Git ou evidência de implantação. Não exibir histórico de deploy sem evidência direta.</div>
           </div>
         </template>
         <template lwc:else><p class="cd-empty">Selecione uma ocorrência para visualizar a Branch e os históricos diretamente relacionados.</p></template>

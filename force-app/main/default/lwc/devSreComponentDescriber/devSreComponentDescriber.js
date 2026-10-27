@@ -4,6 +4,7 @@ import searchFilteredComponents from "@salesforce/apex/DevSreComponentDescriberC
 import getComponentTypes from "@salesforce/apex/DevSreComponentDescriberController.getComponentTypes";
 import describeComponent from "@salesforce/apex/DevSreComponentDescriberController.describeComponent";
 import inspectHistoryArchive from "@salesforce/apex/DevSreComponentDescriberController.inspectHistoryArchive";
+import { commonPreviewPaths, lineDiff } from "./historyDiff";
 
 export default class DevSreComponentDescriber extends NavigationMixin(LightningElement) {
   search = "";
@@ -35,6 +36,16 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   archiveData;
   archiveHistoryId;
   _archiveRequest = 0;
+  compareOpen = false;
+  compareLoading = false;
+  compareError;
+  compareOptions = [];
+  compareBaseId = "";
+  compareTargetId = "";
+  comparePaths = [];
+  comparePath = "";
+  compareDiff;
+  _compareRequest = 0;
   _debounce;
   _typeDebounce;
 
@@ -46,6 +57,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     ++this._detailRequest;
     ++this._typeRequest;
     ++this._archiveRequest;
+    ++this._compareRequest;
   }
 
   get tooLong() { return this.search.length > 80; }
@@ -70,6 +82,25 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     return count === 1 ? "1 histórico nesta consulta" : `${count} históricos nesta consulta`;
   }
   get hasHistories() { return this.histories.length > 0; }
+  get canCompareHistories() {
+    return !this.historyUnavailable && this.histories.length >= 2;
+  }
+  get historyCompareOptions() {
+    return this.histories.map((h, i) => ({
+      label: `Histórico ${i + 1} · ${h.createdAt || "data indisponível"}`,
+      value: h.id
+    }));
+  }
+  get compareFileOptions() {
+    return this.comparePaths.map(path => ({ label: path, value: path }));
+  }
+  get hasComparePaths() { return this.comparePaths.length > 0; }
+  get hasCompareRows() { return (this.compareDiff?.rows || []).length > 0; }
+  get compareRows() { return this.compareDiff?.rows || []; }
+  get compareAdded() { return this.compareDiff?.added || 0; }
+  get compareRemoved() { return this.compareDiff?.removed || 0; }
+  get compareUnchanged() { return Boolean(this.compareDiff?.unchanged); }
+  get compareWarning() { return this.compareDiff?.error || ""; }
   get historyUnavailable() { return this.detail?.historyQuality !== "TYPED_LINK_SAMPLE"; }
   get hasHistoryMore() { return Boolean(this.detail?.historiesHasMore); }
   get nextDisabled() { return !this.hasMore || this.loading || !this.eligible; }
@@ -125,6 +156,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   get noMatches() { return this.searched && !this.loading && !this.error && !this.hasResults; }
 
   resetResults() {
+    this.handleCompareClose();
     this.handleArchiveClose();
     this.detailExpanded = false;
     ++this._searchRequest;
@@ -174,6 +206,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     this.archiveFilter = event.target.value || "";
   }
   handleClose() {
+    this.handleCompareClose();
     this.detailExpanded = false;
     this.handleArchiveClose();
     ++this._detailRequest;
@@ -222,6 +255,92 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
       if (request === this._archiveRequest) this.archiveLoading = false;
     }
   }
+  handleCompareToggle() {
+    if (this.compareOpen) {
+      this.handleCompareClose();
+      return;
+    }
+    if (!this.canCompareHistories) return;
+    this.compareOpen = true;
+    // Histories are ordered by CreatedDate descending in the existing typed Apex query.
+    this.compareBaseId = this.histories[1].id;
+    this.compareTargetId = this.histories[0].id;
+    this.loadCompareArchives();
+  }
+  handleCompareClose() {
+    ++this._compareRequest;
+    this.compareOpen = false;
+    this.compareLoading = false;
+    this.compareError = undefined;
+    this.comparePaths = [];
+    this.comparePath = "";
+    this.compareDiff = undefined;
+    this.compareBaseId = "";
+    this.compareTargetId = "";
+  }
+  handleCompareHistoryChange(event) {
+    const id = event.detail.value;
+    if (!this.histories.some(x => x.id === id)) return;
+    if (event.currentTarget.dataset.side === "base") this.compareBaseId = id;
+    else if (event.currentTarget.dataset.side === "target") this.compareTargetId = id;
+    else return;
+    this.loadCompareArchives();
+  }
+  async loadCompareArchives() {
+    const request = ++this._compareRequest;
+    this.compareError = undefined;
+    this.compareDiff = undefined;
+    this.comparePaths = [];
+    this.comparePath = "";
+    const allowedIds = new Set(this.histories.map(x => x.id));
+    if (!this.compareOpen || !allowedIds.has(this.compareBaseId) ||
+      !allowedIds.has(this.compareTargetId) || this.compareBaseId === this.compareTargetId) {
+      this.compareLoading = false;
+      this.compareError = "Selecione dois históricos diferentes do componente.";
+      return;
+    }
+    this.compareLoading = true;
+    try {
+      const [base, target] = await Promise.all([
+        inspectHistoryArchive({ historyId: this.compareBaseId, entryPath: null }),
+        inspectHistoryArchive({ historyId: this.compareTargetId, entryPath: null })
+      ]);
+      if (request !== this._compareRequest) return;
+      this.comparePaths = commonPreviewPaths(base, target);
+    } catch (error) {
+      if (request === this._compareRequest)
+        this.compareError = this.message(error, "Não foi possível acessar os dois ZIPs.");
+    } finally {
+      if (request === this._compareRequest) this.compareLoading = false;
+    }
+  }
+  async handleCompareFileChange(event) {
+    const path = event.detail.value;
+    if (!this.comparePaths.includes(path) || !this.compareOpen) return;
+    const request = ++this._compareRequest;
+    this.comparePath = path;
+    this.compareDiff = undefined;
+    this.compareError = undefined;
+    this.compareLoading = true;
+    try {
+      const [base, target] = await Promise.all([
+        inspectHistoryArchive({ historyId: this.compareBaseId, entryPath: path }),
+        inspectHistoryArchive({ historyId: this.compareTargetId, entryPath: path })
+      ]);
+      if (request !== this._compareRequest) return;
+      if (base?.selectedPath !== path || target?.selectedPath !== path) {
+        this.compareError = "A correspondência do caminho não foi confirmada nos dois arquivos.";
+        return;
+      }
+      this.compareDiff = lineDiff(base.text, target.text);
+    } catch (error) {
+      if (request === this._compareRequest)
+        this.compareError = this.message(error, "Não foi possível comparar o conteúdo.");
+    } finally {
+      if (request === this._compareRequest) this.compareLoading = false;
+    }
+  }
+
   open(id, objectApiName) {
     if (!id) return;
     this[NavigationMixin.Navigate]({
@@ -308,6 +427,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
 
   async load(append) {
     if (!this.eligible) return;
+    if (!append) this.handleCompareClose();
     const request = ++this._searchRequest;
     this.loading = true;
     this.error = undefined;
@@ -344,6 +464,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   }
   async loadDetail(id) {
     if (!id) return;
+    this.handleCompareClose();
     this.detailExpanded = false;
     this.handleArchiveClose();
     const request = ++this._detailRequest;
