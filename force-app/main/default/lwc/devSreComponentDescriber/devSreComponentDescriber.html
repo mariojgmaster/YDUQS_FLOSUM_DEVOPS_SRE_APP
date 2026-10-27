@@ -91,7 +91,27 @@
               <lightning-button-icon icon-name="utility:close" alternative-text="Fechar detalhe" onclick={handleClose}></lightning-button-icon>
             </div>
           </header>
+          <template lwc:if={showWorkspaceNav}>
+            <nav class="cd-workspace-path" aria-label="Caminho de navegação dos componentes">
+              <button type="button" class="cd-link" onclick={handleBackToList}>Inventário</button>
+              <span aria-hidden="true">/</span>
+              <span class="cd-workspace-identity" title={detailName}>{detailName}</span>
+              <span aria-hidden="true">/</span>
+              <strong>{workspaceLabel}</strong>
+            </nav>
+            <nav class="cd-workspace-nav" aria-label="Seções do componente">
+              <lightning-button data-tab="ficha" label="Ficha" variant={fichaVariant}
+                onclick={handleNavigateWorkspace}></lightning-button>
+              <lightning-button data-tab="historicos" label="Históricos" variant={historiesVariant}
+                onclick={handleNavigateWorkspace}></lightning-button>
+              <lightning-button data-tab="arquivos" label="Arquivos ZIP" variant={zipVariant}
+                disabled={archiveNavigationDisabled} onclick={handleNavigateWorkspace}></lightning-button>
+              <lightning-button data-tab="comparar" label="Comparar" variant={compareVariant}
+                disabled={compareNavigationDisabled} onclick={handleNavigateWorkspace}></lightning-button>
+            </nav>
+          </template>
           <div class="cd-detail-body">
+            <template lwc:if={showFactsSection}>
             <section class="cd-facts" aria-label="Ficha do componente no Flosum">
               <h4 class="cd-section-title">Ficha do componente</h4>
               <dl class="cd-facts-grid">
@@ -121,6 +141,8 @@
               </dl>
               <p class="cd-muted cd-facts-note">Dados registrados no Flosum. O vínculo com a Branch e a versão informada não comprovam implantação nem revisão de código.</p>
             </section>
+            </template>
+            <template lwc:if={showHistorySection}>
             <section class="cd-history-section" aria-label="Históricos relacionados ao componente">
               <header class="cd-section-header">
                 <h4 class="cd-section-title">Component Histories relacionados</h4>
@@ -163,7 +185,8 @@
                 </template>
               </template>
             </section>
-            <template lwc:if={compareOpen}>
+            </template>
+            <template lwc:if={showCompareSection}>
               <section class="cd-compare-panel" aria-label="Comparação de históricos do Flosum">
                 <header class="cd-compare-head">
                   <div>
@@ -209,29 +232,39 @@
                         <lightning-button label="Lado a lado" variant={allLinesButtonVariant} onclick={handleDiffModeAll}></lightning-button>
                         <lightning-button label="Apenas alterações" variant={onlyChangesButtonVariant} onclick={handleDiffModeChanged}></lightning-button>
                       </lightning-button-group>
-                      <span class="cd-muted">Base e destino alinhados pelo trecho alterado</span>
+                      <span class="cd-muted">Cada coluna tem rolagem horizontal e vertical própria.</span>
                     </div>
                     <template lwc:if={hasNoChangedLines}>
                       <p class="cd-empty" role="status">Os dois arquivos têm conteúdo idêntico. Não há alterações para exibir.</p>
                     </template>
                     <template lwc:else>
-                      <div class="cd-diff-side-scroll" role="region" tabindex="0" aria-label="Diff de código lado a lado">
-                        <div class="cd-diff-side-header">
-                          <div>Histórico base</div><div>Histórico de destino</div>
-                        </div>
-                        <div class="cd-diff-pairs">
-                          <template for:each={sideBySideRows} for:item="line">
-                            <div class="cd-diff-pair" key={line.key}>
-                              <div class={line.left.className}>
-                                <span class="cd-diff-number">{line.left.line}</span>
-                                <pre><code>{line.left.text}</code></pre>
+                      <div class="cd-diff-panes" role="group" aria-label="Visualização de código em duas colunas independentes">
+                        <section class="cd-diff-pane" tabindex="0" role="region"
+                          aria-label="Código do histórico base; rolagem horizontal e vertical independente">
+                          <header class="cd-diff-pane-title">Histórico base</header>
+                          <div class="cd-diff-pane-lines">
+                            <template for:each={diffBaseRows} for:item="line">
+                              <div key={line.key} class={line.className}>
+                                <span class="cd-diff-number">{line.line}</span>
+                                <pre><code>{line.text}</code></pre>
                               </div>
-                              <div class={line.right.className}>
-                                <span class="cd-diff-number">{line.right.line}</span>
-                                <pre><code>{line.right.text}</code></pre>
+                            </template>
+                          </div>
+                        </section>
+                        <section class="cd-diff-pane" tabindex="0" role="region"
+                          aria-label="Código do histórico de destino; rolagem horizontal e vertical independente">
+                          <header class="cd-diff-pane-title">Histórico de destino</header>
+                          <div class="cd-diff-pane-lines">
+                            <template for:each={diffTargetRows} for:item="line">
+                              <div key={line.key} class={line.className}>
+                                <span class="cd-diff-number">{line.line}</span>
+                                <pre><code>{line.text}</code></pre>
                               </div>
-                            </div>
-                          </template>
+                            </template>
+                          </div>
+                        </section>
+                      </div>
+                    </template>
                         </div>
                       </div>
                     </template>
@@ -240,10 +273,10 @@
                 <template lwc:else>
                   <p class="cd-empty" role="status">Não há arquivos de texto com o mesmo caminho, acessíveis nos dois ZIPs selecionados.</p>
                 </template>
-                <p class="cd-muted cd-compare-foot">Somente leitura · nomes/caminhos exatos · até 600 linhas por arquivo · comparação executada no navegador.</p>
+                <p class="cd-muted cd-compare-foot">Somente leitura · Base e Destino com scroll independente X/Y · até 600 linhas por arquivo · comparação no navegador.</p>
               </section>
             </template>
-            <template lwc:if={archiveOpen}>
+            <template lwc:if={showArchiveSection}>
               <section class="cd-archive-panel" aria-label="Explorador ZIP do histórico">
                 <div class="cd-archive-head">
                   <div><h4>Arquivos do histórico</h4><p class="cd-muted">{archiveName} · pré-visualização de texto, somente leitura</p></div>
@@ -265,7 +298,7 @@
                           disabled={entry.disabled} title={entry.path}>{entry.path}</button>
                       </template>
                     </div>
-                    <div class="cd-archive-preview">
+                    <div class="cd-archive-preview" role="region" tabindex="0" aria-label="Visualização do arquivo ZIP com rolagem horizontal e vertical">
                       <template lwc:if={hasArchiveText}>
                         <p class="cd-archive-filename">{archiveFileName}</p>
                         <pre class="cd-archive-code"><code>{archiveContent}</code></pre>
