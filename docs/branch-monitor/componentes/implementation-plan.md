@@ -54,3 +54,15 @@
 - Workflow completo: CI + Jest, PLAN DevSreFeat, deploy real somente mediante autorização específica com commit e pacote fixos, COMPARE e homologação.
 
 **Status:** código/PR de V3.2 em preparação; esta documentação não implica implantação ou aprovação funcional.
+
+
+## V3.2.1 — sincronização vertical e arquivos de até 6 MiB
+
+- Rolagem vertical de Base/Destino **sincronizada** pelo `scrollTop`, com as linhas do Diff alinhadas; rolagem horizontal própria em cada painel. Os painéis continuam independentes para leitura horizontal.
+- Sem teto fixo de linhas: estratégia LCS exata em blocos pequenos + âncoras estáveis para blocos grandes; se não houver correspondência comprovável, apresenta remoções/adições sem presumir igualdade. Todas as linhas permanecem acessíveis por páginas de 250 pares (isso é virtualização da apresentação, não truncamento dos textos).
+- A política Apex de tamanho de ZIP e de texto extraído sobe de 1 MiB/64 KiB para **6 MiB (6.291.456 bytes) por arquivo**. O número de entradas ZIP continua limitado a 200, e a whitelist de tipos permanece.
+- **Limitação técnica importante:** Apex síncrono dispõe de 10 MB de heap no Winter '27, sujeito às configurações efetivas da org. Carregar ZIP, descompactar e serializar texto pode superar esse heap mesmo quando cada arquivo está abaixo de 6 MiB. Uma checagem pré-extração retorna mensagem legível quando falta memória; **não declarar capacidade garantida de 6 MiB reais sem prova com arquivo desse tamanho**. O próximo passo arquitetural para arquivos que excedem o heap é download autorizado do Attachment e extração em streaming no navegador ou backend específico, mantendo verificação de acesso.
+- Metadados de anexos são consultados primeiro em USER_MODE sem `Body`; apenas o ZIP escolhido recebe uma segunda consulta ao campo `Body`. Evita trazer até onze ZIPs inteiros em uma única transação.
+- Testes: Diff acima de 600 linhas, páginas 1..N, rolamento Y espelhado e X isolado, arquivo sintético acima de 64 KiB, políticas/segurança. Homologar com arquivo próximo de 6 MiB na DevSreFeat antes de prometer suporte universal.
+
+**Status:** alvo de validação técnica (PR/PLAN). Deploy real somente após autorização exata de pacote e commit.
