@@ -136,5 +136,75 @@ class UniversalKitV2Tests(unittest.TestCase):
         self.assertNotIn("pull_request_target:", WORKFLOW)
 
 
+    def test_per_member_diff_maps_only_reviewed_metadata(self):
+        members = {"ApexClass": ["Reviewed"], "LightningComponentBundle": ["included"],
+                   "CustomTab": ["branchMonitor"]}
+        self.assertEqual(v2.reviewed_owners("classes/Reviewed.cls", members), ["ApexClass:Reviewed"])
+        self.assertEqual(v2.reviewed_owners("classes/Reviewed.cls-meta.xml", members), ["ApexClass:Reviewed"])
+        self.assertEqual(v2.reviewed_owners("lwc/included/included.js", members),
+                         ["LightningComponentBundle:included"])
+        self.assertEqual(v2.reviewed_owners("tabs/branchMonitor.tab", members), ["CustomTab:branchMonitor"])
+        self.assertEqual(v2.reviewed_owners("classes/Unreviewed.cls", members), [])
+        self.assertEqual(v2.reviewed_owners("lwc/other/other.js", members), [])
+
+    def test_custom_field_aggregate_diff_must_be_reported_as_ambiguous(self):
+        pkg = (b'<Package xmlns="http://soap.sforce.com/2006/04/metadata">'
+               b'<types><members>DevSre_EnvironmentMapping__c.Reason__c</members>'
+               b'<name>CustomField</name></types><version>67.0</version></Package>')
+        path = "objects/DevSre_EnvironmentMapping__c.object"
+        self.assertEqual(v2.reviewed_owners(path, {"CustomField":
+            ["DevSre_EnvironmentMapping__c.Reason__c"]}),
+            ["CustomField:DevSre_EnvironmentMapping__c.Reason__c"])
+        data = {"package.xml": pkg, path: b"<CustomObject><label>safe</label></CustomObject>"}
+        for name, content in data.items():
+            f = self.candidate / name
+            f.parent.mkdir(exist_ok=True)
+            f.write_bytes(content)
+        remote = self.base / "remote-aggregate.zip"
+        with ZipFile(remote, "w") as zipfile:
+            zipfile.writestr("unpackaged/package.xml", pkg)
+            zipfile.writestr("unpackaged/" + path,
+                            b"<CustomObject><label>private changed</label></CustomObject>")
+        response = v2.report("compare", "environment-reason-field-v2", remote, self.candidate)
+        self.assertEqual(response["differing_files"], 1)
+        self.assertEqual(response["differing_members"], [])
+        self.assertEqual(response["ambiguous_candidates"],
+                         ["CustomField:DevSre_EnvironmentMapping__c.Reason__c"])
+        self.assertFalse(response["attribution_complete"])
+        self.assertNotIn("private changed", json.dumps(response))
+
+    def test_unreviewed_extra_payload_files_denied_even_with_valid_manifest(self):
+        pkg = (b'<Package xmlns="http://soap.sforce.com/2006/04/metadata">'
+               b'<types><members>branchMonitor</members><name>CustomTab</name></types>'
+               b'<version>67.0</version></Package>')
+        payload = {"package.xml": pkg, "tabs/branchMonitor.tab": b"original",
+                   "tabs/Unreviewed.tab": b"org-private"}
+        with self.assertRaises(v2.PolicyError):
+            v2.verify_payload(payload, {"CustomTab": ["branchMonitor"]})
+
+    def test_v2_jest_selects_exact_reviewed_lwc_suites(self):
+        info, groups = v2.verify_config("branch-monitor-lwc-v2")
+        self.assertEqual(groups, {"LightningComponentBundle": ["devSreBranchMonitor"]})
+        self.assertEqual(info["effective_test_level"], "RunSpecifiedTests")
+        files = v2.jest_files("branch-monitor-lwc-v2")
+        self.assertEqual(files, [
+            "force-app/main/default/lwc/devSreBranchMonitor/__tests__/devSreBranchMonitor.test.js"
+        ])
+        from unittest.mock import patch
+        with patch.object(v2, "verify_config", return_value=({}, {
+            "LightningComponentBundle": ["cleandatatable"]
+        })):
+            with self.assertRaises(v2.PolicyError):
+                v2.jest_files("missing-jest-suite")
+
+    def test_workflow_caches_pinned_cli_and_scopes_jest(self):
+        for text in ("actions/cache@v4", "2.154.4",
+                     "sf-kit-v2-policy.py jest-files", "SDOA_V2_JEST_PASSED",
+                     "SDOA_V2_SF_CLI_PIN_VERIFIED", "Run only v2 manifest-scoped LWC Jest suites"):
+            self.assertIn(text, WORKFLOW)
+        self.assertIn("needs.resolve.outputs.policy_version != '2'", WORKFLOW)
+        self.assertIn("steps.registry.outputs.has_lwc == 'true'", WORKFLOW)
+
+
 if __name__ == "__main__":
     unittest.main()

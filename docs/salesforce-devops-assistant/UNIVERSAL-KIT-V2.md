@@ -84,9 +84,8 @@ during kit migration or smoke testing.
 
 ## Known limitations and migration risks
 
-- v2 Compare reports an aggregate count of differing files; it does not yet
-  attribute every changed Metadata API file to a logical member for every
-  Salesforce metadata type. This is deliberate rather than inventing names.
+- v2 Compare attributes files only for mapped and unambiguous metadata
+  shapes; aggregate or unknown shapes are counted without invented ownership.
 - Metadata API conversion and retrieve formats may differ for some types.
   A manifest/payload mismatch blocks until investigated, not bypassed.
 - Expanded type support does not guarantee every metadata family, namespace,
@@ -98,3 +97,36 @@ during kit migration or smoke testing.
   permission, approval or execution tool.
 - The legacy v1 template installer stays pinned to v1 for existing customers.
   Distribution of v2 templates is a separate, reviewed template release.
+
+## Increment v2.1 — component-aware Compare, scoped Jest and CLI preparation
+
+- The sanitized Compare report now includes `differing_members` for metadata
+  paths mapping unambiguously to **reviewed manifest members**, plus
+  `ambiguous_candidates`, `unattributed_changed_files` and
+  `attribution_complete`. Salesforce-source or XML contents and arbitrary
+  remote paths are never included in public artifacts.
+- Metadata API files aggregating CustomField or ValidationRule definitions
+  (such as `objects/*.object`) are **ambiguous** even for one manifest member,
+  because an unrelated field inside the same object may be different.
+- Packages made exclusively from recognized metadata families refuse extra
+  files that are not attributable to manifest members. Unrecognized families
+  require separate Metadata API compatibility and mapping review.
+- Each v2 `LightningComponentBundle` now requires at least one
+  source-controlled `__tests__/*.test.js` or `*.spec.js` suite.
+  `jest-files` deterministically selects test files by manifest LWC name,
+  before connecting to Salesforce. It fails closed if a reviewed suite is absent.
+  The v1 hardcoded Jest behavior is unchanged.
+- The new `branch-monitor-lwc-v2` sandbox pilot exercises
+  `LightningComponentBundle:devSreBranchMonitor`, selected Jest suites and
+  `DevSreBranchMonitorTest` (specified Apex tests).
+- Salesforce CLI for v2 is now pinned to `@salesforce/cli@2.154.4`;
+  Actions caches npm download content for its exact version on trusted
+  workflows. Install and version check still execute on each run, so
+  **speedup must be measured**, not assumed. Version upgrades require a
+  reviewed change to the cache key and package version together.
+- Cache cannot be used to authorize a deploy, alter org identity, weaken
+  test levels or bypass the GitHub Issue owner/SHA gates.
+- After merge, homologate Retrieve/Compare/PLAN on the existing
+  `branch-monitor-tab-v2` package, then perform an additional PLAN with
+  `branch-monitor-lwc-v2` after Jest review. Do not generate a DEPLOY Issue
+  without a new concrete authorization for a reviewed deployment.

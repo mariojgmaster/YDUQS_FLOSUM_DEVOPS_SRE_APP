@@ -313,6 +313,18 @@
       "allowed_types": [
         "LightningComponentBundle"
       ]
+    },
+    "branch-monitor-lwc-v2": {
+      "policy_version": 2,
+      "reviewed": true,
+      "manifest": "manifest/sf-v2-branch-monitor-lwc.xml",
+      "allowed_types": [
+        "LightningComponentBundle"
+      ],
+      "test_level": "auto",
+      "tests": [
+        "DevSreBranchMonitorTest"
+      ]
     }
   }
 }
