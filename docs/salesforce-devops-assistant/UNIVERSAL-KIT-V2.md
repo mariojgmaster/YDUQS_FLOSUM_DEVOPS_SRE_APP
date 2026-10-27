@@ -145,3 +145,12 @@ selection. Any extra, missing, failed or unmatched suite blocks the operation
 before Salesforce authentication. No Jest JSON is published to the public repo.
 A passing GitHub Action without `SDOA_V2_JEST_PASSED` after this verification
 does not satisfy the selective Jest gate.
+
+## v2.1.2 — CLI cache reservation recovery
+
+Several successful GitHub runs installed the pinned CLI but logged a
+non-fatal cache save failure (`Unable to reserve cache`) on the v1 cache key.
+The key has been rotated to v2 to attempt recovery. Caching is an optional
+optimization: installation and `sf --version` verification stay mandatory.
+A real cache hit and measured runtime improvement must be observed before
+claiming reduced installation time.
