@@ -232,15 +232,16 @@
                         <lightning-button label="Lado a lado" variant={allLinesButtonVariant} onclick={handleDiffModeAll}></lightning-button>
                         <lightning-button label="Apenas alterações" variant={onlyChangesButtonVariant} onclick={handleDiffModeChanged}></lightning-button>
                       </lightning-button-group>
-                      <span class="cd-muted">Cada coluna tem rolagem horizontal e vertical própria.</span>
+                      <span class="cd-muted">Vertical sincronizado · horizontal independente</span>
                     </div>
                     <template lwc:if={hasNoChangedLines}>
                       <p class="cd-empty" role="status">Os dois arquivos têm conteúdo idêntico. Não há alterações para exibir.</p>
                     </template>
                     <template lwc:else>
-                      <div class="cd-diff-panes" role="group" aria-label="Visualização de código em duas colunas independentes">
-                        <section class="cd-diff-pane" tabindex="0" role="region"
-                          aria-label="Código do histórico base; rolagem horizontal e vertical independente">
+                      <div class="cd-diff-panes" role="group" aria-label="Visualização de código com rolagem vertical sincronizada">
+                        <section class="cd-diff-pane" tabindex="0" role="region" data-side="base"
+                          onscroll={handleDiffPaneScroll}
+                          aria-label="Código do histórico base; horizontal independente e vertical sincronizado">
                           <header class="cd-diff-pane-title">Histórico base</header>
                           <div class="cd-diff-pane-lines">
                             <template for:each={diffBaseRows} for:item="line">
@@ -251,8 +252,9 @@
                             </template>
                           </div>
                         </section>
-                        <section class="cd-diff-pane" tabindex="0" role="region"
-                          aria-label="Código do histórico de destino; rolagem horizontal e vertical independente">
+                        <section class="cd-diff-pane" tabindex="0" role="region" data-side="target"
+                          onscroll={handleDiffPaneScroll}
+                          aria-label="Código do histórico de destino; horizontal independente e vertical sincronizado">
                           <header class="cd-diff-pane-title">Histórico de destino</header>
                           <div class="cd-diff-pane-lines">
                             <template for:each={diffTargetRows} for:item="line">
@@ -264,13 +266,20 @@
                           </div>
                         </section>
                       </div>
+                      <div class="cd-diff-pagination" role="group" aria-label="Navegação entre blocos de linhas">
+                        <lightning-button label="Bloco anterior" onclick={handleDiffPrevious}
+                          disabled={diffPreviousDisabled}></lightning-button>
+                        <span class="cd-muted" role="status">{diffPageLabel}</span>
+                        <lightning-button label="Próximo bloco" onclick={handleDiffNext}
+                          disabled={diffNextDisabled}></lightning-button>
+                      </div>
                     </template>
                   </template>
                 </template>
                 <template lwc:else>
                   <p class="cd-empty" role="status">Não há arquivos de texto com o mesmo caminho, acessíveis nos dois ZIPs selecionados.</p>
                 </template>
-                <p class="cd-muted cd-compare-foot">Somente leitura · Base e Destino com scroll independente X/Y · até 600 linhas por arquivo · comparação no navegador.</p>
+                <p class="cd-muted cd-compare-foot">Somente leitura · vertical sincronizado · horizontal independente · todas as linhas disponíveis por blocos navegáveis.</p>
               </section>
             </template>
             <template lwc:if={showArchiveSection}>
@@ -309,7 +318,7 @@
                   <template lwc:else><p class="cd-empty" role="status">Nenhum arquivo corresponde ao filtro informado.</p></template>
                 </template>
                 <template lwc:else><p class="cd-empty">O ZIP não contém arquivos disponíveis.</p></template>
-                <p class="cd-muted cd-archive-footnote">Pré-visualização limitada a 64 KiB por arquivo, ZIP de até 1 MiB e 200 entradas. Nenhum conteúdo é executado ou alterado.</p>
+                <p class="cd-muted cd-archive-footnote">Limite configurado de até 6 MiB por arquivo de texto e ZIP; abertura sujeita ao heap Apex disponível. Até 200 entradas. Nenhum conteúdo é executado ou alterado.</p>
               </section>
             </template>
             <div class="cd-caution" role="note">O Diff compara somente conteúdo de arquivos ZIP de dois Histories vinculados ao mesmo Component. Não estabelece identidade canônica, equivalência a versões Git ou evidência de implantação. Não exibir histórico de deploy sem evidência direta.</div>
