@@ -47,6 +47,11 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   comparePath = "";
   compareDiff;
   diffOnlyChanges = false;
+  diffPage = 0;
+  diffPageSize = 250;
+  diffPairsAll = [];
+  diffPairsChanges = [];
+  _syncingDiffScroll = false;
   _compareRequest = 0;
   _debounce;
   _typeDebounce;
@@ -99,15 +104,17 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   get hasComparePaths() { return this.comparePaths.length > 0; }
   get hasCompareRows() { return (this.compareDiff?.rows || []).length > 0; }
   get compareRows() { return this.compareDiff?.rows || []; }
-  get diffBaseRows() {
-    return this.sideBySideRows.map(row => ({ key: row.key, ...row.left }));
+  get diffBaseRows() { return this.sideBySideRows.map(row => ({ key: row.key, ...row.left })); }
+  get diffTargetRows() { return this.sideBySideRows.map(row => ({ key: row.key, ...row.right })); }
+  get activeDiffPairs() { return this.diffOnlyChanges ? this.diffPairsChanges : this.diffPairsAll; }
+  get diffTotalPages() { return Math.max(1, Math.ceil(this.activeDiffPairs.length / this.diffPageSize)); }
+  get diffPageLabel() {
+    return `Bloco ${this.diffPage+1} de ${this.diffTotalPages} · ${this.activeDiffPairs.length} linhas alinhadas`;
   }
-  get diffTargetRows() {
-    return this.sideBySideRows.map(row => ({ key: row.key, ...row.right }));
-  }
+  get diffPreviousDisabled() { return this.diffPage===0; }
+  get diffNextDisabled() { return this.diffPage>=this.diffTotalPages-1; }
   get sideBySideRows() {
-    const rows = sideBySideDiff(this.compareDiff);
-    return this.diffOnlyChanges ? rows.filter(row => row.changed) : rows;
+    return this.activeDiffPairs.slice(this.diffPage*this.diffPageSize,(this.diffPage+1)*this.diffPageSize);
   }
   get hasSideBySideRows() { return this.sideBySideRows.length > 0; }
   get allLinesButtonVariant() { return this.diffOnlyChanges ? "neutral" : "brand"; }
@@ -332,11 +339,30 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     this.comparePath = "";
     this.compareDiff = undefined;
     this.diffOnlyChanges = false;
+    this.diffPage=0;
+    this.diffPairsAll=[];
+    this.diffPairsChanges=[];
     this.compareBaseId = "";
     this.compareTargetId = "";
   }
-  handleDiffModeAll() { this.diffOnlyChanges = false; }
-  handleDiffModeChanged() { this.diffOnlyChanges = true; }
+  handleDiffModeAll() { this.diffOnlyChanges = false; this.diffPage = 0; this.resetDiffScroll(); }
+  handleDiffModeChanged() { this.diffOnlyChanges = true; this.diffPage = 0; this.resetDiffScroll(); }
+  handleDiffPrevious() { if(!this.diffPreviousDisabled){this.diffPage--;this.resetDiffScroll();} }
+  handleDiffNext() { if(!this.diffNextDisabled){this.diffPage++;this.resetDiffScroll();} }
+  resetDiffScroll() {
+    this.template.querySelectorAll(".cd-diff-pane").forEach(pane => {pane.scrollTop=0;});
+  }
+  handleDiffPaneScroll(event) {
+    if(this._syncingDiffScroll) return;
+    const source=event.currentTarget;
+    const otherSide=source.dataset.side==="base"?"target":"base";
+    const target=this.template.querySelector(`.cd-diff-pane[data-side="${otherSide}"]`);
+    if(!target || target.scrollTop===source.scrollTop) return;
+    // Only vertical displacement is shared. Each horizontal scroll remains independent.
+    this._syncingDiffScroll=true;
+    target.scrollTop=source.scrollTop;
+    Promise.resolve().then(()=>{this._syncingDiffScroll=false;});
+  }
   handleSwapHistories() {
     if (!this.compareOpen) return;
     const base = this.compareBaseId;
@@ -356,6 +382,9 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     const request = ++this._compareRequest;
     this.compareError = undefined;
     this.compareDiff = undefined;
+    this.diffPage=0;
+    this.diffPairsAll=[];
+    this.diffPairsChanges=[];
     this.comparePaths = [];
     this.comparePath = "";
     const allowedIds = new Set(this.histories.map(x => x.id));
@@ -386,6 +415,9 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     const request = ++this._compareRequest;
     this.comparePath = path;
     this.compareDiff = undefined;
+    this.diffPage=0;
+    this.diffPairsAll=[];
+    this.diffPairsChanges=[];
     this.compareError = undefined;
     this.compareLoading = true;
     try {
@@ -399,6 +431,8 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
         return;
       }
       this.compareDiff = lineDiff(base.text, target.text);
+      this.diffPairsAll = sideBySideDiff(this.compareDiff);
+      this.diffPairsChanges = this.diffPairsAll.filter(row => row.changed);
     } catch (error) {
       if (request === this._compareRequest)
         this.compareError = this.message(error, "Não foi possível comparar o conteúdo.");
