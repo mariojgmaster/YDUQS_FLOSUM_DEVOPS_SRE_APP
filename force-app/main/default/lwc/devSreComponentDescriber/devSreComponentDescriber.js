@@ -56,6 +56,18 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   get hasResults() { return this.results.length > 0; }
   get hasDetail() { return Boolean(this.detail); }
   get histories() { return this.detail?.histories || []; }
+  get historyRows() {
+    return this.histories.map((row, index) => ({
+      ...row,
+      sequence: index + 1,
+      rowClass: this.archiveOpen && this.archiveHistoryId === row.id ?
+        "cd-history cd-history_selected" : "cd-history"
+    }));
+  }
+  get historyCountLabel() {
+    const count = this.histories.length;
+    return count === 1 ? "1 histórico nesta consulta" : `${count} históricos nesta consulta`;
+  }
   get hasHistories() { return this.histories.length > 0; }
   get historyUnavailable() { return this.detail?.historyQuality !== "TYPED_LINK_SAMPLE"; }
   get hasHistoryMore() { return Boolean(this.detail?.historiesHasMore); }
