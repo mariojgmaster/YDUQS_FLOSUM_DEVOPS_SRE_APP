@@ -75,7 +75,7 @@ export function sideBySideDiff(diff) {
   } : { text: "", line: "", className: "cd-diff-cell cd-diff-cell_empty" };
   for (let index = 0; index < diff.rows.length;) {
     const row = diff.rows[index];
-    if (row.rowClass === "cd-diff-line_equal") {
+    if (row.rowClass.endsWith("cd-diff-line_equal")) {
       paired.push({
         key: String(paired.length + 1),
         changed: false,
@@ -87,10 +87,10 @@ export function sideBySideDiff(diff) {
     }
     const removals = [];
     const additions = [];
-    while (index < diff.rows.length && diff.rows[index].rowClass !== "cd-diff-line_equal") {
+    while (index < diff.rows.length && !diff.rows[index].rowClass.endsWith("cd-diff-line_equal")) {
       const current = diff.rows[index++];
-      if (current.rowClass === "cd-diff-line_removed") removals.push(current);
-      else if (current.rowClass === "cd-diff-line_added") additions.push(current);
+      if (current.rowClass.endsWith("cd-diff-line_removed")) removals.push(current);
+      else if (current.rowClass.endsWith("cd-diff-line_added")) additions.push(current);
     }
     for (let i = 0; i < Math.max(removals.length, additions.length); i++) {
       paired.push({
