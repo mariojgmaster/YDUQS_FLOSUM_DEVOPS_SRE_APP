@@ -4,6 +4,7 @@ import searchFilteredComponents from "@salesforce/apex/DevSreComponentDescriberC
 import getComponentTypes from "@salesforce/apex/DevSreComponentDescriberController.getComponentTypes";
 import describeComponent from "@salesforce/apex/DevSreComponentDescriberController.describeComponent";
 import inspectHistoryArchive from "@salesforce/apex/DevSreComponentDescriberController.inspectHistoryArchive";
+import { commonPreviewPaths, lineDiff } from "../historyDiff";
 
 jest.mock("@salesforce/apex/DevSreComponentDescriberController.searchFilteredComponents",
   () => ({default: jest.fn()}), {virtual: true});
@@ -238,6 +239,64 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click();await flush();
     expect(el.shadowRoot.querySelector(".cd-history-count")).toBeNull();
     expect(text(el)).toContain("fonte histórica não está acessível");
+  });
+
+  it("encontra caminhos exatos e somente arquivos permitidos nos dois arquivos",()=>{
+    const paths=commonPreviewPaths(
+      {entries:[{path:"classes/Example.cls",previewable:true},
+        {path:"images/logo.png",previewable:false},{path:"classes/OnlyBase.cls",previewable:true}]},
+      {entries:[{path:"classes/Example.cls",previewable:true},
+        {path:"classes/onlybase.cls",previewable:true},{path:"images/logo.png",previewable:false}]});
+    expect(paths).toEqual(["classes/Example.cls"]);
+  });
+  it("calcula diff de linhas preservando diferenças e conteúdo literal",()=>{
+    const output=lineDiff("same\\nold", "same\\nnew");
+    expect(output).toMatchObject({added:1,removed:1,unchanged:false});
+    expect(output.rows.map(x=>x.text)).toContain("old");
+    expect(output.rows.map(x=>x.text)).toContain("new");
+    expect(lineDiff("<script>", "<script>").unchanged).toBe(true);
+    expect(lineDiff("a\\n".repeat(600),"b").error).toContain("600 linhas");
+  });
+  it("compara dois ZIPs do mesmo Component e não expõe código como HTML",async()=>{
+    const older={id:"a0H00002",createdAt:"2026-10-23T10:00:00Z"};
+    describeComponent.mockResolvedValue({...DETAIL,histories:[HISTORY,older]});
+    const common="classes/Example.cls";
+    inspectHistoryArchive.mockImplementation(({historyId,entryPath})=>{
+      if (!entryPath) return Promise.resolve({entries:[
+        {path:common,previewable:true},
+        {path:historyId===older.id?"only-old.cls":"only-new.cls",previewable:true},
+        {path:"image.png",previewable:false}
+      ]});
+      return Promise.resolve({
+        selectedPath:entryPath,
+        text:historyId===older.id?"same\\nold":'same\\n<img src=x onerror=alert(1)>'
+      });
+    });
+    const el=mount();await flush();
+    el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click();await flush();
+    expect(text(el)).toContain("Comparar históricos");
+    const compare=[...el.shadowRoot.querySelectorAll("lightning-button")]
+      .find(b=>b.label==="Comparar históricos");
+    compare.click();await flush();
+    expect(inspectHistoryArchive).toHaveBeenCalledWith({historyId:older.id,entryPath:null});
+    expect(inspectHistoryArchive).toHaveBeenCalledWith({historyId:HISTORY.id,entryPath:null});
+    const selector=[...el.shadowRoot.querySelectorAll("lightning-combobox")]
+      .find(b=>b.label==="Arquivo de texto presente nos dois ZIPs");
+    expect(selector.options).toEqual([{label:common,value:common}]);
+    selector.dispatchEvent(new CustomEvent("change",{detail:{value:common}}));await flush();
+    expect(text(el)).toContain("1 linhas adicionadas");
+    expect(text(el)).toContain("1 linhas removidas");
+    expect(text(el)).toContain("<img src=x onerror=alert(1)>");
+    expect(el.shadowRoot.querySelector(".cd-compare-table img")).toBeNull();
+    expect(el.shadowRoot.querySelectorAll(".cd-compare-table tbody tr")).toHaveLength(3);
+    expect(text(el)).toContain("Não estabelece identidade canônica");
+  });
+  it("não disponibiliza comparação com apenas um History e respeita reset",async()=>{
+    const el=mount();await flush();
+    el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click();await flush();
+    expect([...el.shadowRoot.querySelectorAll("lightning-button")]
+      .some(b=>b.label==="Comparar históricos")).toBe(false);
+    expect(inspectHistoryArchive).not.toHaveBeenCalled();
   });
 
 });
