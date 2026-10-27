@@ -162,4 +162,43 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     el.shadowRoot.querySelector("lightning-button-icon[title='Fechar ZIP']").click();
     await flush();expect(el.shadowRoot.querySelector(".cd-archive-panel")).toBeNull();
   });
+  it("expande a leitura do componente e retorna à lista sem nova consulta",async()=>{
+    const el=mount();await flush();
+    await nameSearch(el,"Flow");
+    const previousCalls=searchFilteredComponents.mock.calls.length;
+    el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click();
+    await flush();
+    const expand=[...el.shadowRoot.querySelectorAll("lightning-button")].find(b=>b.label==="Expandir detalhes");
+    expect(expand).toBeDefined();
+    expand.click();await flush();
+    expect(el.shadowRoot.querySelector(".cd-layout_focus")).not.toBeNull();
+    expect(el.shadowRoot.querySelector(".cd-table")).toBeNull();
+    const back=[...el.shadowRoot.querySelectorAll("lightning-button")].find(b=>b.label==="Voltar à lista");
+    back.click();await flush();
+    expect(el.shadowRoot.querySelector(".cd-layout_focus")).toBeNull();
+    expect(el.shadowRoot.querySelectorAll(".cd-table tbody tr")).toHaveLength(2);
+    expect(text(el)).toContain("T_DefineFlowByObjectAPP");
+    expect(searchFilteredComponents).toHaveBeenCalledTimes(previousCalls);
+  });
+  it("filtra caminhos internos do ZIP no cliente sem recarregar anexo",async()=>{
+    const el=mount();await flush();
+    el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click();await flush();
+    const explore=[...el.shadowRoot.querySelectorAll("lightning-button")].find(b=>b.label==="Explorar ZIP");
+    explore.click();await flush();
+    expect(inspectHistoryArchive).toHaveBeenCalledTimes(1);
+    const box=[...el.shadowRoot.querySelectorAll("lightning-input")]
+      .find(x=>x.label==="Localizar arquivo no ZIP");
+    expect(box).toBeDefined();
+    box.value="T_Define";
+    box.dispatchEvent(new CustomEvent("change"));await flush();
+    expect(el.shadowRoot.querySelectorAll(".cd-archive-item")).toHaveLength(1);
+    expect(inspectHistoryArchive).toHaveBeenCalledTimes(1);
+    box.value="inexistente";
+    box.dispatchEvent(new CustomEvent("change"));await flush();
+    expect(text(el)).toContain("Nenhum arquivo corresponde ao filtro informado");
+    box.value="";
+    box.dispatchEvent(new CustomEvent("change"));await flush();
+    expect(el.shadowRoot.querySelectorAll(".cd-archive-item")).toHaveLength(2);
+  });
+
 });
