@@ -39,3 +39,18 @@
 - troca de componente enquanto requisição está ativa — resposta obsoleta ignorada;
 - elementos HTML dentro do arquivo são exibidos **somente como texto**, sem execução;
 - mobile: lista → detalhe → ZIP → Diff → voltar preservando contexto.
+
+
+## V3.2 — entrega técnica (rolagem independente + workspace)
+
+**Guias:** 01–06, 08, 13–14. A etapa V3.2 muda **somente** `devSreComponentDescriber` e não altera contratos Apex.
+
+- No Diff, Base e Destino são regiões `role=region` independentes, focáveis por teclado, cada uma com `overflow-x:auto` e `overflow-y:auto`. O deslocamento de uma coluna **não** desloca a outra. Antes havia uma única região de scroll.
+- A pré-visualização individual do ZIP também é região scrollável X/Y, separada da lista de arquivos.
+- Na visualização expandida, navegação contextual `Inventário / Componente / Ficha|Históricos|Arquivos ZIP|Comparar`. Áreas que ainda não foram abertas aparecem indisponíveis; nunca é simulada uma consulta ou comparação.
+- Voltar ao Inventário preserva filtros, paginação, seleção e detalhes carregados. Se trocar de componente, respostas pendentes e comparações antigas continuam invalidadas.
+- Cada painel começa com linhas alinhadas por bloco do Diff, mas **o scroll é independente** e não tenta manter sincronização automática ao rolar. Isso é intencional.
+- Testes Jest cobrem isolação dos painéis DOM, navegação e preservação de estado. Validar visualmente rolagem X/Y no navegador durante homologação — Jest não mede layout/CSS.
+- Workflow completo: CI + Jest, PLAN DevSreFeat, deploy real somente mediante autorização específica com commit e pacote fixos, COMPARE e homologação.
+
+**Status:** código/PR de V3.2 em preparação; esta documentação não implica implantação ou aprovação funcional.
