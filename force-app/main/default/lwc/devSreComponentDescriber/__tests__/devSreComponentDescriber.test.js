@@ -255,7 +255,10 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     expect(output.rows.map(x=>x.text)).toContain("old");
     expect(output.rows.map(x=>x.text)).toContain("new");
     expect(lineDiff("<script>", "<script>").unchanged).toBe(true);
-    expect(lineDiff("a\n".repeat(600),"b").error).toContain("600 linhas");
+    const longer=lineDiff("a\n".repeat(1000),"b");
+    expect(longer.error).toBeUndefined();
+    expect(longer.removed).toBe(1001);
+    expect(longer.added).toBe(1);
   });
   it("compara dois ZIPs do mesmo Component e não expõe código como HTML",async()=>{
     const older={id:"a0H00002",createdAt:"2026-10-23T10:00:00Z"};
@@ -352,7 +355,7 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     expect(inspectHistoryArchive).toHaveBeenCalledWith({historyId:older.id,entryPath:null});
   });
 
-  it("usa dois painéis scrolláveis X/Y independentes, sem contêiner de código comum",async()=>{
+  it("sincroniza scroll Y sem interferir no scroll X independente",async()=>{
     const older={id:"a0H00002",createdAt:"2026-10-23T10:00:00Z"};
     describeComponent.mockResolvedValue({...DETAIL,histories:[HISTORY,older]});
     const common="classes/Example.cls";
@@ -372,15 +375,17 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     expect(panes).toHaveLength(2);
     expect([...panes].map(p=>p.getAttribute("tabindex"))).toEqual(["0","0"]);
     expect([...panes].map(p=>p.getAttribute("role"))).toEqual(["region","region"]);
-    expect(panes[0].getAttribute("aria-label")).toContain("horizontal e vertical independente");
-    expect(panes[1].getAttribute("aria-label")).toContain("horizontal e vertical independente");
+    expect(panes[0].getAttribute("aria-label")).toContain("vertical sincronizado");
+    expect(panes[1].getAttribute("aria-label")).toContain("vertical sincronizado");
     expect(el.shadowRoot.querySelector(".cd-diff-side-scroll")).toBeNull();
     panes[0].scrollLeft=50;panes[0].scrollTop=80;
+    panes[0].dispatchEvent(new Event("scroll"));await flush();
     expect(panes[1].scrollLeft).toBe(0);
-    expect(panes[1].scrollTop).toBe(0);
+    expect(panes[1].scrollTop).toBe(80);
     panes[1].scrollLeft=26;panes[1].scrollTop=60;
+    panes[1].dispatchEvent(new Event("scroll"));await flush();
     expect(panes[0].scrollLeft).toBe(50);
-    expect(panes[0].scrollTop).toBe(80);
+    expect(panes[0].scrollTop).toBe(60);
     expect(panes[0].textContent).toContain("ante");
     expect(panes[1].textContent).toContain("depois");
   });
@@ -412,6 +417,43 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     expect(el.shadowRoot.querySelectorAll(".cd-table tbody tr")).toHaveLength(2);
     expect(searchFilteredComponents).toHaveBeenCalledTimes(initialCalls);
     expect(describeComponent).toHaveBeenCalledTimes(1);
+  });
+
+  it("permite milhares de linhas sem limite fixo e navega por blocos alinhados",async()=>{
+    const many=Array.from({length:740},(_,i)=>"linha "+i).join("\n");
+    const original=many.replace("linha 650","linha antiga 650");
+    const updated=many.replace("linha 650","linha nova 650");
+    const result=lineDiff(original,updated);
+    expect(result.error).toBeUndefined();
+    expect(result.added).toBe(1);
+    expect(result.removed).toBe(1);
+    expect(result.rows.length).toBeGreaterThan(740);
+    const pairs=sideBySideDiff(result);
+    expect(pairs).toHaveLength(740);
+    expect(pairs[650]).toMatchObject({left:{text:"linha antiga 650"},right:{text:"linha nova 650"}});
+
+    const older={id:"a0H00002",createdAt:"2026-10-23T10:00:00Z"};
+    describeComponent.mockResolvedValue({...DETAIL,histories:[HISTORY,older]});
+    inspectHistoryArchive.mockImplementation(({historyId,entryPath})=>Promise.resolve(
+      entryPath
+        ? {selectedPath:entryPath,text:historyId===older.id?original:updated}
+        : {entries:[{path:"classes/Example.cls",previewable:true}]}
+    ));
+    const el=mount();await flush();
+    el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click();await flush();
+    [...el.shadowRoot.querySelectorAll("lightning-button")].find(b=>b.label==="Comparar históricos").click();
+    await flush();
+    el.shadowRoot.querySelector(".cd-compare-file lightning-combobox")
+      .dispatchEvent(new CustomEvent("change",{detail:{value:"classes/Example.cls"}}));
+    await flush();
+    expect(el.shadowRoot.querySelectorAll(".cd-diff-pane:first-child .cd-diff-cell")).toHaveLength(250);
+    expect(text(el)).toContain("Bloco 1 de 3");
+    const next=[...el.shadowRoot.querySelectorAll("lightning-button")].find(b=>b.label==="Próximo bloco");
+    next.click();await flush();
+    expect(text(el)).toContain("Bloco 2 de 3");
+    next.click();await flush();
+    expect(text(el)).toContain("Bloco 3 de 3");
+    expect(text(el)).toContain("linha nova 650");
   });
 
 });
