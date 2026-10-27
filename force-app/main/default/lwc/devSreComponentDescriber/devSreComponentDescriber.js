@@ -31,6 +31,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   archiveOpen = false;
   archiveFilter = "";
   detailExpanded = false;
+  workspaceTab = "ficha";
   archiveLoading = false;
   archiveError;
   archiveData;
@@ -98,6 +99,12 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   get hasComparePaths() { return this.comparePaths.length > 0; }
   get hasCompareRows() { return (this.compareDiff?.rows || []).length > 0; }
   get compareRows() { return this.compareDiff?.rows || []; }
+  get diffBaseRows() {
+    return this.sideBySideRows.map(row => ({ key: row.key, ...row.left }));
+  }
+  get diffTargetRows() {
+    return this.sideBySideRows.map(row => ({ key: row.key, ...row.right }));
+  }
   get sideBySideRows() {
     const rows = sideBySideDiff(this.compareDiff);
     return this.diffOnlyChanges ? rows.filter(row => row.changed) : rows;
@@ -117,6 +124,22 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   get isTypeSelected() { return Boolean(this.typeValue); }
   get emptyWithoutFilters() { return !this.search.trim() && !this.typeValue; }
   get showResults() { return !this.detailExpanded; }
+  get showWorkspaceNav() { return this.detailExpanded && this.hasDetail; }
+  get showFactsSection() { return !this.detailExpanded || this.workspaceTab === "ficha"; }
+  get showHistorySection() { return !this.detailExpanded || this.workspaceTab === "historicos"; }
+  get showArchiveSection() {
+    return this.archiveOpen && (!this.detailExpanded || this.workspaceTab === "arquivos");
+  }
+  get showCompareSection() {
+    return this.compareOpen && (!this.detailExpanded || this.workspaceTab === "comparar");
+  }
+  get workspaceLabel() {
+    return ({ficha:"Ficha",historicos:"Históricos",arquivos:"Arquivos ZIP",comparar:"Comparar"})[this.workspaceTab] || "Ficha";
+  }
+  get fichaVariant() { return this.workspaceTab === "ficha" ? "brand" : "neutral"; }
+  get historiesVariant() { return this.workspaceTab === "historicos" ? "brand" : "neutral"; }
+  get zipVariant() { return this.workspaceTab === "arquivos" ? "brand" : "neutral"; }
+  get compareVariant() { return this.workspaceTab === "comparar" ? "brand" : "neutral"; }
   get layoutClass() { return this.detailExpanded ? "cd-layout cd-layout_focus" : "cd-layout"; }
   get hasArchiveEntries() { return (this.archiveData?.entries || []).length > 0; }
   get archiveEntries() {
@@ -209,7 +232,22 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   handleNext() { if (!this.nextDisabled) this.load(true); }
   handleSelect(event) { this.loadDetail(event.currentTarget.dataset.id); }
   handleToggleDetailFocus() {
-    if (this.hasDetail) this.detailExpanded = !this.detailExpanded;
+    if (!this.hasDetail) return;
+    this.detailExpanded = !this.detailExpanded;
+    this.workspaceTab = this.detailExpanded ?
+      (this.compareOpen ? "comparar" : this.archiveOpen ? "arquivos" : "ficha") : "ficha";
+  }
+  handleBackToList() {
+    this.detailExpanded = false;
+    this.workspaceTab = "ficha";
+  }
+  handleNavigateWorkspace(event) {
+    const next = event.currentTarget.dataset.tab;
+    if (!this.detailExpanded) return;
+    if (!["ficha","historicos","arquivos","comparar"].includes(next)) return;
+    if (next === "arquivos" && !this.archiveOpen) return;
+    if (next === "comparar" && !this.compareOpen) return;
+    this.workspaceTab = next;
   }
   handleArchiveFilterChange(event) {
     this.archiveFilter = event.target.value || "";
@@ -217,6 +255,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   handleClose() {
     this.handleCompareClose();
     this.detailExpanded = false;
+    this.workspaceTab = "ficha";
     this.handleArchiveClose();
     ++this._detailRequest;
     this.detail = undefined;
@@ -228,6 +267,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   handleOpenHistory(event) { this.open(event.currentTarget.dataset.id, "Flosum__Component_History__c"); }
 
   handleArchiveClose() {
+    if (this.workspaceTab === "arquivos") this.workspaceTab = "historicos";
     ++this._archiveRequest;
     this.archiveFilter = "";
     this.archiveOpen = false;
@@ -243,6 +283,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     this.archiveFilter = "";
     this.archiveData = undefined;
     this.archiveOpen = true;
+    if (this.detailExpanded) this.workspaceTab = "arquivos";
     this.loadArchive(null);
   }
   handleSelectArchiveFile(event) {
@@ -272,6 +313,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     if (!this.canCompareHistories) return;
     this.compareOpen = true;
     this.detailExpanded = true;
+    this.workspaceTab = "comparar";
     this.diffOnlyChanges = false;
     // Histories are ordered by CreatedDate descending in the existing typed Apex query.
     this.compareBaseId = this.histories[1].id;
@@ -279,6 +321,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     this.loadCompareArchives();
   }
   handleCompareClose() {
+    if (this.workspaceTab === "comparar") this.workspaceTab = "historicos";
     ++this._compareRequest;
     this.compareOpen = false;
     this.compareLoading = false;
@@ -487,6 +530,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     if (!id) return;
     this.handleCompareClose();
     this.detailExpanded = false;
+    this.workspaceTab = "ficha";
     this.handleArchiveClose();
     const request = ++this._detailRequest;
     this.selectedId = id;
