@@ -26,6 +26,7 @@ jobs:
       package_id: ${{ steps.intent.outputs.package_id }}
       issue_number: ${{ steps.intent.outputs.issue_number }}
       github_environment: ${{ steps.registry.outputs.github_environment }}
+      policy_version: ${{ steps.registry.outputs.policy_version }}
       instance_url: ${{ steps.registry.outputs.instance_url }}
     steps:
       - uses: actions/checkout@v4
@@ -49,7 +50,7 @@ jobs:
         env:
           TARGET: ${{ steps.intent.outputs.target }}
           PACKAGE_ID: ${{ steps.intent.outputs.package_id }}
-        run: python3 scripts/ci/sf-deploy-policy.py resolve --target "$TARGET" --package "$PACKAGE_ID" --output-file "$GITHUB_OUTPUT"
+        run: python3 scripts/ci/sf-kit-v2-policy.py resolve --target "$TARGET" --package "$PACKAGE_ID" --output-file "$GITHUB_OUTPUT"
       - name: Set up Node.js for LWC tests
         if: ${{ steps.intent.outputs.package_id == 'clone-pipeline-lwc' }}
         uses: actions/setup-node@v4
@@ -80,6 +81,7 @@ jobs:
       EXPECTED_INSTANCE_URL: ${{ needs.resolve.outputs.instance_url }}
       GITHUB_ENVIRONMENT_NAME: ${{ needs.resolve.outputs.github_environment }}
       OPERATION: ${{ needs.resolve.outputs.operation }}
+      POLICY_VERSION: ${{ needs.resolve.outputs.policy_version }}
       TARGET: ${{ needs.resolve.outputs.target }}
       PACKAGE_ID: ${{ needs.resolve.outputs.package_id }}
       CONFIRMATION: ${{ needs.resolve.outputs.confirmation }}
@@ -100,11 +102,21 @@ jobs:
       - name: Reverify Issue and execute approved validation or deployment
         if: ${{ needs.resolve.outputs.operation == 'plan' || needs.resolve.outputs.operation == 'deploy' }}
         shell: bash
-        run: bash scripts/ci/sf-general-deploy.sh
+        run: |
+          if [[ "$POLICY_VERSION" == 2 ]]; then
+            bash scripts/ci/sf-kit-v2-execute.sh
+          else
+            bash scripts/ci/sf-general-deploy.sh
+          fi
       - name: Retrieve or compare reviewed Salesforce metadata
         if: ${{ needs.resolve.outputs.operation == 'retrieve' || needs.resolve.outputs.operation == 'compare' }}
         shell: bash
-        run: bash scripts/ci/sf-kit-read.sh
+        run: |
+          if [[ "$POLICY_VERSION" == 2 ]]; then
+            bash scripts/ci/sf-kit-v2-execute.sh
+          else
+            bash scripts/ci/sf-kit-read.sh
+          fi
       - name: Upload sanitized Salesforce report (NO RAW JSON)
         if: always()
         uses: actions/upload-artifact@v4
