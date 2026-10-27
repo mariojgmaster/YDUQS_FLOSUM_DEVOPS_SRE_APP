@@ -102,4 +102,21 @@ private class DevSreHistoryArchiveReaderTest {
             System.assertEquals(false, DevSreHistoryArchiveReader.isTextPath(path));
         }
     }
+    @IsTest static void permitsTextLargerThanTheFormer64KiBLimit() {
+        List<String> lines=new List<String>();
+        for(Integer i=0;i<11000;i++) lines.add(String.valueOf(i).leftPad(6,'0'));
+        String large=String.join(lines,'\n');
+        System.assert(large.length()>65536);
+        Compression.ZipWriter writer=new Compression.ZipWriter();
+        writer.addEntry('classes/Large.cls', Blob.valueOf(large));
+        Blob zipped=writer.getArchive();
+        DevSreHistoryArchiveReader.ArchiveView view=
+            DevSreHistoryArchiveReader.parseArchive(zipped,'classes/Large.cls');
+        System.assertEquals(large,view.text);
+        System.assertEquals(6291456,DevSreHistoryArchiveReader.MAX_TEXT_BYTES);
+        System.assertEquals(6291456,DevSreHistoryArchiveReader.MAX_ZIP_BYTES);
+        System.assertEquals(1,view.entries.size());
+        System.assertEquals(true,view.entries[0].previewable);
+    }
+
 }
