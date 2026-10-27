@@ -124,7 +124,9 @@
             <section class="cd-history-section" aria-label="Históricos relacionados ao componente">
               <header class="cd-section-header">
                 <h4 class="cd-section-title">Component Histories relacionados</h4>
-                <span class="cd-history-count" aria-live="polite">{historyCountLabel}</span>
+                <template lwc:if={hasHistoryCount}>
+                  <span class="cd-history-count" aria-live="polite">{historyCountLabel}</span>
+                </template>
               </header>
               <template lwc:if={historyUnavailable}>
                 <p class="cd-muted">A fonte histórica não está acessível ou não foi possível comprovar sua ligação.</p>
