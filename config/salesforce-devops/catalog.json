@@ -257,6 +257,38 @@
       "allowed_types": [
         "LightningComponentBundle"
       ]
+    },
+    "branch-monitor-tab-v2": {
+      "policy_version": 2,
+      "reviewed": true,
+      "manifest": "manifest/sf-v2-branch-monitor-tab.xml",
+      "allowed_types": [
+        "CustomTab"
+      ],
+      "test_level": "auto",
+      "tests": []
+    },
+    "environment-reason-field-v2": {
+      "policy_version": 2,
+      "reviewed": true,
+      "manifest": "manifest/sf-v2-environment-field.xml",
+      "allowed_types": [
+        "CustomField"
+      ],
+      "test_level": "auto",
+      "tests": [
+        "DevSreEnvironmentTest"
+      ]
+    },
+    "environment-trigger-v2": {
+      "policy_version": 2,
+      "reviewed": true,
+      "manifest": "manifest/sf-v2-environment-trigger.xml",
+      "allowed_types": [
+        "ApexTrigger"
+      ],
+      "test_level": "auto",
+      "tests": []
     }
   }
 }
