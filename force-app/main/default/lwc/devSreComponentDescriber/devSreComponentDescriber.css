@@ -71,3 +71,25 @@
 .cd-archive-toolbar lightning-input{flex:1 1 14rem;max-width:30rem}
 .cd-archive-toolbar .cd-muted{padding-bottom:.3rem;white-space:nowrap}
 @media(max-width:48rem){.cd-layout_focus .cd-archive-grid{display:block;max-height:none}}
+
+/* M2F — scannable facts and numbered history entries (SLDS token fallbacks). */
+.cd-facts,.cd-history-section{min-width:0}
+.cd-facts{border:1px solid var(--ds-color-border-subtle,#edf0f5);border-radius:.4rem;padding:.8rem .9rem}
+.cd-detail-body .cd-section-title{border:0;margin:0;padding:0;font-size:.85rem}
+.cd-facts-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.85rem .75rem;margin:.85rem 0 0}
+.cd-fact{min-width:0}
+.cd-fact dt{font-size:.72rem;color:var(--ds-color-text-secondary,#60718b);line-height:1.45}
+.cd-fact dd{margin:.18rem 0 0;font-size:.83rem;font-weight:600;overflow-wrap:anywhere}
+.cd-facts-note{margin-top:.85rem;padding-top:.65rem;border-top:1px solid var(--ds-color-border-subtle,#edf0f5)}
+.cd-history-section{display:grid;gap:.6rem}
+.cd-section-header{display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap}
+.cd-history-count{font-size:.72rem;color:var(--ds-color-text-secondary,#60718b)}
+.cd-history-list{list-style:none;padding:0;margin:0;display:grid;gap:.4rem}
+.cd-history-list .cd-history{display:flex;gap:.65rem;align-items:center;justify-content:space-between;
+  background:var(--ds-color-surface-secondary,#f5f8fb);border:1px solid var(--ds-color-border-subtle,#edf0f5);
+  border-radius:.32rem;padding:.6rem .75rem;min-width:0}
+.cd-history-list .cd-history_selected{border-color:var(--ds-color-focus,#0176d3);background:var(--ds-color-surface-selected,#edf6ff)}
+.cd-history-info{display:grid;gap:.2rem;min-width:0}
+.cd-history-sequence{font-size:.78rem;font-weight:700}
+.cd-history-list .cd-history lightning-formatted-date-time{font-size:.72rem;color:var(--ds-color-text-secondary,#60718b)}
+@media(max-width:48rem){.cd-facts-grid{grid-template-columns:minmax(0,1fr)}.cd-history-list .cd-history{align-items:flex-start;flex-wrap:wrap}.cd-history-actions{width:100%}}

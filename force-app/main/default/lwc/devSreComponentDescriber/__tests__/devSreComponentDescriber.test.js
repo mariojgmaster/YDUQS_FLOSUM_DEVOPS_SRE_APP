@@ -201,4 +201,43 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     expect(el.shadowRoot.querySelectorAll(".cd-archive-item")).toHaveLength(2);
   });
 
+  it("organiza dados Flosum em ficha sem inferir deploy ou FullName", async()=>{
+    const el=mount();await flush();
+    el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click();await flush();
+    const facts=el.shadowRoot.querySelector(".cd-facts");
+    expect(facts).not.toBeNull();
+    expect(facts.querySelectorAll("dt")).toHaveLength(5);
+    expect(facts.textContent).toContain("Snapshot 01");
+    expect(facts.textContent).toContain("1.00");
+    expect(facts.textContent).toContain("Branch SIT");
+    expect(facts.textContent).toContain("não comprovam implantação");
+    expect(text(el)).toContain("Component Histories relacionados");
+    expect(text(el)).toContain("1 histórico nesta consulta");
+    expect(text(el)).toContain("Histórico 1");
+    expect(describeComponent).toHaveBeenCalledTimes(1);
+  });
+  it("enumera históricos sem alegar histórico global e destaca o ZIP aberto",async()=>{
+    const later={id:"a0H00002",createdAt:"2026-10-23T10:00:00Z"};
+    describeComponent.mockResolvedValue({...DETAIL,histories:[HISTORY,later],historiesHasMore:true});
+    const el=mount();await flush();
+    el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click();await flush();
+    expect(text(el)).toContain("2 históricos nesta consulta");
+    expect(text(el)).toContain("Histórico 2");
+    expect(text(el)).toContain("Mais registros existem além dos 20 históricos exibidos");
+    const first=el.shadowRoot.querySelector(".cd-history-list .cd-history");
+    expect(first.classList.contains("cd-history_selected")).toBe(false);
+    [...first.querySelectorAll("lightning-button")].find(b=>b.label==="Explorar ZIP").click();
+    await flush();
+    expect(el.shadowRoot.querySelectorAll(".cd-history_selected")).toHaveLength(1);
+    expect(inspectHistoryArchive).toHaveBeenCalledWith({historyId:HISTORY.id,entryPath:null});
+    expect(describeComponent).toHaveBeenCalledTimes(1);
+  });
+  it("não exibe contagem fictícia quando acesso ao histórico está indisponível",async()=>{
+    describeComponent.mockResolvedValue({...DETAIL,historyQuality:"UNAVAILABLE",histories:[]});
+    const el=mount();await flush();
+    el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click();await flush();
+    expect(el.shadowRoot.querySelector(".cd-history-count")).toBeNull();
+    expect(text(el)).toContain("fonte histórica não está acessível");
+  });
+
 });

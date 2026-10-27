@@ -233,6 +233,18 @@
       "allowed_types": [
         "LightningComponentBundle"
       ]
+    },
+    "branch-monitor-m2f-metadata-history": {
+      "manifest": "manifest/sf-branch-monitor-m2f-metadata-history.xml",
+      "test_level": "RunSpecifiedTests",
+      "tests": [
+        "DevSreComponentDescriberTest",
+        "DevSreHistoryArchiveReaderTest",
+        "DevSreBranchMonitorTest"
+      ],
+      "allowed_types": [
+        "LightningComponentBundle"
+      ]
     }
   }
 }
