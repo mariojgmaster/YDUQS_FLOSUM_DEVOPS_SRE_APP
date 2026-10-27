@@ -177,7 +177,11 @@
                   <lightning-combobox label="Histórico base" data-side="base"
                     options={historyCompareOptions} value={compareBaseId}
                     onchange={handleCompareHistoryChange}></lightning-combobox>
-                  <lightning-combobox label="Comparar com" data-side="target"
+                  <div class="cd-compare-swap">
+                    <lightning-button-icon icon-name="utility:swap" alternative-text="Inverter históricos"
+                      title="Inverter base e destino" onclick={handleSwapHistories}></lightning-button-icon>
+                  </div>
+                  <lightning-combobox label="Histórico de destino" data-side="target"
                     options={historyCompareOptions} value={compareTargetId}
                     onchange={handleCompareHistoryChange}></lightning-combobox>
                 </div>
@@ -200,21 +204,37 @@
                       <span>−{compareRemoved} linhas removidas</span>
                       <template lwc:if={compareUnchanged}><span>Conteúdo idêntico</span></template>
                     </div>
-                    <div class="cd-compare-scroll" role="region" aria-label="Diferenças do arquivo" tabindex="0">
-                      <table class="cd-compare-table">
-                        <thead><tr><th scope="col">Base</th><th scope="col">Destino</th><th scope="col">Δ</th><th scope="col">Conteúdo</th></tr></thead>
-                        <tbody>
-                          <template for:each={compareRows} for:item="line">
-                            <tr key={line.key} class={line.rowClass}>
-                              <td>{line.oldLine}</td>
-                              <td>{line.newLine}</td>
-                              <td>{line.sign}</td>
-                              <td><pre><code>{line.text}</code></pre></td>
-                            </tr>
-                          </template>
-                        </tbody>
-                      </table>
+                    <div class="cd-diff-toolbar" role="group" aria-label="Modo de visualização do Diff">
+                      <lightning-button-group>
+                        <lightning-button label="Lado a lado" variant={allLinesButtonVariant} onclick={handleDiffModeAll}></lightning-button>
+                        <lightning-button label="Apenas alterações" variant={onlyChangesButtonVariant} onclick={handleDiffModeChanged}></lightning-button>
+                      </lightning-button-group>
+                      <span class="cd-muted">Base e destino alinhados pelo trecho alterado</span>
                     </div>
+                    <template lwc:if={hasNoChangedLines}>
+                      <p class="cd-empty" role="status">Os dois arquivos têm conteúdo idêntico. Não há alterações para exibir.</p>
+                    </template>
+                    <template lwc:else>
+                      <div class="cd-diff-side-scroll" role="region" tabindex="0" aria-label="Diff de código lado a lado">
+                        <div class="cd-diff-side-header">
+                          <div>Histórico base</div><div>Histórico de destino</div>
+                        </div>
+                        <div class="cd-diff-pairs">
+                          <template for:each={sideBySideRows} for:item="line">
+                            <div class="cd-diff-pair" key={line.key}>
+                              <div class={line.left.className}>
+                                <span class="cd-diff-number">{line.left.line}</span>
+                                <pre><code>{line.left.text}</code></pre>
+                              </div>
+                              <div class={line.right.className}>
+                                <span class="cd-diff-number">{line.right.line}</span>
+                                <pre><code>{line.right.text}</code></pre>
+                              </div>
+                            </div>
+                          </template>
+                        </div>
+                      </div>
+                    </template>
                   </template>
                 </template>
                 <template lwc:else>

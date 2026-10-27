@@ -4,7 +4,7 @@ import searchFilteredComponents from "@salesforce/apex/DevSreComponentDescriberC
 import getComponentTypes from "@salesforce/apex/DevSreComponentDescriberController.getComponentTypes";
 import describeComponent from "@salesforce/apex/DevSreComponentDescriberController.describeComponent";
 import inspectHistoryArchive from "@salesforce/apex/DevSreComponentDescriberController.inspectHistoryArchive";
-import { commonPreviewPaths, lineDiff } from "../historyDiff";
+import { commonPreviewPaths, lineDiff, sideBySideDiff } from "../historyDiff";
 
 jest.mock("@salesforce/apex/DevSreComponentDescriberController.searchFilteredComponents",
   () => ({default: jest.fn()}), {virtual: true});
@@ -287,8 +287,8 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     expect(text(el)).toContain("1 linhas adicionadas");
     expect(text(el)).toContain("1 linhas removidas");
     expect(text(el)).toContain("<img src=x onerror=alert(1)>");
-    expect(el.shadowRoot.querySelector(".cd-compare-table img")).toBeNull();
-    expect(el.shadowRoot.querySelectorAll(".cd-compare-table tbody tr")).toHaveLength(3);
+    expect(el.shadowRoot.querySelector(".cd-diff-side-scroll img")).toBeNull();
+    expect(el.shadowRoot.querySelectorAll(".cd-diff-pair")).toHaveLength(2);
     expect(text(el)).toContain("Não estabelece identidade canônica");
   });
   it("não disponibiliza comparação com apenas um History e respeita reset",async()=>{
@@ -297,6 +297,59 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     expect([...el.shadowRoot.querySelectorAll("lightning-button")]
       .some(b=>b.label==="Comparar históricos")).toBe(false);
     expect(inspectHistoryArchive).not.toHaveBeenCalled();
+  });
+
+  it("alinha trocas de código em painéis distintos Base e Destino",()=>{
+    const original=lineDiff("inicio\nlinha antiga\nfim", "inicio\nlinha nova\nfim");
+    const rows=sideBySideDiff(original);
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toMatchObject({changed:false,left:{text:"inicio"},right:{text:"inicio"}});
+    expect(rows[1]).toMatchObject({
+      changed:true,
+      left:{text:"linha antiga",line:2},
+      right:{text:"linha nova",line:2}
+    });
+    expect(rows[1].left.className).toContain("removed");
+    expect(rows[1].right.className).toContain("added");
+    expect(rows[2].changed).toBe(false);
+  });
+  it("suporta arquivo apenas adicionado e Diff idêntico",()=>{
+    const added=sideBySideDiff(lineDiff("inicio","inicio\nnova"));
+    expect(added[1].left.className).toContain("empty");
+    expect(added[1].right.text).toBe("nova");
+    const equal=sideBySideDiff(lineDiff("sem mudancas","sem mudancas"));
+    expect(equal.every(x=>!x.changed)).toBe(true);
+  });
+  it("mostra apenas alterações e permite inverter os históricos mantendo restrição de escopo",async()=>{
+    const older={id:"a0H00002",createdAt:"2026-10-23T10:00:00Z"};
+    describeComponent.mockResolvedValue({...DETAIL,histories:[HISTORY,older]});
+    const common="classes/Example.cls";
+    inspectHistoryArchive.mockImplementation(({historyId,entryPath})=>Promise.resolve(
+      entryPath
+        ? {selectedPath:entryPath,text:historyId===older.id?"inicio\nantigo":"inicio\nnovo"}
+        : {entries:[{path:common,previewable:true}]}
+    ));
+    const el=mount();await flush();
+    el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click();await flush();
+    const compare=[...el.shadowRoot.querySelectorAll("lightning-button")]
+      .find(b=>b.label==="Comparar históricos");
+    compare.click();await flush();
+    expect(el.shadowRoot.querySelector(".cd-layout_focus")).not.toBeNull();
+    expect(el.shadowRoot.querySelectorAll(".cd-compare-selectors lightning-combobox")).toHaveLength(2);
+    const file=el.shadowRoot.querySelector(".cd-compare-file lightning-combobox");
+    file.dispatchEvent(new CustomEvent("change",{detail:{value:common}}));await flush();
+    expect(el.shadowRoot.querySelectorAll(".cd-diff-pair")).toHaveLength(2);
+    const only=[...el.shadowRoot.querySelectorAll("lightning-button")]
+      .find(b=>b.label==="Apenas alterações");
+    only.click();await flush();
+    expect(el.shadowRoot.querySelectorAll(".cd-diff-pair")).toHaveLength(1);
+    const all=[...el.shadowRoot.querySelectorAll("lightning-button")]
+      .find(b=>b.label==="Lado a lado");
+    all.click();await flush();
+    expect(el.shadowRoot.querySelectorAll(".cd-diff-pair")).toHaveLength(2);
+    el.shadowRoot.querySelector("lightning-button-icon[title='Inverter base e destino']").click();await flush();
+    expect(inspectHistoryArchive).toHaveBeenCalledWith({historyId:HISTORY.id,entryPath:null});
+    expect(inspectHistoryArchive).toHaveBeenCalledWith({historyId:older.id,entryPath:null});
   });
 
 });

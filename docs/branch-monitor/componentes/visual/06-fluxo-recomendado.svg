@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-label="Fluxo recomendado">
+<rect width="1200" height="675" fill="#f3f7fb"/>
+<rect width="1200" height="57" fill="#10264b"/>
+<text x="29" y="38" font-family="Arial,sans-serif" font-size="20" fill="#fff" font-weight="700">DevOps &amp; SRE Analytics</text>
+<text x="396" y="36" font-family="Arial,sans-serif" font-size="15" fill="#d7e9ff" font-weight="400">DORA Cockpit       Branch Monitor       Pipeline Monitor</text>
+<rect y="57" width="1200" height="107" fill="#fff"/>
+<rect x="28" y="82" width="42" height="42" rx="7" fill="#0b74cf" stroke="#0b74cf"/>
+<text x="88" y="109" font-family="Arial,sans-serif" font-size="19" fill="#102a45" font-weight="700">Branch Monitor  /  Componentes</text>
+<text x="31" y="151" font-family="Arial,sans-serif" font-size="14" fill="#2d649d" font-weight="400">Visão geral       Branches       Comparar       Componentes</text>
+<text x="34" y="194" font-family="Arial,sans-serif" font-size="24" fill="#122f51" font-weight="700">Fluxo recomendado</text>
+<text x="33" y="616" font-family="Arial,sans-serif" font-size="17" fill="#56718f" font-weight="400">Descobrir, inspecionar, comparar</text>
+<text x="34" y="644" font-family="Arial,sans-serif" font-size="12" fill="#7490a9" font-weight="400">GUIA CONCEITUAL  ·  SALESFORCE / SLDS   ·   DADOS ILUSTRATIVOS</text>
+<text x="1121" y="644" font-family="Arial,sans-serif" font-size="14" fill="#4771a5" font-weight="700">06/14</text>
+<rect x="60" y="277" width="236" height="176" rx="14" fill="#fff" stroke="#bcd4f0"/><text x="80" y="326" font-family="Arial,sans-serif" font-size="29" fill="#0b74c8" font-weight="700">01</text><text x="80" y="375" font-family="Arial,sans-serif" font-size="16" fill="#223851" font-weight="700">Buscar componentes</text><text x="300" y="368" font-family="Arial,sans-serif" font-size="31" fill="#7ea8d1" font-weight="700">→</text><rect x="338" y="277" width="236" height="176" rx="14" fill="#fff" stroke="#bcd4f0"/><text x="358" y="326" font-family="Arial,sans-serif" font-size="29" fill="#0b74c8" font-weight="700">02</text><text x="358" y="375" font-family="Arial,sans-serif" font-size="16" fill="#223851" font-weight="700">Abrir ficha</text><text x="578" y="368" font-family="Arial,sans-serif" font-size="31" fill="#7ea8d1" font-weight="700">→</text><rect x="616" y="277" width="236" height="176" rx="14" fill="#e7f2ff" stroke="#bcd4f0"/><text x="636" y="326" font-family="Arial,sans-serif" font-size="29" fill="#0b74c8" font-weight="700">03</text><text x="636" y="375" font-family="Arial,sans-serif" font-size="16" fill="#223851" font-weight="700">Explorar histórico</text><text x="856" y="368" font-family="Arial,sans-serif" font-size="31" fill="#7ea8d1" font-weight="700">→</text><rect x="894" y="277" width="236" height="176" rx="14" fill="#fff" stroke="#bcd4f0"/><text x="914" y="326" font-family="Arial,sans-serif" font-size="29" fill="#0b74c8" font-weight="700">04</text><text x="914" y="375" font-family="Arial,sans-serif" font-size="16" fill="#223851" font-weight="700">Comparar ZIPs</text>
+</svg>

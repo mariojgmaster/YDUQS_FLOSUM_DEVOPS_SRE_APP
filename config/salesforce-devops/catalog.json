@@ -289,6 +289,18 @@
       ],
       "test_level": "auto",
       "tests": []
+    },
+    "branch-monitor-v3-side-by-side": {
+      "manifest": "manifest/sf-branch-monitor-v3-side-by-side.xml",
+      "test_level": "RunSpecifiedTests",
+      "tests": [
+        "DevSreComponentDescriberTest",
+        "DevSreHistoryArchiveReaderTest",
+        "DevSreBranchMonitorTest"
+      ],
+      "allowed_types": [
+        "LightningComponentBundle"
+      ]
     }
   }
 }

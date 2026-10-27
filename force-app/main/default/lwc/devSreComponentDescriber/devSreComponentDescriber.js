@@ -4,7 +4,7 @@ import searchFilteredComponents from "@salesforce/apex/DevSreComponentDescriberC
 import getComponentTypes from "@salesforce/apex/DevSreComponentDescriberController.getComponentTypes";
 import describeComponent from "@salesforce/apex/DevSreComponentDescriberController.describeComponent";
 import inspectHistoryArchive from "@salesforce/apex/DevSreComponentDescriberController.inspectHistoryArchive";
-import { commonPreviewPaths, lineDiff } from "./historyDiff";
+import { commonPreviewPaths, lineDiff, sideBySideDiff } from "./historyDiff";
 
 export default class DevSreComponentDescriber extends NavigationMixin(LightningElement) {
   search = "";
@@ -45,6 +45,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   comparePaths = [];
   comparePath = "";
   compareDiff;
+  diffOnlyChanges = false;
   _compareRequest = 0;
   _debounce;
   _typeDebounce;
@@ -97,6 +98,14 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   get hasComparePaths() { return this.comparePaths.length > 0; }
   get hasCompareRows() { return (this.compareDiff?.rows || []).length > 0; }
   get compareRows() { return this.compareDiff?.rows || []; }
+  get sideBySideRows() {
+    const rows = sideBySideDiff(this.compareDiff);
+    return this.diffOnlyChanges ? rows.filter(row => row.changed) : rows;
+  }
+  get hasSideBySideRows() { return this.sideBySideRows.length > 0; }
+  get allLinesButtonVariant() { return this.diffOnlyChanges ? "neutral" : "brand"; }
+  get onlyChangesButtonVariant() { return this.diffOnlyChanges ? "brand" : "neutral"; }
+  get hasNoChangedLines() { return this.diffOnlyChanges && this.compareUnchanged; }
   get compareAdded() { return this.compareDiff?.added || 0; }
   get compareRemoved() { return this.compareDiff?.removed || 0; }
   get compareUnchanged() { return Boolean(this.compareDiff?.unchanged); }
@@ -262,6 +271,8 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     }
     if (!this.canCompareHistories) return;
     this.compareOpen = true;
+    this.detailExpanded = true;
+    this.diffOnlyChanges = false;
     // Histories are ordered by CreatedDate descending in the existing typed Apex query.
     this.compareBaseId = this.histories[1].id;
     this.compareTargetId = this.histories[0].id;
@@ -275,8 +286,18 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     this.comparePaths = [];
     this.comparePath = "";
     this.compareDiff = undefined;
+    this.diffOnlyChanges = false;
     this.compareBaseId = "";
     this.compareTargetId = "";
+  }
+  handleDiffModeAll() { this.diffOnlyChanges = false; }
+  handleDiffModeChanged() { this.diffOnlyChanges = true; }
+  handleSwapHistories() {
+    if (!this.compareOpen) return;
+    const base = this.compareBaseId;
+    this.compareBaseId = this.compareTargetId;
+    this.compareTargetId = base;
+    this.loadCompareArchives();
   }
   handleCompareHistoryChange(event) {
     const id = event.detail.value;

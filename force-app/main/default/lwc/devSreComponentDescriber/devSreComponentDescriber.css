@@ -116,3 +116,27 @@
 .cd-diff-line_removed{background:var(--ds-color-danger-surface,#ffebec)}
 .cd-compare-foot{padding:.55rem .85rem;border-top:1px solid var(--ds-color-border-subtle,#edf0f5);margin:0}
 @media(max-width:48rem){.cd-compare-selectors{grid-template-columns:minmax(0,1fr)}}
+
+/* COMPONENTES V3 · Desktop comparison from guide #13
+   Matched rows share a scroll context, but Base and Destination stay distinct. */
+.cd-compare-selectors{grid-template-columns:minmax(0,1fr) 2.75rem minmax(0,1fr)}
+.cd-compare-swap{display:flex;align-items:flex-end;justify-content:center;padding-bottom:.18rem}
+.cd-diff-toolbar{display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;justify-content:space-between;padding:.55rem .85rem}
+.cd-diff-side-scroll{overflow:auto;max-height:65vh;border-block:1px solid var(--ds-color-border-subtle,#d9e2ec)}
+.cd-diff-side-header,.cd-diff-pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-width:820px}
+.cd-diff-side-header{position:sticky;top:0;z-index:2;background:var(--ds-color-surface-secondary,#f3f7fc);border-bottom:1px solid var(--ds-color-border-default,#d9e2ec)}
+.cd-diff-side-header>div{font-size:.78rem;font-weight:700;padding:.7rem .8rem;color:var(--ds-color-text-primary,#18283e)}
+.cd-diff-side-header>div+div{border-left:1px solid var(--ds-color-border-default,#d9e2ec)}
+.cd-diff-pairs{font:normal .77rem/1.5 Consolas,Monaco,monospace}
+.cd-diff-cell{display:grid;grid-template-columns:2.7rem minmax(0,1fr);min-width:0;border-bottom:1px solid var(--ds-color-border-subtle,#edf0f5);background:#fff}
+.cd-diff-cell+ .cd-diff-cell{border-left:1px solid var(--ds-color-border-default,#d9e2ec)}
+.cd-diff-number{padding:.2rem .45rem;color:var(--ds-color-text-secondary,#60718b);background:rgba(14,38,78,.03);text-align:right;user-select:none;border-right:1px solid var(--ds-color-border-subtle,#edf0f5)}
+.cd-diff-cell pre{margin:0;min-width:0;padding:.2rem .5rem;white-space:pre;overflow:visible;font:inherit;tab-size:2}
+.cd-diff-cell_added{background:#eaf8ee}
+.cd-diff-cell_removed{background:#fff0f1}
+.cd-diff-cell_empty{background:#f6f8fa}
+@media(max-width:48rem){
+  .cd-compare-selectors{grid-template-columns:minmax(0,1fr)}
+  .cd-compare-swap{padding:0;align-items:center}
+  .cd-diff-toolbar .cd-muted{display:none}
+}

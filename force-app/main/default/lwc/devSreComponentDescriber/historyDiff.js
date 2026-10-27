@@ -59,3 +59,47 @@ export function lineDiff(before, after) {
   }
   return { rows, added, removed, unchanged: added === 0 && removed === 0 };
 }
+
+/**
+ * Transform an already-bounded LCS diff into two visually aligned panes.
+ * Opposing additions/removals in one hunk are paired by ordinal. This is
+ * presentation-only: no artificial assumption that individual lines match.
+ */
+export function sideBySideDiff(diff) {
+  if (!diff || diff.error || !Array.isArray(diff.rows)) return [];
+  const paired = [];
+  const asCell = (item, side) => item ? {
+    text: item.text,
+    line: side === "old" ? item.oldLine : item.newLine,
+    className: "cd-diff-cell cd-diff-cell_" + (side === "old" ? "removed" : "added")
+  } : { text: "", line: "", className: "cd-diff-cell cd-diff-cell_empty" };
+  for (let index = 0; index < diff.rows.length;) {
+    const row = diff.rows[index];
+    if (row.rowClass.endsWith("cd-diff-line_equal")) {
+      paired.push({
+        key: String(paired.length + 1),
+        changed: false,
+        left: { text: row.text, line: row.oldLine, className: "cd-diff-cell cd-diff-cell_equal" },
+        right: { text: row.text, line: row.newLine, className: "cd-diff-cell cd-diff-cell_equal" }
+      });
+      index++;
+      continue;
+    }
+    const removals = [];
+    const additions = [];
+    while (index < diff.rows.length && !diff.rows[index].rowClass.endsWith("cd-diff-line_equal")) {
+      const current = diff.rows[index++];
+      if (current.rowClass.endsWith("cd-diff-line_removed")) removals.push(current);
+      else if (current.rowClass.endsWith("cd-diff-line_added")) additions.push(current);
+    }
+    for (let i = 0; i < Math.max(removals.length, additions.length); i++) {
+      paired.push({
+        key: String(paired.length + 1),
+        changed: true,
+        left: asCell(removals[i], "old"),
+        right: asCell(additions[i], "new")
+      });
+    }
+  }
+  return paired;
+}

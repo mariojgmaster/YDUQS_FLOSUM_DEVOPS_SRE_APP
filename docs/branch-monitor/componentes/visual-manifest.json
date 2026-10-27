@@ -1,0 +1,148 @@
+{
+  "spec": "SPEC-006",
+  "section": "Branch Monitor > Componentes",
+  "source": "Imagens geradas na conversa, versões vetoriais organizadas como guias de UI",
+  "note": "SVGs são guias vetoriais reinterpretados; PNGs originais devem ser importados separadamente pelo script verificador.",
+  "assets": [
+    {
+      "id": "01-inventario",
+      "title": "Inventário inicial",
+      "slug": "inventory",
+      "original": "branch_monitor_component_inventory.png",
+      "sha256": "4d4661c91358be3566914deeefb2fc190ce16c11e17ef3f99e29690359c9fe4a",
+      "vector": "visual/01-inventario.svg",
+      "status": "implemented",
+      "original_repo_path": "originals/01-inventario.png"
+    },
+    {
+      "id": "02-resultados-filtrados",
+      "title": "Resultados filtrados",
+      "slug": "filtered",
+      "original": "branch_monitor_component_dashboard.png",
+      "sha256": "9dab901049020ae234ac4039924f3c9b15c7075c81e8bd25fa4fe2795325a59b",
+      "vector": "visual/02-resultados-filtrados.svg",
+      "status": "implemented",
+      "original_repo_path": "originals/02-resultados-filtrados.png"
+    },
+    {
+      "id": "03-detalhe-componente",
+      "title": "Detalhe do componente",
+      "slug": "detail",
+      "original": "detalhes_do_componente_no_branch_monitor.png",
+      "sha256": "7ae440ee730790c2ee28fbddde5f3496743649e7bc184b30e85cf8c5d5717240",
+      "vector": "visual/03-detalhe-componente.svg",
+      "status": "implemented",
+      "original_repo_path": "originals/03-detalhe-componente.png"
+    },
+    {
+      "id": "04-explorador-zip",
+      "title": "Explorador ZIP",
+      "slug": "zip",
+      "original": "explorador_zip_do_branch_monitor.png",
+      "sha256": "16eef666af01a08e63c053877a43f574a1c022e759dfb3e865fadada3920276d",
+      "vector": "visual/04-explorador-zip.svg",
+      "status": "implemented",
+      "original_repo_path": "originals/04-explorador-zip.png"
+    },
+    {
+      "id": "05-comparacao-historicos",
+      "title": "Comparação de históricos",
+      "slug": "compare",
+      "original": "comparação_de_históricos_de_componentes.png",
+      "sha256": "1aeb5256b12cc4c1ba41838371cbc9636d4b2134233c419e8de795462c9b0376",
+      "vector": "visual/05-comparacao-historicos.svg",
+      "status": "in_review",
+      "original_repo_path": "originals/05-comparacao-historicos.png"
+    },
+    {
+      "id": "06-fluxo-recomendado",
+      "title": "Fluxo guiado",
+      "slug": "flow",
+      "original": "branch_monitor_guided_workflow_dashboard.png",
+      "sha256": "400cc2b49ae43a302cd80fc5f9ddc897250bf161108e82e5c1c918a8e9a73d00",
+      "vector": "visual/06-fluxo-recomendado.svg",
+      "status": "planned",
+      "original_repo_path": "originals/06-fluxo-recomendado.png"
+    },
+    {
+      "id": "07-loading-skeleton",
+      "title": "Carregamento",
+      "slug": "loading",
+      "original": "salesforce_branch_monitor_loading_screen.png",
+      "sha256": "54f3736498b5e29d63bbe1299cec0eb53a7d19eca3b76177edae83a2fc69e1eb",
+      "vector": "visual/07-loading-skeleton.svg",
+      "status": "partial",
+      "original_repo_path": "originals/07-loading-skeleton.png"
+    },
+    {
+      "id": "08-sem-selecao",
+      "title": "Sem seleção",
+      "slug": "no-selection",
+      "original": "branch_monitor_componentes_lista_e_detalhes.png",
+      "sha256": "ec65607410f0ec915f8ce8ba8cb492dbecafa7733a9af06104bd10e213e2cb62",
+      "vector": "visual/08-sem-selecao.svg",
+      "status": "implemented",
+      "original_repo_path": "originals/08-sem-selecao.png"
+    },
+    {
+      "id": "09-sem-resultados",
+      "title": "Nenhum resultado",
+      "slug": "no-results",
+      "original": "branch_monitor_component_search_empty_state.png",
+      "sha256": "046e939137343e4627d338c2109fafce4e39bf8d3ee6f63c2360961df41e004e",
+      "vector": "visual/09-sem-resultados.svg",
+      "status": "implemented",
+      "original_repo_path": "originals/09-sem-resultados.png"
+    },
+    {
+      "id": "10-sem-acesso-historico",
+      "title": "Sem acesso ao histórico",
+      "slug": "no-access",
+      "original": "branch_monitor_component_details_interface.png",
+      "sha256": "ded89f650d0ff953eb02c54ba51412b37be98a75d31cb6ad1ddf836ec5fdfe3b",
+      "vector": "visual/10-sem-acesso-historico.svg",
+      "status": "partial",
+      "original_repo_path": "originals/10-sem-acesso-historico.png"
+    },
+    {
+      "id": "11-zip-sem-arquivos",
+      "title": "ZIP sem arquivos compatíveis",
+      "slug": "unsupported",
+      "original": "11_zip_sem_arquivos_compativeis.png",
+      "sha256": "c81e9316b5637341f730e90febc0ba15d058c88d38cb10838a923779bd5c5de7",
+      "vector": "visual/11-zip-sem-arquivos.svg",
+      "status": "partial",
+      "original_repo_path": "originals/11-zip-sem-arquivos.png"
+    },
+    {
+      "id": "12-arquivo-excede-limites",
+      "title": "Arquivo excede limites",
+      "slug": "oversized",
+      "original": "12_arquivo_excede_limites.png",
+      "sha256": "1f522aaa66938d4c4430bd8139276635e63023966ee72437ab6424a8c28bdac5",
+      "vector": "visual/12-arquivo-excede-limites.svg",
+      "status": "partial",
+      "original_repo_path": "originals/12-arquivo-excede-limites.png"
+    },
+    {
+      "id": "13-diff-avancado",
+      "title": "Diff avançado",
+      "slug": "advanced-diff",
+      "original": "13_comparacao_avancada.png",
+      "sha256": "004db9c350c3bda13548ced8b3969bc7f810bacb8795ff1902c8f7767db71daa",
+      "vector": "visual/13-diff-avancado.svg",
+      "status": "in_review",
+      "original_repo_path": "originals/13-diff-avancado.png"
+    },
+    {
+      "id": "14-mobile-responsivo",
+      "title": "Responsivo / mobile",
+      "slug": "mobile",
+      "original": "14_layout_responsivo_mobile.png",
+      "sha256": "5fa14a3c9c095f9b4763168f0492408221a1ad1d4d13bc5b24d55de52746f62c",
+      "vector": "visual/14-mobile-responsivo.svg",
+      "status": "partial",
+      "original_repo_path": "originals/14-mobile-responsivo.png"
+    }
+  ]
+}
