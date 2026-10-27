@@ -130,3 +130,18 @@ during kit migration or smoke testing.
   `branch-monitor-tab-v2` package, then perform an additional PLAN with
   `branch-monitor-lwc-v2` after Jest review. Do not generate a DEPLOY Issue
   without a new concrete authorization for a reviewed deployment.
+
+## v2.1.1 — Jest forwarding and result-scope verification
+
+The first LWC pilot revealed that `npm run test:unit -- --runTestsByPath`
+forwarded flags to the `sfdx-lwc-jest` wrapper incorrectly: it executed
+**all ten Jest suites**, despite selecting just one path. That run confirmed
+all tests passed but **did not prove selective execution**.
+
+The corrected runner calls `sfdx-lwc-jest -- --runInBand --runTestsByPath`
+with explicit selected paths, emits an ephemeral Jest JSON file, and checks
+its `testResults[].name` set **exactly** against the reviewed manifest-derived
+selection. Any extra, missing, failed or unmatched suite blocks the operation
+before Salesforce authentication. No Jest JSON is published to the public repo.
+A passing GitHub Action without `SDOA_V2_JEST_PASSED` after this verification
+does not satisfy the selective Jest gate.

@@ -86,8 +86,10 @@ jobs:
           python3 scripts/ci/sf-kit-v2-policy.py jest-files --package "$PACKAGE_ID" > "$RUNNER_TEMP/sdoa-v2-jest-paths"
           mapfile -t JEST_FILES < "$RUNNER_TEMP/sdoa-v2-jest-paths"
           (( ${#JEST_FILES[@]} > 0 )) || { echo "::error title=SDOA_V2_JEST_MISSING::No reviewed test suites"; exit 1; }
-          npm run test:unit -- --runInBand --runTestsByPath "${JEST_FILES[@]}"
-          echo "SDOA_V2_JEST_PASSED: manifest_scoped_suites=${#JEST_FILES[@]}"
+          # sfdx-lwc-jest requires its own '--' before forwarding Jest arguments.
+          # Machine-check the real executed paths to prevent accidental all-suite runs.
+          ./node_modules/.bin/sfdx-lwc-jest -- --runInBand --runTestsByPath "${JEST_FILES[@]}" --json --outputFile "$RUNNER_TEMP/sdoa-v2-jest-result.json" --silent
+          python3 scripts/ci/sf-kit-v2-jest-verify.py --json "$RUNNER_TEMP/sdoa-v2-jest-result.json" --selected "$RUNNER_TEMP/sdoa-v2-jest-paths"
 
   execute:
     needs: resolve

@@ -199,11 +199,44 @@ class UniversalKitV2Tests(unittest.TestCase):
 
     def test_workflow_caches_pinned_cli_and_scopes_jest(self):
         for text in ("actions/cache@v4", "2.154.4",
-                     "sf-kit-v2-policy.py jest-files", "SDOA_V2_JEST_PASSED",
+                     "sf-kit-v2-policy.py jest-files", "sf-kit-v2-jest-verify.py",
                      "SDOA_V2_SF_CLI_PIN_VERIFIED", "Run only v2 manifest-scoped LWC Jest suites"):
             self.assertIn(text, WORKFLOW)
         self.assertIn("needs.resolve.outputs.policy_version != '2'", WORKFLOW)
         self.assertIn("steps.registry.outputs.has_lwc == 'true'", WORKFLOW)
+
+
+
+    def test_jest_result_gate_rejects_non_scoped_suite_even_when_all_pass(self):
+        from unittest.mock import patch
+        spec = importlib.util.spec_from_file_location(
+            "sdoa_jest_verify", ROOT / "scripts/ci/sf-kit-v2-jest-verify.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        suite = ROOT / "force-app/main/default/lwc/devSreBranchMonitor/__tests__/devSreBranchMonitor.test.js"
+        wrong = ROOT / "force-app/main/default/lwc/clonePipelineAction/__tests__/clonePipelineAction.test.js"
+        expected = "force-app/main/default/lwc/devSreBranchMonitor/__tests__/devSreBranchMonitor.test.js"
+        report = {
+            "success": True,
+            "numFailedTestSuites": 0, "numFailedTests": 0,
+            "numPassedTestSuites": 1, "numPassedTests": 2,
+            "testResults": [{"name": str(suite), "status": "passed"}],
+        }
+        self.assertEqual(module.verify(report, [expected], ROOT), (1, 2))
+        extra = dict(report, numPassedTestSuites=2,
+                     testResults=report["testResults"] + [{"name": str(wrong), "status": "passed"}])
+        with self.assertRaises(module.JestScopeError):
+            module.verify(extra, [expected], ROOT)
+        wrong_only = dict(report, testResults=[{"name": str(wrong), "status": "passed"}])
+        with self.assertRaises(module.JestScopeError):
+            module.verify(wrong_only, [expected], ROOT)
+        with self.assertRaises(module.JestScopeError):
+            module.verify(dict(report, success=False), [expected], ROOT)
+
+    def test_jest_workflow_forwards_flags_after_separator_and_verifies_json(self):
+        self.assertIn("sfdx-lwc-jest -- --runInBand --runTestsByPath", WORKFLOW)
+        self.assertIn("--json --outputFile", WORKFLOW)
+        self.assertIn("sf-kit-v2-jest-verify.py --json", WORKFLOW)
 
 
 if __name__ == "__main__":
