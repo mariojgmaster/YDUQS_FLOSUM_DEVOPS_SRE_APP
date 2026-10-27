@@ -92,31 +92,70 @@
             </div>
           </header>
           <div class="cd-detail-body">
-            <p><strong>Component Type:</strong> {detailType}</p>
-            <p><strong>Versão registrada:</strong> {detailVersion}</p>
-            <p><strong>Source:</strong> {detailSource}</p>
-            <p><strong>Source Details:</strong> {detailSourceDetails}</p>
-            <template lwc:if={detailChangedOn}><p><strong>Alterado em (UTC):</strong> <lightning-formatted-date-time value={detailChangedOn} time-zone="UTC" day="2-digit" month="2-digit" year="numeric" hour="2-digit" minute="2-digit"></lightning-formatted-date-time></p></template>
-            <template lwc:if={detailCommittedOn}><p><strong>Commit registrado em (UTC):</strong> <lightning-formatted-date-time value={detailCommittedOn} time-zone="UTC" day="2-digit" month="2-digit" year="numeric" hour="2-digit" minute="2-digit"></lightning-formatted-date-time></p></template>
-            <p><strong>Branch vinculada:</strong> <template lwc:if={detailBranchId}><button type="button" class="cd-link" title={detailBranchName} data-id={detailBranchId} onclick={handleOpenBranch}>{detailBranchName}</button></template><template lwc:else>{detailBranchName}</template></p>
-            <p class="cd-muted">Vínculo tipado no Flosum; não comprova implantação.</p>
-            <h4>Component Histories relacionados</h4>
-            <template lwc:if={historyUnavailable}><p class="cd-muted">A fonte histórica não está acessível ou não foi possível comprovar sua ligação.</p></template>
-            <template lwc:else>
-              <template lwc:if={hasHistories}>
-                <template for:each={histories} for:item="history">
-                  <div key={history.id} class="cd-history">
-                    <div class="cd-history-actions">
-                      <button type="button" class="cd-link" data-id={history.id} onclick={handleOpenHistory}>Abrir no Flosum</button>
-                      <lightning-button label="Explorar ZIP" icon-name="utility:open_folder" variant="neutral" data-id={history.id} onclick={handleExploreHistory}></lightning-button>
-                    </div>
-                    <lightning-formatted-date-time value={history.createdAt} time-zone="UTC" day="2-digit" month="2-digit" year="numeric" hour="2-digit" minute="2-digit"></lightning-formatted-date-time>
-                  </div>
+            <section class="cd-facts" aria-label="Ficha do componente no Flosum">
+              <h4 class="cd-section-title">Ficha do componente</h4>
+              <dl class="cd-facts-grid">
+                <div class="cd-fact"><dt>Component Type</dt><dd>{detailType}</dd></div>
+                <div class="cd-fact"><dt>Versão registrada</dt><dd>{detailVersion}</dd></div>
+                <div class="cd-fact"><dt>Source</dt><dd>{detailSource}</dd></div>
+                <div class="cd-fact"><dt>Source Details</dt><dd>{detailSourceDetails}</dd></div>
+                <div class="cd-fact"><dt>Branch vinculada</dt><dd>
+                  <template lwc:if={detailBranchId}>
+                    <button type="button" class="cd-link" data-id={detailBranchId}
+                      title={detailBranchName} onclick={handleOpenBranch}>{detailBranchName}</button>
+                  </template>
+                  <template lwc:else>{detailBranchName}</template>
+                </dd></div>
+                <template lwc:if={detailChangedOn}>
+                  <div class="cd-fact"><dt>Alterado em (UTC)</dt><dd>
+                    <lightning-formatted-date-time value={detailChangedOn} time-zone="UTC"
+                      day="2-digit" month="2-digit" year="numeric" hour="2-digit" minute="2-digit"></lightning-formatted-date-time>
+                  </dd></div>
                 </template>
-                <template lwc:if={hasHistoryMore}><p class="cd-muted">Mais registros existem além dos 20 exibidos.</p></template>
+                <template lwc:if={detailCommittedOn}>
+                  <div class="cd-fact"><dt>Commit registrado em (UTC)</dt><dd>
+                    <lightning-formatted-date-time value={detailCommittedOn} time-zone="UTC"
+                      day="2-digit" month="2-digit" year="numeric" hour="2-digit" minute="2-digit"></lightning-formatted-date-time>
+                  </dd></div>
+                </template>
+              </dl>
+              <p class="cd-muted cd-facts-note">Dados registrados no Flosum. O vínculo com a Branch e a versão informada não comprovam implantação nem revisão de código.</p>
+            </section>
+            <section class="cd-history-section" aria-label="Históricos relacionados ao componente">
+              <header class="cd-section-header">
+                <h4 class="cd-section-title">Component Histories relacionados</h4>
+                <span class="cd-history-count" aria-live="polite">{historyCountLabel}</span>
+              </header>
+              <template lwc:if={historyUnavailable}>
+                <p class="cd-muted">A fonte histórica não está acessível ou não foi possível comprovar sua ligação.</p>
               </template>
-              <template lwc:else><p class="cd-muted">Nenhum histórico acessível neste vínculo consultado.</p></template>
-            </template>
+              <template lwc:else>
+                <template lwc:if={hasHistories}>
+                  <ol class="cd-history-list" aria-label="Históricos acessíveis mais recentes">
+                    <template for:each={historyRows} for:item="history">
+                      <li key={history.id} class={history.rowClass}>
+                        <div class="cd-history-info">
+                          <span class="cd-history-sequence">Histórico {history.sequence}</span>
+                          <lightning-formatted-date-time value={history.createdAt} time-zone="UTC"
+                            day="2-digit" month="2-digit" year="numeric" hour="2-digit" minute="2-digit"></lightning-formatted-date-time>
+                        </div>
+                        <div class="cd-history-actions">
+                          <button type="button" class="cd-link" data-id={history.id} onclick={handleOpenHistory}>Abrir no Flosum</button>
+                          <lightning-button label="Explorar ZIP" icon-name="utility:open_folder"
+                            variant="neutral" data-id={history.id} onclick={handleExploreHistory}></lightning-button>
+                        </div>
+                      </li>
+                    </template>
+                  </ol>
+                  <template lwc:if={hasHistoryMore}>
+                    <p class="cd-muted">Mais registros existem além dos 20 históricos exibidos.</p>
+                  </template>
+                </template>
+                <template lwc:else>
+                  <p class="cd-muted">Nenhum histórico acessível neste vínculo consultado.</p>
+                </template>
+              </template>
+            </section>
             <template lwc:if={archiveOpen}>
               <section class="cd-archive-panel" aria-label="Explorador ZIP do histórico">
                 <div class="cd-archive-head">
