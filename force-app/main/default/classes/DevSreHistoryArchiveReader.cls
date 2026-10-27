@@ -114,17 +114,10 @@ public with sharing class DevSreHistoryArchiveReader {
             ' ORDER BY CreatedDate DESC LIMIT 11',
             new Map<String,Object>{'historyId'=>historyId,'maxBytes'=>MAX_ZIP_BYTES},
             AccessLevel.USER_MODE);
-        Id chosenId;
-        Integer totalZip=0;
-        for(SObject rec : raw) {
-            Attachment meta=(Attachment)rec;
-            String mime=meta.ContentType==null?'':meta.ContentType.toLowerCase();
-            if(!mime.contains('zip') && !mime.contains('compressed')) continue;
-            totalZip++;
-            if(chosenId==null) chosenId=meta.Id;
-        }
-        if(chosenId==null)
+        ZipSelection selected=selectZipMetadata(raw);
+        if(selected.index<0)
             throw new AuraHandledException('Nenhum ZIP acessível e dentro do limite neste histórico.');
+        Id chosenId=((Attachment)raw[selected.index]).Id;
         // Read only ONE authorized attachment body in the current user's context.
         List<SObject> bodies=Database.queryWithBinds(
             'SELECT Id, ParentId, Name, BodyLength, ContentType, Body FROM Attachment' +
@@ -134,8 +127,25 @@ public with sharing class DevSreHistoryArchiveReader {
             }, AccessLevel.USER_MODE);
         if(bodies.isEmpty()) throw new AuraHandledException('Anexo não disponível para leitura.');
         ArchiveView view=inspectSelectedAttachments(bodies,entryPath);
-        view.matchingArchives=totalZip;
+        view.matchingArchives=selected.count;
         return view;
+    }
+
+    @TestVisible private class ZipSelection {
+        public Integer index=-1;
+        public Integer count=0;
+    }
+    // Pure metadata selection: can be unit-tested without managed Flosum DML.
+    @TestVisible private static ZipSelection selectZipMetadata(List<SObject> raw) {
+        ZipSelection selected=new ZipSelection();
+        for(Integer i=0;i<raw.size();i++) {
+            Attachment item=(Attachment)raw[i];
+            String mime=item.ContentType==null?'':item.ContentType.toLowerCase();
+            if(!mime.contains('zip') && !mime.contains('compressed')) continue;
+            selected.count++;
+            if(selected.index<0) selected.index=i;
+        }
+        return selected;
     }
 
     // Separate the pure archive-selection policy from the USER_MODE query.

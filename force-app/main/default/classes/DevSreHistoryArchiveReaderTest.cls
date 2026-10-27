@@ -119,4 +119,22 @@ private class DevSreHistoryArchiveReaderTest {
         System.assertEquals(true,view.entries[0].previewable);
     }
 
+    @IsTest static void selectsOnlyZipMimeWithoutLoadingBodies() {
+        List<SObject> metadata=new List<SObject>{
+            new Attachment(Name='Note',ContentType='text/plain'),
+            new Attachment(Name='ApexClass',ContentType='application/zip'),
+            new Attachment(Name='Other',ContentType='application/x-zip-compressed'),
+            new Attachment(Name='Other',ContentType=null)
+        };
+        DevSreHistoryArchiveReader.ZipSelection result=
+            DevSreHistoryArchiveReader.selectZipMetadata(metadata);
+        System.assertEquals(1,result.index);
+        System.assertEquals(2,result.count);
+        DevSreHistoryArchiveReader.ZipSelection empty=
+            DevSreHistoryArchiveReader.selectZipMetadata(
+                new List<SObject>{metadata[0],metadata[3]});
+        System.assertEquals(-1,empty.index);
+        System.assertEquals(0,empty.count);
+    }
+
 }
