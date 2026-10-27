@@ -64,6 +64,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
         "cd-history cd-history_selected" : "cd-history"
     }));
   }
+  get hasHistoryCount() { return !this.historyUnavailable; }
   get historyCountLabel() {
     const count = this.histories.length;
     return count === 1 ? "1 histórico nesta consulta" : `${count} históricos nesta consulta`;
