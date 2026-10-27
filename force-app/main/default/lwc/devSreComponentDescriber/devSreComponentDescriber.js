@@ -140,6 +140,8 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   get historiesVariant() { return this.workspaceTab === "historicos" ? "brand" : "neutral"; }
   get zipVariant() { return this.workspaceTab === "arquivos" ? "brand" : "neutral"; }
   get compareVariant() { return this.workspaceTab === "comparar" ? "brand" : "neutral"; }
+  get archiveNavigationDisabled() { return !this.archiveOpen; }
+  get compareNavigationDisabled() { return !this.compareOpen; }
   get layoutClass() { return this.detailExpanded ? "cd-layout cd-layout_focus" : "cd-layout"; }
   get hasArchiveEntries() { return (this.archiveData?.entries || []).length > 0; }
   get archiveEntries() {
