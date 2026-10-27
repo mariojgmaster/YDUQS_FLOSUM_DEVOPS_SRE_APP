@@ -127,7 +127,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: sdoa-trusted-sf-cli-${{ runner.os }}-node22-2.154.4-v1
+          # Rotate the cache key after an observed stuck reservation on v1.
+          key: sdoa-trusted-sf-cli-${{ runner.os }}-node22-2.154.4-v2
       - name: Install pinned Salesforce CLI (v2)
         if: ${{ needs.resolve.outputs.policy_version == '2' }}
         shell: bash

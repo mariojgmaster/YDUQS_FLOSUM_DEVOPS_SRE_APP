@@ -203,6 +203,7 @@ class UniversalKitV2Tests(unittest.TestCase):
                      "SDOA_V2_SF_CLI_PIN_VERIFIED", "Run only v2 manifest-scoped LWC Jest suites"):
             self.assertIn(text, WORKFLOW)
         self.assertIn("needs.resolve.outputs.policy_version != '2'", WORKFLOW)
+        self.assertIn("node22-2.154.4-v2", WORKFLOW)
         self.assertIn("steps.registry.outputs.has_lwc == 'true'", WORKFLOW)
 
 
