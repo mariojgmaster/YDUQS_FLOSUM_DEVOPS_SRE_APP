@@ -28,6 +28,8 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   _detailRequest = 0;
   _typeRequest = 0;
   archiveOpen = false;
+  archiveFilter = "";
+  detailExpanded = false;
   archiveLoading = false;
   archiveError;
   archiveData;
@@ -61,15 +63,23 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   get hasTypeOptions() { return this.typeOptions.length > 0; }
   get isTypeSelected() { return Boolean(this.typeValue); }
   get emptyWithoutFilters() { return !this.search.trim() && !this.typeValue; }
+  get showResults() { return !this.detailExpanded; }
+  get layoutClass() { return this.detailExpanded ? "cd-layout cd-layout_focus" : "cd-layout"; }
   get hasArchiveEntries() { return (this.archiveData?.entries || []).length > 0; }
   get archiveEntries() {
-    return (this.archiveData?.entries || []).map(x => ({
+    const term = this.archiveFilter.trim().toLocaleLowerCase();
+    return (this.archiveData?.entries || []).filter(x =>
+      !term || (x.path || "").toLocaleLowerCase().includes(term)
+    ).map(x => ({
       ...x,
       disabled: !x.previewable,
       rowClass: x.path === this.archiveData?.selectedPath ?
         "cd-archive-item cd-archive-item_selected" : "cd-archive-item"
     }));
   }
+  get hasMatchingArchiveEntries() { return this.archiveEntries.length > 0; }
+  get archiveMatchCount() { return this.archiveEntries.length; }
+  get archiveTotalCount() { return (this.archiveData?.entries || []).length; }
   get hasArchiveText() { return this.archiveData?.text !== null && this.archiveData?.text !== undefined; }
   get archiveContent() { return this.archiveData?.text || ""; }
   get archiveFileName() { return this.archiveData?.selectedPath || ""; }
@@ -103,6 +113,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
 
   resetResults() {
     this.handleArchiveClose();
+    this.detailExpanded = false;
     ++this._searchRequest;
     ++this._detailRequest;
     this.results = [];
@@ -143,7 +154,14 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   }
   handleNext() { if (!this.nextDisabled) this.load(true); }
   handleSelect(event) { this.loadDetail(event.currentTarget.dataset.id); }
+  handleToggleDetailFocus() {
+    if (this.hasDetail) this.detailExpanded = !this.detailExpanded;
+  }
+  handleArchiveFilterChange(event) {
+    this.archiveFilter = event.target.value || "";
+  }
   handleClose() {
+    this.detailExpanded = false;
     this.handleArchiveClose();
     ++this._detailRequest;
     this.detail = undefined;
@@ -156,6 +174,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
 
   handleArchiveClose() {
     ++this._archiveRequest;
+    this.archiveFilter = "";
     this.archiveOpen = false;
     this.archiveLoading = false;
     this.archiveData = undefined;
@@ -166,6 +185,8 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     const historyId = event.currentTarget.dataset.id;
     if (!historyId) return;
     this.archiveHistoryId = historyId;
+    this.archiveFilter = "";
+    this.archiveData = undefined;
     this.archiveOpen = true;
     this.loadArchive(null);
   }
@@ -310,6 +331,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   }
   async loadDetail(id) {
     if (!id) return;
+    this.detailExpanded = false;
     this.handleArchiveClose();
     const request = ++this._detailRequest;
     this.selectedId = id;
