@@ -250,12 +250,12 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     expect(paths).toEqual(["classes/Example.cls"]);
   });
   it("calcula diff de linhas preservando diferenças e conteúdo literal",()=>{
-    const output=lineDiff("same\\nold", "same\\nnew");
+    const output=lineDiff("same\nold", "same\nnew");
     expect(output).toMatchObject({added:1,removed:1,unchanged:false});
     expect(output.rows.map(x=>x.text)).toContain("old");
     expect(output.rows.map(x=>x.text)).toContain("new");
     expect(lineDiff("<script>", "<script>").unchanged).toBe(true);
-    expect(lineDiff("a\\n".repeat(600),"b").error).toContain("600 linhas");
+    expect(lineDiff("a\n".repeat(600),"b").error).toContain("600 linhas");
   });
   it("compara dois ZIPs do mesmo Component e não expõe código como HTML",async()=>{
     const older={id:"a0H00002",createdAt:"2026-10-23T10:00:00Z"};
@@ -269,14 +269,14 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
       ]});
       return Promise.resolve({
         selectedPath:entryPath,
-        text:historyId===older.id?"same\\nold":'same\\n<img src=x onerror=alert(1)>'
+        text:historyId===older.id?"same\nold":'same\n<img src=x onerror=alert(1)>'
       });
     });
     const el=mount();await flush();
     el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click();await flush();
-    expect(text(el)).toContain("Comparar históricos");
     const compare=[...el.shadowRoot.querySelectorAll("lightning-button")]
       .find(b=>b.label==="Comparar históricos");
+    expect(compare).toBeDefined();
     compare.click();await flush();
     expect(inspectHistoryArchive).toHaveBeenCalledWith({historyId:older.id,entryPath:null});
     expect(inspectHistoryArchive).toHaveBeenCalledWith({historyId:HISTORY.id,entryPath:null});
