@@ -200,6 +200,17 @@ def payload_members(files):
 def verify_payload(files, names):
     if payload_members(files) != names:
         raise PolicyError("Converted or remote payload has unapproved members")
+    # For explicitly mapped types, never permit an extra Metadata API file
+    # hidden behind an otherwise legitimate package.xml.
+    mapped = {"ApexClass", "ApexTrigger", "CustomTab", "PermissionSet",
+              "Flow", "FlexiPage", "Layout", "CustomApplication",
+              "QuickAction", "CustomPermission", "Profile",
+              "LightningComponentBundle", "AuraDefinitionBundle",
+              "CustomObject", "CustomField", "ValidationRule"}
+    if set(names).issubset(mapped):
+        for path in files:
+            if path != "package.xml" and not reviewed_owners(path, names):
+                raise PolicyError("Payload contains a file outside reviewed metadata members")
     return True
 
 def normalized(raw, path):
@@ -216,6 +227,86 @@ def normalized(raw, path):
         trim(root)
         return ET.tostring(root, encoding="utf-8")
     return data
+
+
+def reviewed_owners(path, members):
+    """Map Metadata API paths to approved manifest identifiers only.
+
+    Some MDAPI files (notably *.object) can aggregate multiple reviewed
+    members; never claim a unique owner in that case. Unknown families are
+    counted without publishing remote paths or unreviewed identifiers.
+    """
+    if path == "package.xml":
+        return []
+    bits = PurePosixPath(path).parts
+    if len(bits) < 2:
+        return []
+    folder, filename = bits[0], bits[-1]
+    ext = {
+        "ApexClass": ("classes", ".cls"),
+        "ApexTrigger": ("triggers", ".trigger"),
+        "CustomTab": ("tabs", ".tab"),
+        "PermissionSet": ("permissionsets", ".permissionset"),
+        "Flow": ("flows", ".flow"),
+        "FlexiPage": ("flexipages", ".flexipage"),
+        "Layout": ("layouts", ".layout"),
+        "CustomApplication": ("applications", ".app"),
+        "QuickAction": ("quickActions", ".quickAction"),
+        "CustomPermission": ("customPermissions", ".customPermission"),
+        "Profile": ("profiles", ".profile"),
+    }
+    owners = []
+    for typ, names in members.items():
+        for member in names:
+            match = False
+            if typ in ext:
+                directory, ending = ext[typ]
+                match = (folder == directory and len(bits) == 2 and
+                         filename in (member + ending, member + ending + "-meta.xml"))
+            elif typ in ("LightningComponentBundle", "AuraDefinitionBundle"):
+                directory = "lwc" if typ == "LightningComponentBundle" else "aura"
+                match = folder == directory and len(bits) >= 3 and bits[1] == member
+            elif typ in ("CustomObject", "CustomField", "ValidationRule"):
+                if folder == "objects":
+                    if typ == "CustomObject":
+                        match = (len(bits) == 2 and filename in
+                                 (member + ".object", member + ".object-meta.xml"))
+                    else:
+                        name_parts = member.split(".", 1)
+                        if len(name_parts) == 2:
+                            obj, leaf = name_parts
+                            subdir, suffix = (("fields", ".field-meta.xml") if
+                                typ == "CustomField" else ("validationRules", ".validationRule-meta.xml"))
+                            match = ((len(bits) == 2 and filename in
+                                      (obj + ".object", obj + ".object-meta.xml")) or
+                                     (len(bits) == 4 and bits[1] == obj and
+                                      bits[2] == subdir and filename == leaf + suffix))
+            if match:
+                owners.append(f"{typ}:{member}")
+    return sorted(set(owners))
+
+
+def jest_files(package):
+    """Require approved tests for every explicit LWC in a v2 package."""
+    _, members = verify_config(package)
+    bundles = members.get("LightningComponentBundle", [])
+    selected = []
+    for name in bundles:
+        root = ROOT / "force-app/main/default/lwc" / name / "__tests__"
+        if root.is_symlink() or not root.is_dir():
+            raise PolicyError("Reviewed LWC has no Jest suite")
+        tests = sorted(
+            p for p in root.iterdir()
+            if p.is_file() and not p.is_symlink() and
+            (p.name.endswith(".test.js") or p.name.endswith(".spec.js")) and
+            re.fullmatch(r"[A-Za-z0-9_.-]{1,160}", p.name)
+        )
+        if not tests:
+            raise PolicyError("Reviewed LWC has no Jest test file")
+        selected.extend(p.relative_to(ROOT).as_posix() for p in tests)
+    if len(selected) > 100:
+        raise PolicyError("Too many selected Jest files")
+    return selected
 
 def report(operation, package, remote, candidate=None):
     _, members = verify_config(package)
@@ -234,16 +325,33 @@ def report(operation, package, remote, candidate=None):
         left = from_dir(Path(candidate))
         verify_payload(left, members)
         keys = (set(left) | set(right)) - {"package.xml"}
-        diff_count = sum(k not in left or k not in right or normalized(left[k], k) != normalized(right[k], k) for k in keys)
-        result.update(result="equal" if diff_count == 0 else "different",
-                      differing_files=diff_count)
+        differences = sorted(k for k in keys if k not in left or k not in right
+                             or normalized(left[k], k) != normalized(right[k], k))
+        exact, ambiguous = set(), set()
+        unknown = 0
+        for path in differences:
+            owners = reviewed_owners(path, members)
+            aggregate_object = (path.startswith("objects/") and
+                                path.endswith((".object", ".object-meta.xml")) and
+                                any(x.startswith(("CustomField:", "ValidationRule:")) for x in owners))
+            if len(owners) == 1 and not aggregate_object:
+                exact.add(owners[0])
+            elif owners:
+                ambiguous.update(owners)
+            else:
+                unknown += 1
+        result.update(result="equal" if not differences else "different",
+                      differing_files=len(differences), differing_members=sorted(exact),
+                      ambiguous_candidates=sorted(ambiguous),
+                      unattributed_changed_files=unknown,
+                      attribution_complete=(not ambiguous and unknown == 0))
     else:
         raise PolicyError("Unapproved read operation")
     return result
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("command", choices=("resolve", "verify", "report", "test-level"))
+    p.add_argument("command", choices=("resolve", "verify", "report", "test-level", "jest-files"))
     p.add_argument("--package", required=True)
     p.add_argument("--target")
     p.add_argument("--candidate-dir")
@@ -262,7 +370,7 @@ def main():
                                 "resolve", "--target", args.target or "", "--package", args.package,
                                 "--output-file", args.output_file], cwd=ROOT, check=True)
                 with Path(args.output_file).open("a", encoding="utf-8") as out:
-                    out.write("policy_version=1\n")
+                    out.write("policy_version=1\nhas_lwc=false\n")
                 return
             info, _ = verify_config(args.package)
             # Reuse the existing target validator; v2 never grants production access.
@@ -277,12 +385,17 @@ def main():
                                    ("instance_url", target["instance_url"]),
                                    ("manifest", info["manifest"]), ("policy_version", "2")):
                     out.write(f"{key}={value}\n")
+            with Path(args.output_file).open("a", encoding="utf-8") as out:
+                out.write(f"has_lwc={str('LightningComponentBundle' in info['allowed_types']).lower()}\n")
             print("SDOA_V2_CATALOG_RESOLVED")
         elif args.command == "test-level":
             info, _ = verify_config(args.package)
             print(info["effective_test_level"])
             if info["effective_test_level"] == "RunSpecifiedTests":
                 print(*info["tests"], sep="\n")
+        elif args.command == "jest-files":
+            for path in jest_files(args.package):
+                print(path)
         elif args.command == "verify":
             _, names = verify_config(args.package)
             verify_payload(from_dir(Path(args.candidate_dir)), names)

@@ -27,6 +27,7 @@ jobs:
       issue_number: ${{ steps.intent.outputs.issue_number }}
       github_environment: ${{ steps.registry.outputs.github_environment }}
       policy_version: ${{ steps.registry.outputs.policy_version }}
+      has_lwc: ${{ steps.registry.outputs.has_lwc }}
       instance_url: ${{ steps.registry.outputs.instance_url }}
     steps:
       - uses: actions/checkout@v4
@@ -66,6 +67,28 @@ jobs:
           set -euo pipefail
           npm run test:unit -- --runInBand --runTestsByPath force-app/main/default/lwc/clonePipelineAction/__tests__/clonePipelineAction.test.js
 
+      - name: Set up Node.js for v2 reviewed LWC tests
+        if: ${{ steps.registry.outputs.policy_version == '2' && steps.registry.outputs.has_lwc == 'true' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install v2 reviewed Jest dependencies
+        if: ${{ steps.registry.outputs.policy_version == '2' && steps.registry.outputs.has_lwc == 'true' }}
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Run only v2 manifest-scoped LWC Jest suites
+        if: ${{ steps.registry.outputs.policy_version == '2' && steps.registry.outputs.has_lwc == 'true' }}
+        shell: bash
+        env:
+          PACKAGE_ID: ${{ steps.intent.outputs.package_id }}
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/sf-kit-v2-policy.py jest-files --package "$PACKAGE_ID" > "$RUNNER_TEMP/sdoa-v2-jest-paths"
+          mapfile -t JEST_FILES < "$RUNNER_TEMP/sdoa-v2-jest-paths"
+          (( ${#JEST_FILES[@]} > 0 )) || { echo "::error title=SDOA_V2_JEST_MISSING::No reviewed test suites"; exit 1; }
+          npm run test:unit -- --runInBand --runTestsByPath "${JEST_FILES[@]}"
+          echo "SDOA_V2_JEST_PASSED: manifest_scoped_suites=${#JEST_FILES[@]}"
+
   execute:
     needs: resolve
     if: ${{ needs.resolve.result == 'success' }}
@@ -97,7 +120,22 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install Salesforce CLI
+      - name: Cache Salesforce CLI npm tarballs (v2)
+        if: ${{ needs.resolve.outputs.policy_version == '2' }}
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: sdoa-trusted-sf-cli-${{ runner.os }}-node22-2.154.4-v1
+      - name: Install pinned Salesforce CLI (v2)
+        if: ${{ needs.resolve.outputs.policy_version == '2' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global --no-audit --no-fund --prefer-offline @salesforce/cli@2.154.4
+          sf --version | grep -F '@salesforce/cli/2.154.4'
+          echo 'SDOA_V2_SF_CLI_PIN_VERIFIED'
+      - name: Install Salesforce CLI (legacy v1)
+        if: ${{ needs.resolve.outputs.policy_version != '2' }}
         run: npm install --global @salesforce/cli
       - name: Reverify Issue and execute approved validation or deployment
         if: ${{ needs.resolve.outputs.operation == 'plan' || needs.resolve.outputs.operation == 'deploy' }}
