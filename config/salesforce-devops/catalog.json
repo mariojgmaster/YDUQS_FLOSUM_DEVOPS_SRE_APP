@@ -221,6 +221,18 @@
         "ApexClass",
         "LightningComponentBundle"
       ]
+    },
+    "branch-monitor-m2e-ux-focus": {
+      "manifest": "manifest/sf-branch-monitor-m2e-ux-focus.xml",
+      "test_level": "RunSpecifiedTests",
+      "tests": [
+        "DevSreComponentDescriberTest",
+        "DevSreHistoryArchiveReaderTest",
+        "DevSreBranchMonitorTest"
+      ],
+      "allowed_types": [
+        "LightningComponentBundle"
+      ]
     }
   }
 }
