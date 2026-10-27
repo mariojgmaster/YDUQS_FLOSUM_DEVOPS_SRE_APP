@@ -287,8 +287,8 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     expect(text(el)).toContain("1 linhas adicionadas");
     expect(text(el)).toContain("1 linhas removidas");
     expect(text(el)).toContain("<img src=x onerror=alert(1)>");
-    expect(el.shadowRoot.querySelector(".cd-diff-side-scroll img")).toBeNull();
-    expect(el.shadowRoot.querySelectorAll(".cd-diff-pair")).toHaveLength(2);
+    expect(el.shadowRoot.querySelector(".cd-diff-panes img")).toBeNull();
+    expect(el.shadowRoot.querySelectorAll(".cd-diff-pane:first-child .cd-diff-cell")).toHaveLength(2);
     expect(text(el)).toContain("Não estabelece identidade canônica");
   });
   it("não disponibiliza comparação com apenas um History e respeita reset",async()=>{
@@ -338,18 +338,80 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     expect(el.shadowRoot.querySelectorAll(".cd-compare-selectors lightning-combobox")).toHaveLength(2);
     const file=el.shadowRoot.querySelector(".cd-compare-file lightning-combobox");
     file.dispatchEvent(new CustomEvent("change",{detail:{value:common}}));await flush();
-    expect(el.shadowRoot.querySelectorAll(".cd-diff-pair")).toHaveLength(2);
+    expect(el.shadowRoot.querySelectorAll(".cd-diff-pane:first-child .cd-diff-cell")).toHaveLength(2);
     const only=[...el.shadowRoot.querySelectorAll("lightning-button")]
       .find(b=>b.label==="Apenas alterações");
     only.click();await flush();
-    expect(el.shadowRoot.querySelectorAll(".cd-diff-pair")).toHaveLength(1);
+    expect(el.shadowRoot.querySelectorAll(".cd-diff-pane:first-child .cd-diff-cell")).toHaveLength(1);
     const all=[...el.shadowRoot.querySelectorAll("lightning-button")]
       .find(b=>b.label==="Lado a lado");
     all.click();await flush();
-    expect(el.shadowRoot.querySelectorAll(".cd-diff-pair")).toHaveLength(2);
+    expect(el.shadowRoot.querySelectorAll(".cd-diff-pane:first-child .cd-diff-cell")).toHaveLength(2);
     el.shadowRoot.querySelector("lightning-button-icon[title='Inverter base e destino']").click();await flush();
     expect(inspectHistoryArchive).toHaveBeenCalledWith({historyId:HISTORY.id,entryPath:null});
     expect(inspectHistoryArchive).toHaveBeenCalledWith({historyId:older.id,entryPath:null});
+  });
+
+  it("usa dois painéis scrolláveis X/Y independentes, sem contêiner de código comum",async()=>{
+    const older={id:"a0H00002",createdAt:"2026-10-23T10:00:00Z"};
+    describeComponent.mockResolvedValue({...DETAIL,histories:[HISTORY,older]});
+    const common="classes/Example.cls";
+    inspectHistoryArchive.mockImplementation(({historyId,entryPath})=>Promise.resolve(
+      entryPath
+        ? {selectedPath:entryPath,text:historyId===older.id?"inicio\\nante":"inicio\\ndepois"}
+        : {entries:[{path:common,previewable:true}]}
+    ));
+    const el=mount();await flush();
+    el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click();await flush();
+    const compare=[...el.shadowRoot.querySelectorAll("lightning-button")]
+      .find(b=>b.label==="Comparar históricos");
+    compare.click();await flush();
+    el.shadowRoot.querySelector(".cd-compare-file lightning-combobox")
+      .dispatchEvent(new CustomEvent("change",{detail:{value:common}}));await flush();
+    const panes=el.shadowRoot.querySelectorAll(".cd-diff-pane");
+    expect(panes).toHaveLength(2);
+    expect([...panes].map(p=>p.getAttribute("tabindex"))).toEqual(["0","0"]);
+    expect([...panes].map(p=>p.getAttribute("role"))).toEqual(["region","region"]);
+    expect(panes[0].getAttribute("aria-label")).toContain("horizontal e vertical independente");
+    expect(panes[1].getAttribute("aria-label")).toContain("horizontal e vertical independente");
+    expect(el.shadowRoot.querySelector(".cd-diff-side-scroll")).toBeNull();
+    panes[0].scrollLeft=50;panes[0].scrollTop=80;
+    expect(panes[1].scrollLeft).toBe(0);
+    expect(panes[1].scrollTop).toBe(0);
+    panes[1].scrollLeft=26;panes[1].scrollTop=60;
+    expect(panes[0].scrollLeft).toBe(50);
+    expect(panes[0].scrollTop).toBe(80);
+    expect(panes[0].textContent).toContain("ante");
+    expect(panes[1].textContent).toContain("depois");
+  });
+  it("navega da ficha aos históricos e ao ZIP, volta à lista sem perder filtros",async()=>{
+    const el=mount();await flush();
+    await nameSearch(el,"Flow");
+    const initialCalls=searchFilteredComponents.mock.calls.length;
+    el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click();await flush();
+    const expand=[...el.shadowRoot.querySelectorAll("lightning-button")].find(b=>b.label==="Expandir detalhes");
+    expand.click();await flush();
+    const nav=el.shadowRoot.querySelector(".cd-workspace-nav");
+    expect(nav).not.toBeNull();
+    expect(el.shadowRoot.querySelector(".cd-facts")).not.toBeNull();
+    expect(el.shadowRoot.querySelector(".cd-history-list")).toBeNull();
+    expect([...nav.querySelectorAll("lightning-button")].find(b=>b.label==="Arquivos ZIP").disabled).toBe(true);
+    expect([...nav.querySelectorAll("lightning-button")].find(b=>b.label==="Comparar").disabled).toBe(true);
+    [...nav.querySelectorAll("lightning-button")].find(b=>b.label==="Históricos").click();await flush();
+    expect(el.shadowRoot.querySelector(".cd-history-list")).not.toBeNull();
+    expect(el.shadowRoot.querySelector(".cd-facts")).toBeNull();
+    const explore=[...el.shadowRoot.querySelectorAll("lightning-button")].find(b=>b.label==="Explorar ZIP");
+    explore.click();await flush();
+    expect(el.shadowRoot.querySelector(".cd-archive-panel")).not.toBeNull();
+    expect(el.shadowRoot.querySelector(".cd-history-list")).toBeNull();
+    expect(el.shadowRoot.querySelector(".cd-workspace-path").textContent).toContain("Arquivos ZIP");
+    expect(el.shadowRoot.querySelector(".cd-archive-preview")).not.toBeNull();
+    [...nav.querySelectorAll("lightning-button")].find(b=>b.label==="Históricos").click();await flush();
+    expect(el.shadowRoot.querySelector(".cd-history-list")).not.toBeNull();
+    el.shadowRoot.querySelector(".cd-workspace-path .cd-link").click();await flush();
+    expect(el.shadowRoot.querySelector(".cd-table tbody tr")).toHaveLength(2);
+    expect(searchFilteredComponents).toHaveBeenCalledTimes(initialCalls);
+    expect(describeComponent).toHaveBeenCalledTimes(1);
   });
 
 });
