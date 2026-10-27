@@ -148,3 +148,9 @@
   .cd-diff-pane{height:18rem}
   .cd-workspace-identity{max-width:11rem}
 }
+
+/* V3.2.1: one shared vertical position while each code pane owns horizontal overflow. */
+.cd-diff-pane{overscroll-behavior-y:contain}
+.cd-diff-pagination{display:flex;justify-content:space-between;align-items:center;gap:.7rem;flex-wrap:wrap;padding:.7rem .8rem;border-top:1px solid var(--ds-color-border-subtle,#edf0f5)}
+.cd-diff-pagination .cd-muted{font-size:.75rem;text-align:center}
+@media(max-width:48rem){.cd-diff-pagination{justify-content:center}}
