@@ -103,8 +103,9 @@ private class DevSreHistoryArchiveReaderTest {
         }
     }
     @IsTest static void permitsTextLargerThanTheFormer64KiBLimit() {
-        String large='';
-        for(Integer i=0;i<11000;i++) large+=String.valueOf(i).leftPad(6,'0')+'\n';
+        List<String> lines=new List<String>();
+        for(Integer i=0;i<11000;i++) lines.add(String.valueOf(i).leftPad(6,'0'));
+        String large=String.join(lines,'\n');
         System.assert(large.length()>65536);
         Compression.ZipWriter writer=new Compression.ZipWriter();
         writer.addEntry('classes/Large.cls', Blob.valueOf(large));
