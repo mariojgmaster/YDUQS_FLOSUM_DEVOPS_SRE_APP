@@ -409,7 +409,7 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     [...nav.querySelectorAll("lightning-button")].find(b=>b.label==="Históricos").click();await flush();
     expect(el.shadowRoot.querySelector(".cd-history-list")).not.toBeNull();
     el.shadowRoot.querySelector(".cd-workspace-path .cd-link").click();await flush();
-    expect(el.shadowRoot.querySelector(".cd-table tbody tr")).toHaveLength(2);
+    expect(el.shadowRoot.querySelectorAll(".cd-table tbody tr")).toHaveLength(2);
     expect(searchFilteredComponents).toHaveBeenCalledTimes(initialCalls);
     expect(describeComponent).toHaveBeenCalledTimes(1);
   });
