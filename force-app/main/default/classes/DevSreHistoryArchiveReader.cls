@@ -1,11 +1,11 @@
 /**
- * SPEC-006 M2D - bounded read-only viewer for Flosum Component History classic Attachments.
+ * SPEC-006 V3.2.1 - bounded read-only viewer for Flosum Component History classic Attachments.
  * A history and its parent Attachment must both be visible in USER_MODE to the caller.
  * Never logs/reports the ZIP bytes, path inventory or text in public Actions.
  */
 public with sharing class DevSreHistoryArchiveReader {
-    @TestVisible private static final Integer MAX_ZIP_BYTES=1048576;
-    @TestVisible private static final Integer MAX_TEXT_BYTES=65536;
+    @TestVisible private static final Integer MAX_ZIP_BYTES=6291456;
+    @TestVisible private static final Integer MAX_TEXT_BYTES=6291456;
     @TestVisible private static final Integer MAX_ENTRIES=200;
 
     public class EntryRow {
@@ -72,6 +72,16 @@ public with sharing class DevSreHistoryArchiveReader {
             if (!selectedFound || !selectedPermitted && selected!=null)
                 throw new AuraHandledException('Arquivo indisponível para pré-visualização.');
             if(selected!=null) {
+                // The governor heap is shared with ZIP bytes, decompressed data,
+                // and serialized text. Fail safely before extraction when possible.
+                Long expectedSize;
+                for (Compression.ZipEntry entry : zipEntries) {
+                    if (entry.getName()==selected) { expectedSize=entry.getUncompressedSize(); break; }
+                }
+                if (expectedSize==null || expectedSize>MAX_TEXT_BYTES)
+                    throw new AuraHandledException('Arquivo excede 6 MiB de texto.');
+                if (Limits.getLimitHeapSize()-Limits.getHeapSize() < expectedSize*2+131072)
+                    throw new AuraHandledException('Arquivo dentro do limite de 6 MiB, mas sem heap Apex suficiente para abrir. Use o download original do Flosum.');
                 Blob bytes=reader.extract(selected);
                 if(bytes==null || bytes.size()>MAX_TEXT_BYTES)
                     throw new AuraHandledException('Conteúdo excede o limite de visualização.');
@@ -97,13 +107,35 @@ public with sharing class DevSreHistoryArchiveReader {
             'SELECT Id FROM Flosum__Component_History__c WHERE Id = :historyId LIMIT 1',
             new Map<String,Object>{'historyId'=>historyId},AccessLevel.USER_MODE);
         if(history.isEmpty()) throw new AuraHandledException('Histórico não encontrado ou sem acesso.');
+        // First query metadata only: never load up to eleven 6-MiB Bodies at once.
         List<SObject> raw=Database.queryWithBinds(
-            'SELECT Id, ParentId, Name, BodyLength, ContentType, Body FROM Attachment' +
+            'SELECT Id, ParentId, Name, BodyLength, ContentType FROM Attachment' +
             ' WHERE ParentId = :historyId AND BodyLength <= :maxBytes' +
             ' ORDER BY CreatedDate DESC LIMIT 11',
             new Map<String,Object>{'historyId'=>historyId,'maxBytes'=>MAX_ZIP_BYTES},
             AccessLevel.USER_MODE);
-        return inspectSelectedAttachments(raw, entryPath);
+        Id chosenId;
+        Integer totalZip=0;
+        for(SObject rec : raw) {
+            Attachment meta=(Attachment)rec;
+            String mime=meta.ContentType==null?'':meta.ContentType.toLowerCase();
+            if(!mime.contains('zip') && !mime.contains('compressed')) continue;
+            totalZip++;
+            if(chosenId==null) chosenId=meta.Id;
+        }
+        if(chosenId==null)
+            throw new AuraHandledException('Nenhum ZIP acessível e dentro do limite neste histórico.');
+        // Read only ONE authorized attachment body in the current user's context.
+        List<SObject> bodies=Database.queryWithBinds(
+            'SELECT Id, ParentId, Name, BodyLength, ContentType, Body FROM Attachment' +
+            ' WHERE Id = :chosenId AND ParentId = :historyId AND BodyLength <= :maxBytes LIMIT 1',
+            new Map<String,Object>{
+                'chosenId'=>chosenId,'historyId'=>historyId,'maxBytes'=>MAX_ZIP_BYTES
+            }, AccessLevel.USER_MODE);
+        if(bodies.isEmpty()) throw new AuraHandledException('Anexo não disponível para leitura.');
+        ArchiveView view=inspectSelectedAttachments(bodies,entryPath);
+        view.matchingArchives=totalZip;
+        return view;
     }
 
     // Separate the pure archive-selection policy from the USER_MODE query.
