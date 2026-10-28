@@ -355,7 +355,7 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     expect(inspectHistoryArchive).toHaveBeenCalledWith({historyId:older.id,entryPath:null});
   });
 
-  it("sincroniza scroll Y sem interferir no scroll X independente",async()=>{
+  it("usa uma única rolagem vertical e horizontais independentes, sem espelhar scrollTop",async()=>{
     const older={id:"a0H00002",createdAt:"2026-10-23T10:00:00Z"};
     describeComponent.mockResolvedValue({...DETAIL,histories:[HISTORY,older]});
     const common="classes/Example.cls";
@@ -371,23 +371,42 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     compare.click();await flush();
     el.shadowRoot.querySelector(".cd-compare-file lightning-combobox")
       .dispatchEvent(new CustomEvent("change",{detail:{value:common}}));await flush();
+    const viewport=el.shadowRoot.querySelector(".cd-diff-viewport");
     const panes=el.shadowRoot.querySelectorAll(".cd-diff-pane");
+    expect(viewport).not.toBeNull();
+    expect(viewport.getAttribute("role")).toBe("region");
+    expect(viewport.getAttribute("aria-label")).toContain("uma única rolagem vertical");
     expect(panes).toHaveLength(2);
-    expect([...panes].map(p=>p.getAttribute("tabindex"))).toEqual(["0","0"]);
-    expect([...panes].map(p=>p.getAttribute("role"))).toEqual(["region","region"]);
-    expect(panes[0].getAttribute("aria-label")).toContain("vertical sincronizado");
-    expect(panes[1].getAttribute("aria-label")).toContain("vertical sincronizado");
-    expect(el.shadowRoot.querySelector(".cd-diff-side-scroll")).toBeNull();
-    panes[0].scrollLeft=50;panes[0].scrollTop=80;
-    panes[0].dispatchEvent(new Event("scroll"));await flush();
-    expect(panes[1].scrollLeft).toBe(0);
-    expect(panes[1].scrollTop).toBe(80);
-    panes[1].scrollLeft=26;panes[1].scrollTop=60;
-    panes[1].dispatchEvent(new Event("scroll"));await flush();
+    expect(viewport.contains(panes[0]) && viewport.contains(panes[1])).toBe(true);
+    expect(panes[0].hasAttribute("onscroll")).toBe(false);
+    expect(panes[1].hasAttribute("onscroll")).toBe(false);
+    panes[0].scrollLeft=50;panes[1].scrollLeft=26;
+    viewport.scrollTop=80;
     expect(panes[0].scrollLeft).toBe(50);
-    expect(panes[0].scrollTop).toBe(60);
+    expect(panes[1].scrollLeft).toBe(26);
+    const left=panes[0].querySelectorAll(".cd-diff-cell");
+    const right=panes[1].querySelectorAll(".cd-diff-cell");
+    expect(left.length).toBe(right.length);
     expect(panes[0].textContent).toContain("ante");
     expect(panes[1].textContent).toContain("depois");
+    const only=[...el.shadowRoot.querySelectorAll("lightning-button")]
+      .find(b=>b.label==="Apenas alterações");
+    only.click();await flush();
+    expect(viewport.scrollTop).toBe(0);
+  });
+  it("mantém um placeholder por linha removida no lado oposto (regressão do print)",()=>{
+    const before=["<fieldPermissions>","<enabled>true</enabled>","<pageAccesses>",
+      "<apexPage>FileNotFound</apexPage>","<enabled>true</enabled>",
+      "</pageAccesses>","<pageAccesses>","<apexPage>StoreParentPageOut</apexPage>"].join("\n");
+    const after=["<fieldPermissions>","<enabled>true</enabled>","<pageAccesses>",
+      "<apexPage>StoreParentPageOut</apexPage>"].join("\n");
+    const pairs=sideBySideDiff(lineDiff(before,after));
+    expect(pairs).toHaveLength(8);
+    expect(pairs.filter(p=>p.right.className.includes("empty")).length).toBe(4);
+    expect(pairs.every(p=>p.left && p.right && p.key)).toBe(true);
+    expect(pairs[3].left.text).toContain("FileNotFound");
+    expect(pairs[3].right.text).toBe("");
+    expect(pairs[7].right.text).toContain("StoreParentPageOut");
   });
   it("navega da ficha aos históricos e ao ZIP, volta à lista sem perder filtros",async()=>{
     const el=mount();await flush();
