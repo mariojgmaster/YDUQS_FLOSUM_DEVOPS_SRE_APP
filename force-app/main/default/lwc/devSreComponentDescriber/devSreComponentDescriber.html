@@ -141,6 +141,26 @@
               </dl>
               <p class="cd-muted cd-facts-note">Dados registrados no Flosum. O vínculo com a Branch e a versão informada não comprovam implantação nem revisão de código.</p>
             </section>
+            <section class="cd-evidence" aria-label="Rastreabilidade e qualidade das evidências">
+              <header class="cd-evidence-head">
+                <div>
+                  <h4 class="cd-section-title">Rastreabilidade e evidências</h4>
+                  <p class="cd-muted">O que a consulta realmente confirmou sobre este componente.</p>
+                </div>
+              </header>
+              <ul class="cd-evidence-list">
+                <template for:each={traceabilityEntries} for:item="item">
+                  <li key={item.key} class="cd-evidence-item">
+                    <div class="cd-evidence-title">
+                      <strong>{item.title}</strong>
+                      <span class={item.statusClass}>{item.status}</span>
+                    </div>
+                    <p>{item.description}</p>
+                  </li>
+                </template>
+              </ul>
+              <p class="cd-evidence-footnote">Somente leitura. A validação do FullName e das operações de deploy requer fontes relacionadas e verificadas; não é inferida por datas ou nomes.</p>
+            </section>
             </template>
             <template lwc:if={showHistorySection}>
             <section class="cd-history-section" aria-label="Históricos relacionados ao componente">
