@@ -248,3 +248,31 @@
   border-bottom:0;
 }
 .cd-diff-viewport .cd-diff-pane{border-top:0;border-radius:0 0 .22rem .22rem}
+
+/* V3.3 — estados situacionais, usando tokens da aplicação/SLDS. */
+.cd-state{
+  display:flex;align-items:flex-start;gap:.85rem;min-width:0;
+  margin:.7rem;padding:1.1rem 1.2rem;
+  border:1px solid var(--ds-color-border-default,#dbe2eb);
+  border-radius:.45rem;background:var(--ds-color-surface-secondary,#f5f8fb);
+  color:var(--ds-color-text-primary,#1d293b);
+}
+.cd-state lightning-icon{flex:0 0 auto;margin-top:.15rem}
+.cd-state-content{flex:1;min-width:0}
+.cd-state-content strong{display:block;font-size:.88rem;line-height:1.4;font-weight:700}
+.cd-state-content p{font-size:.8rem;line-height:1.55;margin:.3rem 0 0;overflow-wrap:anywhere;
+  color:var(--ds-color-text-secondary,#60718b)}
+.cd-state-actions{display:flex;flex-wrap:wrap;gap:.55rem;margin-top:.85rem}
+.cd-state_error{background:var(--ds-color-danger-surface,#fff4f4);
+  border-color:var(--ds-color-border-danger,#e6b9be)}
+.cd-loading_skeleton{display:flex;align-items:center;padding:1rem;min-height:8rem;
+  background:var(--ds-color-surface-primary,#fff)}
+.cd-skeleton{width:100%;display:grid;gap:.65rem}
+.cd-skeleton span{display:block;height:.7rem;border-radius:.3rem;background:var(--ds-color-border-subtle,#e8edf4);
+  animation:cd-skeleton-pulse 1.5s ease-in-out infinite alternate}
+.cd-skeleton span:nth-child(1){width:37%}
+.cd-skeleton span:nth-child(2){width:88%}
+.cd-skeleton span:nth-child(3){width:65%}
+@keyframes cd-skeleton-pulse{from{opacity:.45}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.cd-skeleton span{animation:none}}
+@media(max-width:40rem){.cd-state{margin:.5rem;padding:.85rem}.cd-state-actions{align-items:stretch}}

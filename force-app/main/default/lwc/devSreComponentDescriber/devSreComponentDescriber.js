@@ -36,6 +36,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   archiveError;
   archiveData;
   archiveHistoryId;
+  archiveRetryPath = null;
   _archiveRequest = 0;
   compareOpen = false;
   compareLoading = false;
@@ -150,6 +151,9 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   get compareNavigationDisabled() { return !this.compareOpen; }
   get layoutClass() { return this.detailExpanded ? "cd-layout cd-layout_focus" : "cd-layout"; }
   get hasArchiveEntries() { return (this.archiveData?.entries || []).length > 0; }
+  get hasPreviewableArchiveEntries() {
+    return (this.archiveData?.entries || []).some(entry => entry.previewable);
+  }
   get archiveEntries() {
     const term = this.archiveFilter.trim().toLocaleLowerCase();
     return (this.archiveData?.entries || []).filter(x =>
@@ -220,6 +224,9 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     // eslint-disable-next-line @lwc/lwc/no-async-operation
     this._debounce = setTimeout(() => this.load(false), 350);
   }
+  handleRetrySearch() {
+    if (this.eligible && !this.loading) this.load(false);
+  }
   handleRefresh() {
     clearTimeout(this._debounce);
     this.typeMenuOpen = false;
@@ -260,6 +267,9 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   handleArchiveFilterChange(event) {
     this.archiveFilter = event.target.value || "";
   }
+  handleArchiveClearFilter() {
+    this.archiveFilter = "";
+  }
   handleClose() {
     this.handleCompareClose();
     this.detailExpanded = false;
@@ -274,6 +284,9 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   handleOpenBranch(event) { this.open(event.currentTarget.dataset.id, "Flosum__Branch__c"); }
   handleOpenHistory(event) { this.open(event.currentTarget.dataset.id, "Flosum__Component_History__c"); }
 
+  handleRetryDetail() {
+    if (this.selectedId && !this.detailLoading) this.loadDetail(this.selectedId);
+  }
   handleArchiveClose() {
     if (this.workspaceTab === "arquivos") this.workspaceTab = "historicos";
     ++this._archiveRequest;
@@ -283,6 +296,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     this.archiveData = undefined;
     this.archiveError = undefined;
     this.archiveHistoryId = undefined;
+    this.archiveRetryPath = null;
   }
   handleExploreHistory(event) {
     const historyId = event.currentTarget.dataset.id;
@@ -298,8 +312,13 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     const path = event.currentTarget.dataset.path;
     if (path) this.loadArchive(path);
   }
+  handleRetryArchive() {
+    if (this.archiveOpen && this.archiveHistoryId && !this.archiveLoading)
+      this.loadArchive(this.archiveRetryPath);
+  }
   async loadArchive(entryPath) {
     const request = ++this._archiveRequest;
+    this.archiveRetryPath = entryPath;
     this.archiveLoading = true;
     this.archiveError = undefined;
     try {
@@ -327,6 +346,9 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     this.compareBaseId = this.histories[1].id;
     this.compareTargetId = this.histories[0].id;
     this.loadCompareArchives();
+  }
+  handleRetryCompare() {
+    if (this.compareOpen && !this.compareLoading) this.loadCompareArchives();
   }
   handleCompareClose() {
     if (this.workspaceTab === "comparar") this.workspaceTab = "historicos";

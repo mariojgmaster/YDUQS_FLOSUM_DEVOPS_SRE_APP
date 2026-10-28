@@ -66,3 +66,17 @@
 - Testes: Diff acima de 600 linhas, páginas 1..N, rolamento Y espelhado e X isolado, arquivo sintético acima de 64 KiB, políticas/segurança. Homologar com arquivo próximo de 6 MiB na DevSreFeat antes de prometer suporte universal.
 
 **Status:** alvo de validação técnica (PR/PLAN). Deploy real somente após autorização exata de pacote e commit.
+
+
+## V3.3 — estados vazios, carregamento e recuperação (candidato)
+
+**Escopo:** apenas `devSreComponentDescriber` (LWC, estilos e Jest). Sem Apex, DML, mudanças de contrato ou rearranjo de layout.
+
+- Inventário: loading skeleton, busca vazia x filtro sem resultados x falha de API, com ações específicas (atualizar ou limpar filtros).
+- Ficha e históricos: estados de carregamento e erro; histórico sem vínculo acessível é explicitamente diferente de histórico com zero ocorrências; nova consulta sob demanda.
+- ZIP: distinguir ZIP vazio de ZIP com entradas não textuais, filtro sem resultados e leitura negada/falha/limite; tentar novamente conserva o `historyId` e o caminho solicitado, sem forjar leitura concluída.
+- Comparar: consulta falha x ausência de caminhos textuais comuns; ação de reconsultar índices dos ZIPs mantendo a seleção dos históricos; Diff já homologado (rolagem vertical compartilhada e X independente) intocado.
+- Acessibilidade: `role=status` nos vazios, `role=alert` nos erros, legendas acionáveis, skeleton não exposto a leitores de tela, `prefers-reduced-motion`.
+- Cobertura nova em Jest para estados de consulta pendente, retries de pesquisa/ficha/ZIP/Diff, ZIP somente binário e limpeza do filtro.
+
+**Critério de aceite:** PR e Jest/CI aprovados; validação sandbox + inspeção visual nos guias 07, 09, 10, 11 e 12; comprovar tratamento com um ZIP acima do limite técnico efetivo. **PR não representa deploy nem homologação Salesforce.**
