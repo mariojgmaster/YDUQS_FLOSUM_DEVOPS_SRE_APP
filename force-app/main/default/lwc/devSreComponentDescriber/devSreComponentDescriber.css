@@ -233,3 +233,18 @@
   .cd-diff-viewport .cd-diff-panes{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
   .cd-diff-viewport .cd-diff-pane{height:auto}
 }
+
+/* Keep titles in the Y-scroller (not inside the X overflow pane): they stay
+   visible when traversing a long file while left/right source moves separately. */
+.cd-diff-viewport .cd-diff-col{min-width:0;align-self:start}
+.cd-diff-viewport .cd-diff-pane-title{
+  position:sticky;
+  top:0;
+  z-index:3;
+  width:100%;
+  min-width:0;
+  background:#eaf1fa;
+  border:1px solid var(--ds-color-border-default,#d9e2ec);
+  border-bottom:0;
+}
+.cd-diff-viewport .cd-diff-pane{border-top:0;border-radius:0 0 .22rem .22rem}
