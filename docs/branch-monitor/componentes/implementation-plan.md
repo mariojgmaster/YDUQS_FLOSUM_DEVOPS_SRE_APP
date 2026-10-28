@@ -80,3 +80,19 @@
 - Cobertura nova em Jest para estados de consulta pendente, retries de pesquisa/ficha/ZIP/Diff, ZIP somente binário e limpeza do filtro.
 
 **Critério de aceite:** PR e Jest/CI aprovados; validação sandbox + inspeção visual nos guias 07, 09, 10, 11 e 12; comprovar tratamento com um ZIP acima do limite técnico efetivo. **PR não representa deploy nem homologação Salesforce.**
+
+
+## V3.4 — responsividade e fluxo mobile (guia 14)
+
+**Pacote:** `branch-monitor-v3-4-responsive`, isolado a `devSreComponentDescriber` (LightningComponentBundle), sem Apex/Flosum DML, sem alterar os contratos do Diff ou as outras abas.
+
+- Em viewport de até 48rem (referências: 360px, 390px e 768px), inventário em cartões usando o mesmo `table` semântica; colunas ganham rótulos visuais, sem scrollbar horizontal da página.
+- Selecionar um componente em viewport estreita abre automaticamente seu workspace focado. Voltar ao inventário mantém pesquisa, paginação e resultados carregados.
+- Ficha, históricos e navegação passam a uma coluna/grade 2x2; ações de toque e textos longos têm espaço adequado.
+- Leitor de ZIP empilha lista e texto; a lista mantém rolagem própria e o código longo conserva a rolagem do preview.
+- Diff desktop continua **duas colunas** e **uma única rolagem vertical**, com scroll X independente por coluna. Somente em mobile, os botões `Ver base`/`Ver destino` alternam qual coluna ocupa a largura disponível, conservando ambas as sequências no mesmo par de linhas e a posição vertical do viewport. Botões têm `aria-pressed`; nenhuma comparação é recalculada ao alternar.
+- Testes Jest novos para autoexpansão/voltar e alternância Base/Destino; guardas estáticas para estrutura responsiva e scroll único. Lint/Jest não medem tamanho, contraste ou quebra real de tela.
+
+**Homologação funcional manual obrigatória:** no navegador DevSreFeat, testar 360px, 390px, 768px e desktop. Verificar inventário (sem scroll lateral externo), filtros, seleção→ficha→históricos→ZIP→comparação, botões Base/Destino, conteúdo longo, scroll horizontal só dentro de código e vertical único preservado; voltar sem perder filtros. Validar também teclado e zoom 200% (a mesma largura CSS, se aplicável). Uma PR verde/deploy OK não comprova homologação visual no dispositivo.
+
+**Deploy:** PR → CI/Jest/policy → merge com SHA pinado → ChatOps PLAN (RunSpecifiedTests) → DEPLOY aprovado → COMPARE read-only. Nenhum workflow improvisado.
