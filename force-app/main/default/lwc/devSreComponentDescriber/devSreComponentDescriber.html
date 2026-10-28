@@ -45,8 +45,8 @@
       <template lwc:if={showResults}>
       <section class="cd-panel" aria-label="Componentes encontrados">
         <header class="cd-panel-head"><h3>Ocorrências encontradas</h3><span>{results.length} nesta consulta</span></header>
-        <template lwc:if={loading}><div class="cd-loading"><lightning-spinner size="small" alternative-text="Buscando componentes"></lightning-spinner></div></template>
-        <template lwc:elseif={error}><div class="cd-error" role="alert">{error}</div></template>
+        <template lwc:if={loading}><div class="cd-loading cd-loading_skeleton" role="status"><div class="cd-skeleton" aria-hidden="true"><span></span><span></span><span></span></div><lightning-spinner size="small" alternative-text="Buscando componentes"></lightning-spinner></div></template>
+        <template lwc:elseif={error}><div class="cd-state cd-state_error" role="alert"><lightning-icon icon-name="utility:error" size="small" alternative-text=""></lightning-icon><div class="cd-state-content"><strong>Não foi possível consultar os componentes</strong><p>{error}</p><div class="cd-state-actions"><lightning-button label="Tentar pesquisa novamente" onclick={handleRetrySearch}></lightning-button></div></div></div></template>
         <template lwc:else>
           <template lwc:if={hasResults}>
             <div class="cd-scroller">
@@ -68,16 +68,16 @@
             <div class="cd-pager"><span>Consulta paginada; não representa o inventário global.</span><lightning-button label="Carregar mais" onclick={handleNext} disabled={nextDisabled}></lightning-button></div>
           </template>
           <template lwc:elseif={noMatches}>
-            <template lwc:if={emptyWithoutFilters}><p class="cd-empty">Nenhum componente acessível nesta consulta. Verifique permissões e compartilhamento de registros Flosum.</p></template>
-            <template lwc:else><p class="cd-empty">Nenhum componente acessível corresponde aos filtros informados. Experimente limpar o nome ou o tipo.</p></template>
+            <template lwc:if={emptyWithoutFilters}><div class="cd-state" role="status"><lightning-icon icon-name="utility:info" size="small" alternative-text=""></lightning-icon><div class="cd-state-content"><strong>Nenhum componente acessível nesta consulta</strong><p>Nenhum componente acessível nesta consulta. Verifique permissões e compartilhamento de registros Flosum; a consulta não representa todo o inventário.</p><div class="cd-state-actions"><lightning-button label="Atualizar pesquisa" onclick={handleRetrySearch}></lightning-button></div></div></div></template>
+            <template lwc:else><div class="cd-state" role="status"><lightning-icon icon-name="utility:info" size="small" alternative-text=""></lightning-icon><div class="cd-state-content"><strong>Nenhum resultado com esses filtros</strong><p>Nenhum componente acessível corresponde aos filtros informados. Experimente limpar o nome ou o tipo.</p><div class="cd-state-actions"><lightning-button label="Limpar filtros da pesquisa" onclick={handleReset}></lightning-button></div></div></div></template>
           </template>
           <template lwc:else><p class="cd-empty">Carregando o inventário acessível de componentes Flosum.</p></template>
         </template>
       </section>
       </template>
       <aside class="cd-panel cd-detail" aria-label="Detalhes do componente selecionado">
-        <template lwc:if={detailLoading}><div class="cd-loading"><lightning-spinner size="small" alternative-text="Carregando histórico"></lightning-spinner></div></template>
-        <template lwc:elseif={detailError}><div class="cd-error" role="alert">{detailError}</div></template>
+        <template lwc:if={detailLoading}><div class="cd-loading cd-loading_skeleton" role="status"><div class="cd-skeleton" aria-hidden="true"><span></span><span></span><span></span></div><lightning-spinner size="small" alternative-text="Carregando ficha e histórico"></lightning-spinner></div></template>
+        <template lwc:elseif={detailError}><div class="cd-state cd-state_error" role="alert"><lightning-icon icon-name="utility:error" size="small" alternative-text=""></lightning-icon><div class="cd-state-content"><strong>Não foi possível carregar a ficha</strong><p>{detailError}</p><p>Se o registro não estiver acessível, confira permissões e compartilhamento no Flosum.</p><div class="cd-state-actions"><lightning-button label="Tentar carregar ficha novamente" onclick={handleRetryDetail}></lightning-button></div></div></div></template>
         <template lwc:elseif={hasDetail}>
           <header class="cd-panel-head">
             <div class="cd-detail-heading"><h3 title={detailName}>{detailName}</h3><span class="cd-record-number">{detailNumber}</span></div>
@@ -156,7 +156,7 @@
                   onclick={handleCompareToggle} variant="neutral"></lightning-button>
               </template>
               <template lwc:if={historyUnavailable}>
-                <p class="cd-muted">A fonte histórica não está acessível ou não foi possível comprovar sua ligação.</p>
+                <div class="cd-state" role="status"><lightning-icon icon-name="utility:info" size="small" alternative-text=""></lightning-icon><div class="cd-state-content"><strong>Fonte histórica indisponível</strong><p>A fonte histórica não está acessível ou não foi possível comprovar sua ligação. Verifique o acesso Flosum e o vínculo antes de continuar.</p><div class="cd-state-actions"><lightning-button label="Reconsultar ficha" onclick={handleRetryDetail}></lightning-button></div></div></div>
               </template>
               <template lwc:else>
                 <template lwc:if={hasHistories}>
@@ -181,7 +181,7 @@
                   </template>
                 </template>
                 <template lwc:else>
-                  <p class="cd-muted">Nenhum histórico acessível neste vínculo consultado.</p>
+                  <div class="cd-state" role="status"><lightning-icon icon-name="utility:info" size="small" alternative-text=""></lightning-icon><div class="cd-state-content"><strong>Sem históricos acessíveis</strong><p>Nenhum histórico acessível neste vínculo consultado. Isso não comprova a ausência de versões em outros vínculos.</p><div class="cd-state-actions"><lightning-button label="Atualizar ficha" onclick={handleRetryDetail}></lightning-button></div></div></div>
                 </template>
               </template>
             </section>
@@ -209,10 +209,10 @@
                     onchange={handleCompareHistoryChange}></lightning-combobox>
                 </div>
                 <template lwc:if={compareLoading}>
-                  <div class="cd-loading"><lightning-spinner size="small" alternative-text="Consultando arquivos para comparação"></lightning-spinner></div>
+                  <div class="cd-loading cd-loading_skeleton" role="status"><div class="cd-skeleton" aria-hidden="true"><span></span><span></span><span></span></div><lightning-spinner size="small" alternative-text="Consultando arquivos para comparação"></lightning-spinner></div>
                 </template>
                 <template lwc:elseif={compareError}>
-                  <p class="cd-error" role="alert">{compareError}</p>
+                  <div class="cd-state cd-state_error" role="alert"><lightning-icon icon-name="utility:error" size="small" alternative-text=""></lightning-icon><div class="cd-state-content"><strong>Não foi possível comparar os históricos</strong><p>{compareError}</p><div class="cd-state-actions"><lightning-button label="Reconsultar arquivos para comparação" onclick={handleRetryCompare}></lightning-button></div></div></div>
                 </template>
                 <template lwc:elseif={hasComparePaths}>
                   <div class="cd-compare-file">
@@ -282,7 +282,7 @@
                   </template>
                 </template>
                 <template lwc:else>
-                  <p class="cd-empty" role="status">Não há arquivos de texto com o mesmo caminho, acessíveis nos dois ZIPs selecionados.</p>
+                  <div class="cd-state" role="status"><lightning-icon icon-name="utility:info" size="small" alternative-text=""></lightning-icon><div class="cd-state-content"><strong>Sem arquivos comparáveis</strong><p>Não há arquivos de texto com o mesmo caminho, acessíveis nos dois ZIPs selecionados. Escolha outros históricos acima para uma nova consulta.</p></div></div>
                 </template>
                 <p class="cd-muted cd-compare-foot">Somente leitura · rolagem vertical única · horizontal independente em cada coluna · todas as linhas disponíveis por blocos navegáveis.</p>
               </section>
@@ -293,9 +293,10 @@
                   <div><h4>Arquivos do histórico</h4><p class="cd-muted">{archiveName} · pré-visualização de texto, somente leitura</p></div>
                   <lightning-button-icon icon-name="utility:close" title="Fechar ZIP" alternative-text="Fechar explorador" onclick={handleArchiveClose}></lightning-button-icon>
                 </div>
-                <template lwc:if={archiveLoading}><div class="cd-loading"><lightning-spinner size="small" alternative-text="Abrindo arquivo ZIP"></lightning-spinner></div></template>
-                <template lwc:elseif={archiveError}><div class="cd-error" role="alert">{archiveError}</div></template>
+                <template lwc:if={archiveLoading}><div class="cd-loading cd-loading_skeleton" role="status"><div class="cd-skeleton" aria-hidden="true"><span></span><span></span><span></span></div><lightning-spinner size="small" alternative-text="Abrindo arquivo ZIP"></lightning-spinner></div></template>
+                <template lwc:elseif={archiveError}><div class="cd-state cd-state_error" role="alert"><lightning-icon icon-name="utility:error" size="small" alternative-text=""></lightning-icon><div class="cd-state-content"><strong>Não foi possível abrir o conteúdo do ZIP</strong><p>{archiveError}</p><p>O acesso pode estar restrito, ou o tamanho pode exceder os recursos disponíveis no Apex.</p><div class="cd-state-actions"><lightning-button label="Tentar abrir ZIP novamente" onclick={handleRetryArchive}></lightning-button></div></div></div></template>
                 <template lwc:elseif={hasArchiveEntries}>
+                  <template lwc:if={hasPreviewableArchiveEntries}>
                   <div class="cd-archive-toolbar">
                     <lightning-input type="search" label="Localizar arquivo no ZIP" placeholder="Filtrar arquivos pelo caminho…" value={archiveFilter} onchange={handleArchiveFilterChange}></lightning-input>
                     <span class="cd-muted" aria-live="polite">{archiveMatchCount} de {archiveTotalCount} arquivos</span>
@@ -320,16 +321,18 @@
                     </div>
                   </div>
                   </template>
-                  <template lwc:else><p class="cd-empty" role="status">Nenhum arquivo corresponde ao filtro informado.</p></template>
+                  <template lwc:else><div class="cd-state" role="status"><lightning-icon icon-name="utility:info" size="small" alternative-text=""></lightning-icon><div class="cd-state-content"><strong>Nenhum arquivo corresponde ao filtro</strong><p>Nenhum arquivo corresponde ao filtro informado. Limpe o filtro para voltar à lista do ZIP.</p><div class="cd-state-actions"><lightning-button label="Limpar filtro do ZIP" onclick={handleArchiveClearFilter}></lightning-button></div></div></div></template>
+                  </template>
+                  <template lwc:else><div class="cd-state" role="status"><lightning-icon icon-name="utility:info" size="small" alternative-text=""></lightning-icon><div class="cd-state-content"><strong>ZIP sem texto compatível</strong><p>O ZIP contém entradas, mas nenhuma está disponível para pré-visualização textual nesta consulta.</p><div class="cd-state-actions"><lightning-button label="Voltar aos históricos" onclick={handleArchiveClose}></lightning-button></div></div></div></template>
                 </template>
-                <template lwc:else><p class="cd-empty">O ZIP não contém arquivos disponíveis.</p></template>
+                <template lwc:else><div class="cd-state" role="status"><lightning-icon icon-name="utility:info" size="small" alternative-text=""></lightning-icon><div class="cd-state-content"><strong>ZIP sem arquivos disponíveis</strong><p>Não foram encontrados arquivos disponíveis neste ZIP. Confira a origem do anexo e o acesso ao histórico.</p><div class="cd-state-actions"><lightning-button label="Voltar aos históricos" onclick={handleArchiveClose}></lightning-button></div></div></div></template>
                 <p class="cd-muted cd-archive-footnote">Limite configurado de até 6 MiB por arquivo de texto e ZIP; abertura sujeita ao heap Apex disponível. Até 200 entradas. Nenhum conteúdo é executado ou alterado.</p>
               </section>
             </template>
             <div class="cd-caution" role="note">O Diff compara somente conteúdo de arquivos ZIP de dois Histories vinculados ao mesmo Component. Não estabelece identidade canônica, equivalência a versões Git ou evidência de implantação. Não exibir histórico de deploy sem evidência direta.</div>
           </div>
         </template>
-        <template lwc:else><p class="cd-empty">Selecione uma ocorrência para visualizar a Branch e os históricos diretamente relacionados.</p></template>
+        <template lwc:else><div class="cd-state" role="status"><lightning-icon icon-name="utility:info" size="small" alternative-text=""></lightning-icon><div class="cd-state-content"><strong>Selecione um componente</strong><p>Selecione uma ocorrência para visualizar a Branch, a ficha e os históricos diretamente relacionados.</p><div class="cd-state-actions"><lightning-button label="Atualizar inventário" onclick={handleRetrySearch}></lightning-button></div></div></div></template>
       </aside>
     </div>
   </div>
