@@ -5,6 +5,7 @@ import getComponentTypes from "@salesforce/apex/DevSreComponentDescriberControll
 import describeComponent from "@salesforce/apex/DevSreComponentDescriberController.describeComponent";
 import inspectHistoryArchive from "@salesforce/apex/DevSreComponentDescriberController.inspectHistoryArchive";
 import { commonPreviewPaths, archivePathInventory, lineDiff, sideBySideDiff } from "../historyDiff";
+import { componentEvidence } from "../componentEvidence";
 
 jest.mock("@salesforce/apex/DevSreComponentDescriberController.searchFilteredComponents",
   () => ({default: jest.fn()}), {virtual: true});
@@ -717,6 +718,63 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     el.shadowRoot.querySelector(".cd-archive-item").click();await flush();
     expect(el.shadowRoot.querySelectorAll(".cd-archive-item")).toHaveLength(2);
     expect(text(el)).toContain("public class MyClass {}");
+  });
+
+
+  it("V3.6-A: indica exatamente o que os dados tipados confirmam",()=>{
+    const rows=componentEvidence(DETAIL);
+    expect(rows).toHaveLength(5);
+    expect(rows.map(row=>row.key)).toEqual(["record","branch","history","canonical","deploy"]);
+    expect(rows[0].status).toBe("Confirmado na consulta");
+    expect(rows[1].status).toBe("Vínculo tipado acessível");
+    expect(rows[2].status).toBe("Relação tipada consultada");
+    expect(rows[2].description).toContain("1 histórico(s) acessível(is)");
+    expect(rows[3].status).toBe("Não verificado");
+    expect(rows[4].status).toBe("Não comprovada");
+    expect(rows[4].description).toContain("Flosum__Metadata_Log__c");
+    expect(componentEvidence(null)).toEqual([]);
+  });
+
+  it("V3.6-A: não promove acesso parcial ou flags futuras a FullName/deploy verificado",()=>{
+    const limited={...DETAIL,
+      component:{...DETAIL.component,branchId:null,branchName:"Branch não acessível"},
+      histories:[],historyQuality:"UNAVAILABLE",deployEvidenceQuality:"VERIFIED"
+    };
+    const rows=componentEvidence(limited);
+    expect(rows[1].status).toBe("Vínculo não confirmado");
+    expect(rows[2].status).toBe("Fonte histórica indisponível");
+    expect(rows[3].status).toBe("Não verificado");
+    expect(rows[4].status).toBe("Não comprovada");
+    expect(rows[2].description).toContain("não afirmar que existem zero versões");
+    expect(rows.every(row=>!row.description.includes("último deploy confirmado"))).toBe(true);
+  });
+
+  it("V3.6-A: sinaliza que histórico limitado é apenas a amostra consultada",()=>{
+    const rows=componentEvidence({...DETAIL,historiesHasMore:true,histories:[HISTORY]});
+    expect(rows[2].description).toContain("existem registros além da amostra");
+    expect(rows[2].description).not.toContain("total");
+  });
+
+  it("V3.6-A: exibe proveniência na ficha sem novas consultas e oculta no workspace Diff",async()=>{
+    const older={id:"a0H00002",createdAt:"2026-10-23T10:00:00Z"};
+    describeComponent.mockResolvedValue({...DETAIL,histories:[HISTORY,older]});
+    const el=mount();await flush();
+    el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click();await flush();
+    const evidence=el.shadowRoot.querySelector(".cd-evidence");
+    expect(evidence).not.toBeNull();
+    expect(evidence.querySelectorAll(".cd-evidence-item")).toHaveLength(5);
+    expect(evidence.textContent).toContain("FullName canônico");
+    expect(evidence.textContent).toContain("Não verificado");
+    expect(evidence.textContent).toContain("Implantação em ambiente");
+    expect(inspectHistoryArchive).not.toHaveBeenCalled();
+    expect(describeComponent).toHaveBeenCalledTimes(1);
+    const compare=[...el.shadowRoot.querySelectorAll("lightning-button")]
+      .find(button=>button.label==="Comparar históricos");
+    compare.click();await flush();
+    expect(el.shadowRoot.querySelector(".cd-evidence")).toBeNull();
+    expect(describeComponent).toHaveBeenCalledTimes(1);
+    el.shadowRoot.querySelector(".cd-workspace-nav lightning-button[data-tab='ficha']").click();await flush();
+    expect(el.shadowRoot.querySelector(".cd-evidence")).not.toBeNull();
   });
 
 });
