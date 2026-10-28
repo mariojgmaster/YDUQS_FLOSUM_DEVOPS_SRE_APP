@@ -475,4 +475,102 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     expect(text(el)).toContain("linha nova 650");
   });
 
+
+  it("V3.3: apresenta skeleton acessível durante consulta pendente", async () => {
+    searchFilteredComponents.mockImplementationOnce(() => new Promise(() => {}));
+    const el=mount(); await flush();
+    expect(el.shadowRoot.querySelector(".cd-loading_skeleton")).not.toBeNull();
+    expect(el.shadowRoot.querySelector(".cd-skeleton[aria-hidden='true']")).not.toBeNull();
+  });
+
+  it("V3.3: recupera pesquisa com erro sem recarregar a página", async () => {
+    searchFilteredComponents.mockRejectedValueOnce({body:{message:"Falha de leitura"}});
+    const el=mount(); await flush();
+    expect(el.shadowRoot.querySelector(".cd-state_error")).not.toBeNull();
+    expect(text(el)).toContain("Falha de leitura");
+    [...el.shadowRoot.querySelectorAll("lightning-button")]
+      .find(b=>b.label==="Tentar pesquisa novamente").click();
+    await flush();
+    expect(searchFilteredComponents).toHaveBeenCalledTimes(2);
+    expect(el.shadowRoot.querySelectorAll(".cd-table tbody tr")).toHaveLength(2);
+  });
+
+  it("V3.3: permite reconsultar ficha após erro de acesso", async () => {
+    describeComponent.mockRejectedValueOnce({body:{message:"Acesso negado"}});
+    const el=mount(); await flush();
+    el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click(); await flush();
+    expect(text(el)).toContain("Não foi possível carregar a ficha");
+    [...el.shadowRoot.querySelectorAll("lightning-button")]
+      .find(b=>b.label==="Tentar carregar ficha novamente").click();
+    await flush();
+    expect(describeComponent).toHaveBeenCalledTimes(2);
+    expect(el.shadowRoot.querySelector(".cd-facts")).not.toBeNull();
+  });
+
+  it("V3.3: diferencia ZIP sem arquivos textuais de ZIP sem entradas", async () => {
+    inspectHistoryArchive.mockResolvedValueOnce({
+      attachmentName:"only-binary.zip",
+      entries:[{path:"images/photo.png",previewable:false}],selectedPath:null,text:null
+    });
+    const el=mount(); await flush();
+    el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click(); await flush();
+    [...el.shadowRoot.querySelectorAll("lightning-button")]
+      .find(b=>b.label==="Explorar ZIP").click(); await flush();
+    expect(text(el)).toContain("ZIP sem texto compatível");
+    expect(el.shadowRoot.querySelector(".cd-archive-preview")).toBeNull();
+    [...el.shadowRoot.querySelectorAll("lightning-button")]
+      .find(b=>b.label==="Voltar aos históricos").click(); await flush();
+    expect(el.shadowRoot.querySelector(".cd-archive-panel")).toBeNull();
+  });
+
+  it("V3.3: permite limpar filtro ZIP sem repetir leitura do anexo", async () => {
+    const el=mount(); await flush();
+    el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click(); await flush();
+    [...el.shadowRoot.querySelectorAll("lightning-button")]
+      .find(b=>b.label==="Explorar ZIP").click(); await flush();
+    const input=[...el.shadowRoot.querySelectorAll("lightning-input")]
+      .find(b=>b.label==="Localizar arquivo no ZIP");
+    input.value="arquivo-que-nao-existe";
+    input.dispatchEvent(new CustomEvent("change")); await flush();
+    expect(text(el)).toContain("Nenhum arquivo corresponde ao filtro");
+    [...el.shadowRoot.querySelectorAll("lightning-button")]
+      .find(b=>b.label==="Limpar filtro do ZIP").click(); await flush();
+    expect(el.shadowRoot.querySelectorAll(".cd-archive-item")).toHaveLength(2);
+    expect(inspectHistoryArchive).toHaveBeenCalledTimes(1);
+  });
+
+  it("V3.3: repete a leitura do mesmo caminho ZIP após falha", async () => {
+    const el=mount(); await flush();
+    el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click(); await flush();
+    [...el.shadowRoot.querySelectorAll("lightning-button")]
+      .find(b=>b.label==="Explorar ZIP").click(); await flush();
+    const path="classes/T_DefineFlowByObjectAPP.cls";
+    inspectHistoryArchive.mockRejectedValueOnce({body:{message:"Limite de heap atingido"}});
+    inspectHistoryArchive.mockResolvedValueOnce({
+      attachmentName:"ApexClass",entries:[{path,previewable:true}],
+      selectedPath:path,text:"public class RetryOk {}"
+    });
+    el.shadowRoot.querySelector(".cd-archive-item").click(); await flush();
+    expect(text(el)).toContain("Limite de heap atingido");
+    [...el.shadowRoot.querySelectorAll("lightning-button")]
+      .find(b=>b.label==="Tentar abrir ZIP novamente").click(); await flush();
+    expect(inspectHistoryArchive).toHaveBeenLastCalledWith({historyId:HISTORY.id,entryPath:path});
+    expect(text(el)).toContain("public class RetryOk {}");
+  });
+
+  it("V3.3: tenta novamente consulta dos ZIPs para Diff sem mudar os históricos", async () => {
+    const older={id:"a0H00002",createdAt:"2026-10-23T10:00:00Z"};
+    describeComponent.mockResolvedValue({...DETAIL,histories:[HISTORY,older]});
+    inspectHistoryArchive.mockRejectedValueOnce({body:{message:"Consulta temporariamente indisponível"}});
+    const el=mount(); await flush();
+    el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click(); await flush();
+    [...el.shadowRoot.querySelectorAll("lightning-button")]
+      .find(b=>b.label==="Comparar históricos").click(); await flush();
+    expect(text(el)).toContain("Consulta temporariamente indisponível");
+    [...el.shadowRoot.querySelectorAll("lightning-button")]
+      .find(b=>b.label==="Reconsultar arquivos para comparação").click(); await flush();
+    expect(el.shadowRoot.querySelector(".cd-compare-file lightning-combobox")).not.toBeNull();
+    expect(inspectHistoryArchive).toHaveBeenCalledTimes(4);
+  });
+
 });
