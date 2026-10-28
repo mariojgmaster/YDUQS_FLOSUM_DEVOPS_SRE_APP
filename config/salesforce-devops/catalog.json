@@ -362,6 +362,18 @@
       "allowed_types": [
         "LightningComponentBundle"
       ]
+    },
+    "branch-monitor-v3-5-zip-inventory": {
+      "manifest": "manifest/sf-branch-monitor-v3-5-zip-inventory.xml",
+      "test_level": "RunSpecifiedTests",
+      "tests": [
+        "DevSreComponentDescriberTest",
+        "DevSreHistoryArchiveReaderTest",
+        "DevSreBranchMonitorTest"
+      ],
+      "allowed_types": [
+        "LightningComponentBundle"
+      ]
     }
   }
 }
