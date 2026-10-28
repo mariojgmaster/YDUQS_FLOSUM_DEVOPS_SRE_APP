@@ -350,6 +350,18 @@
       "allowed_types": [
         "LightningComponentBundle"
       ]
+    },
+    "branch-monitor-v3-4-responsive": {
+      "manifest": "manifest/sf-branch-monitor-v3-4-responsive.xml",
+      "test_level": "RunSpecifiedTests",
+      "tests": [
+        "DevSreComponentDescriberTest",
+        "DevSreHistoryArchiveReaderTest",
+        "DevSreBranchMonitorTest"
+      ],
+      "allowed_types": [
+        "LightningComponentBundle"
+      ]
     }
   }
 }

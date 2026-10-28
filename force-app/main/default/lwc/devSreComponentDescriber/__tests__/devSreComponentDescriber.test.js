@@ -573,4 +573,59 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     expect(inspectHistoryArchive).toHaveBeenCalledTimes(4);
   });
 
+
+  it("V3.4: em tela estreita abre a ficha focada e volta ao inventário sem nova busca",async()=>{
+    const original=window.matchMedia;
+    window.matchMedia=jest.fn().mockImplementation(query=>({matches:query==="(max-width: 48rem)"}));
+    try {
+      const el=mount();await flush();
+      const searchCount=searchFilteredComponents.mock.calls.length;
+      el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click();await flush();
+      expect(window.matchMedia).toHaveBeenCalledWith("(max-width: 48rem)");
+      expect(el.shadowRoot.querySelector(".cd-layout_focus")).not.toBeNull();
+      expect(el.shadowRoot.querySelector(".cd-workspace-nav")).not.toBeNull();
+      expect(el.shadowRoot.querySelector(".cd-table")).toBeNull();
+      el.shadowRoot.querySelector(".cd-workspace-path .cd-link").click();await flush();
+      expect(el.shadowRoot.querySelectorAll(".cd-table tbody tr")).toHaveLength(2);
+      expect(searchFilteredComponents).toHaveBeenCalledTimes(searchCount);
+    } finally {
+      window.matchMedia=original;
+    }
+  });
+
+  it("V3.4: mobile alterna Base/Destino sem perder linhas, paginação ou rolagem vertical",async()=>{
+    const older={id:"a0H00002",createdAt:"2026-10-23T10:00:00Z"};
+    describeComponent.mockResolvedValue({...DETAIL,histories:[HISTORY,older]});
+    const path="classes/Example.cls";
+    inspectHistoryArchive.mockImplementation(({historyId,entryPath})=>Promise.resolve(
+      entryPath
+        ? {selectedPath:entryPath,text:historyId===older.id?"igual\nbase":"igual\ndestino"}
+        : {entries:[{path,previewable:true}]}
+    ));
+    const el=mount();await flush();
+    el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click();await flush();
+    [...el.shadowRoot.querySelectorAll("lightning-button")]
+      .find(b=>b.label==="Comparar históricos").click();await flush();
+    el.shadowRoot.querySelector(".cd-compare-file lightning-combobox")
+      .dispatchEvent(new CustomEvent("change",{detail:{value:path}}));await flush();
+    const viewport=el.shadowRoot.querySelector(".cd-diff-viewport");
+    const controls=el.shadowRoot.querySelectorAll(".cd-mobile-compare-switch button");
+    expect(controls).toHaveLength(2);
+    expect(controls[0].getAttribute("aria-pressed")).toBe("true");
+    expect(controls[1].getAttribute("aria-pressed")).toBe("false");
+    expect(el.shadowRoot.querySelectorAll(".cd-diff-pane[data-side='base'] .cd-diff-cell")).toHaveLength(2);
+    expect(el.shadowRoot.querySelectorAll(".cd-diff-pane[data-side='target'] .cd-diff-cell")).toHaveLength(2);
+    viewport.scrollTop=70;
+    controls[1].click();await flush();
+    expect(viewport.scrollTop).toBe(70);
+    expect(controls[1].getAttribute("aria-pressed")).toBe("true");
+    expect(el.shadowRoot.querySelector(".cd-diff-col_mobile-hidden .cd-diff-pane[data-side='base']")).not.toBeNull();
+    expect(el.shadowRoot.querySelector(".cd-diff-pane[data-side='target']").textContent).toContain("destino");
+    expect(inspectHistoryArchive).toHaveBeenCalledTimes(4);
+    controls[0].click();await flush();
+    expect(el.shadowRoot.querySelector(".cd-diff-col_mobile-hidden .cd-diff-pane[data-side='target']")).not.toBeNull();
+    expect(el.shadowRoot.querySelector(".cd-diff-pane[data-side='base']").textContent).toContain("base");
+    expect(viewport.scrollTop).toBe(70);
+  });
+
 });

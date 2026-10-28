@@ -55,11 +55,11 @@
                 <tbody>
                   <template for:each={entries} for:item="entry">
                     <tr key={entry.id} class={entry.rowClass}>
-                      <td><button type="button" class="cd-link" data-id={entry.id} onclick={handleSelect} title={entry.displayName}>{entry.displayName}</button><span class="cd-record-number">{entry.name}</span></td>
-                      <td><span title={entry.typeLabel}>{entry.typeLabel}</span></td>
-                      <td><span title={entry.displaySource}>{entry.displaySource}</span><span class="cd-record-number">v{entry.displayVersion}</span></td>
-                      <td><template lwc:if={entry.branchId}><button type="button" class="cd-link" data-id={entry.branchId} onclick={handleOpenBranch} title={entry.branchName}>{entry.branchName}</button></template><template lwc:else><span title={entry.branchName}>{entry.branchName}</span></template></td>
-                      <td><button type="button" class="cd-link" data-id={entry.id} onclick={handleOpenComponent}>Flosum</button></td>
+                      <td><span class="cd-mobile-field-label" aria-hidden="true">Componente / Nº</span><button type="button" class="cd-link" data-id={entry.id} onclick={handleSelect} title={entry.displayName}>{entry.displayName}</button><span class="cd-record-number">{entry.name}</span></td>
+                      <td><span class="cd-mobile-field-label" aria-hidden="true">Component Type</span><span title={entry.typeLabel}>{entry.typeLabel}</span></td>
+                      <td><span class="cd-mobile-field-label" aria-hidden="true">Source / Versão</span><span title={entry.displaySource}>{entry.displaySource}</span><span class="cd-record-number">v{entry.displayVersion}</span></td>
+                      <td><span class="cd-mobile-field-label" aria-hidden="true">Branch</span><template lwc:if={entry.branchId}><button type="button" class="cd-link" data-id={entry.branchId} onclick={handleOpenBranch} title={entry.branchName}>{entry.branchName}</button></template><template lwc:else><span title={entry.branchName}>{entry.branchName}</span></template></td>
+                      <td><span class="cd-mobile-field-label" aria-hidden="true">Acessar</span><button type="button" class="cd-link" data-id={entry.id} onclick={handleOpenComponent}>Flosum</button></td>
                     </tr>
                   </template>
                 </tbody>
@@ -238,10 +238,16 @@
                       <p class="cd-empty" role="status">Os dois arquivos têm conteúdo idêntico. Não há alterações para exibir.</p>
                     </template>
                     <template lwc:else>
+                      <div class="cd-mobile-compare-switch" role="group" aria-label="Escolha o histórico visível em telas pequenas">
+                        <button type="button" class={mobileBaseControlClass} aria-pressed={mobileBaseSelected}
+                          onclick={handleMobileShowBase}>Ver base</button>
+                        <button type="button" class={mobileTargetControlClass} aria-pressed={mobileTargetSelected}
+                          onclick={handleMobileShowTarget}>Ver destino</button>
+                      </div>
                       <div class="cd-diff-viewport" role="region" tabindex="0"
                         aria-label="Comparação de código com uma única rolagem vertical para Base e Destino">
                         <div class="cd-diff-panes" role="group" aria-label="Código em duas colunas com linhas alinhadas">
-                        <div class="cd-diff-col">
+                        <div class={mobileBasePaneClass}>
                           <header class="cd-diff-pane-title">Histórico base</header>
                           <section class="cd-diff-pane" tabindex="0" role="region" data-side="base"
                             aria-label="Código do histórico base; rolagem horizontal independente">
@@ -255,7 +261,7 @@
                           </div>
                           </section>
                         </div>
-                        <div class="cd-diff-col">
+                        <div class={mobileTargetPaneClass}>
                           <header class="cd-diff-pane-title">Histórico de destino</header>
                           <section class="cd-diff-pane" tabindex="0" role="region" data-side="target"
                             aria-label="Código do histórico de destino; rolagem horizontal independente">

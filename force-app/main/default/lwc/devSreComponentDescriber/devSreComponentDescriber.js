@@ -48,6 +48,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   comparePath = "";
   compareDiff;
   diffOnlyChanges = false;
+  mobileDiffSide = "base";
   diffPage = 0;
   diffPageSize = 250;
   diffPairsAll = [];
@@ -105,6 +106,20 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   get hasCompareRows() { return (this.compareDiff?.rows || []).length > 0; }
   get compareRows() { return this.compareDiff?.rows || []; }
   get diffBaseRows() { return this.sideBySideRows.map(row => ({ key: row.key, ...row.left })); }
+  get mobileBasePaneClass() {
+    return this.mobileDiffSide === "base" ? "cd-diff-col" : "cd-diff-col cd-diff-col_mobile-hidden";
+  }
+  get mobileTargetPaneClass() {
+    return this.mobileDiffSide === "target" ? "cd-diff-col" : "cd-diff-col cd-diff-col_mobile-hidden";
+  }
+  get mobileBaseControlClass() {
+    return this.mobileDiffSide === "base" ? "cd-mobile-switch-button cd-mobile-switch-button_active" : "cd-mobile-switch-button";
+  }
+  get mobileTargetControlClass() {
+    return this.mobileDiffSide === "target" ? "cd-mobile-switch-button cd-mobile-switch-button_active" : "cd-mobile-switch-button";
+  }
+  get mobileBaseSelected() { return this.mobileDiffSide === "base"; }
+  get mobileTargetSelected() { return this.mobileDiffSide === "target"; }
   get diffTargetRows() { return this.sideBySideRows.map(row => ({ key: row.key, ...row.right })); }
   get activeDiffPairs() { return this.diffOnlyChanges ? this.diffPairsChanges : this.diffPairsAll; }
   get diffTotalPages() { return Math.max(1, Math.ceil(this.activeDiffPairs.length / this.diffPageSize)); }
@@ -246,6 +261,11 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   }
   handleNext() { if (!this.nextDisabled) this.load(true); }
   handleSelect(event) { this.loadDetail(event.currentTarget.dataset.id); }
+  get isNarrowViewport() {
+    // Match the stylesheet breakpoint; Jest and non-browser contexts stay desktop by default.
+    return typeof window !== "undefined" && typeof window.matchMedia === "function" &&
+      window.matchMedia("(max-width: 48rem)").matches;
+  }
   handleToggleDetailFocus() {
     if (!this.hasDetail) return;
     this.detailExpanded = !this.detailExpanded;
@@ -339,6 +359,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     }
     if (!this.canCompareHistories) return;
     this.compareOpen = true;
+    this.mobileDiffSide = "base";
     this.detailExpanded = true;
     this.workspaceTab = "comparar";
     this.diffOnlyChanges = false;
@@ -354,6 +375,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     if (this.workspaceTab === "comparar") this.workspaceTab = "historicos";
     ++this._compareRequest;
     this.compareOpen = false;
+    this.mobileDiffSide = "base";
     this.compareLoading = false;
     this.compareError = undefined;
     this.comparePaths = [];
@@ -366,6 +388,8 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     this.compareBaseId = "";
     this.compareTargetId = "";
   }
+  handleMobileShowBase() { this.mobileDiffSide = "base"; }
+  handleMobileShowTarget() { this.mobileDiffSide = "target"; }
   handleDiffModeAll() { this.diffOnlyChanges = false; this.diffPage = 0; this.resetDiffScroll(); }
   handleDiffModeChanged() { this.diffOnlyChanges = true; this.diffPage = 0; this.resetDiffScroll(); }
   handleDiffPrevious() { if(!this.diffPreviousDisabled){this.diffPage--;this.resetDiffScroll();} }
@@ -576,7 +600,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   async loadDetail(id) {
     if (!id) return;
     this.handleCompareClose();
-    this.detailExpanded = false;
+    this.detailExpanded = this.isNarrowViewport;
     this.workspaceTab = "ficha";
     this.handleArchiveClose();
     const request = ++this._detailRequest;

@@ -26,7 +26,13 @@ class ComponentDiffLayoutTests(unittest.TestCase):
         self.assertRegex(css, r"(?s)\.cd-diff-viewport\s+\.cd-diff-pane-lines\s+\.cd-diff-cell\s*\{[^}]*height:\s*1\.75rem\s*;")
         self.assertRegex(css, r"(?s)\.cd-diff-viewport\s+\.cd-diff-pane-lines\s+pre\s*\{[^}]*height:\s*1\.6875rem\s*;")
         html = (LWC / "devSreComponentDescriber.html").read_text("utf-8")
-        self.assertEqual(html.count('class="cd-diff-col"'), 2)
+        self.assertEqual(
+            html.count('class="cd-diff-col"') +
+            html.count('class={mobileBasePaneClass}') +
+            html.count('class={mobileTargetPaneClass}'), 2
+        )
+        self.assertIn('class={mobileBasePaneClass}', html)
+        self.assertIn('class={mobileTargetPaneClass}', html)
         self.assertEqual(html.count('class="cd-diff-pane-title"'), 2)
         self.assertIn("for:each={diffBaseRows}", html)
         self.assertIn("for:each={diffTargetRows}", html)
