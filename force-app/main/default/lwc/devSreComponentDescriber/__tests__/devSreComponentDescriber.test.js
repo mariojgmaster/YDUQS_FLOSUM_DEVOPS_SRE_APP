@@ -4,7 +4,7 @@ import searchFilteredComponents from "@salesforce/apex/DevSreComponentDescriberC
 import getComponentTypes from "@salesforce/apex/DevSreComponentDescriberController.getComponentTypes";
 import describeComponent from "@salesforce/apex/DevSreComponentDescriberController.describeComponent";
 import inspectHistoryArchive from "@salesforce/apex/DevSreComponentDescriberController.inspectHistoryArchive";
-import { commonPreviewPaths, lineDiff, sideBySideDiff } from "../historyDiff";
+import { commonPreviewPaths, archivePathInventory, lineDiff, sideBySideDiff } from "../historyDiff";
 
 jest.mock("@salesforce/apex/DevSreComponentDescriberController.searchFilteredComponents",
   () => ({default: jest.fn()}), {virtual: true});
@@ -626,6 +626,97 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     expect(el.shadowRoot.querySelector(".cd-diff-col_mobile-hidden .cd-diff-pane[data-side='target']")).not.toBeNull();
     expect(el.shadowRoot.querySelector(".cd-diff-pane[data-side='base']").textContent).toContain("base");
     expect(viewport.scrollTop).toBe(70);
+  });
+
+
+  it("V3.5: classifica caminhos comuns, exclusivos e indisponíveis sem inferir igualdade",()=>{
+    const inventory=archivePathInventory({
+      entries:[{path:"classes/shared.cls",previewable:true},
+        {path:"classes/old.cls",previewable:true},{path:"images/logo.png",previewable:false}]
+    },{
+      entries:[{path:"classes/shared.cls",previewable:true},
+        {path:"classes/new.cls",previewable:true},{path:"images/logo.png",previewable:false}]
+    });
+    expect(inventory.counts).toEqual({common:1,base:1,target:1,blocked:1});
+    expect(inventory.rows.find(x=>x.path==="classes/shared.cls").label)
+      .toContain("conteúdo ainda não comparado");
+    expect(inventory.rows.map(x=>x.path)).toEqual([
+      "classes/new.cls","classes/old.cls","classes/shared.cls","images/logo.png"
+    ]);
+    expect(inventory.rows.find(x=>x.path==="images/logo.png").status).toBe("blocked");
+    expect(archivePathInventory({entries:[{path:"same.cls",previewable:true},
+      {path:"same.cls",previewable:true}]},{entries:[{path:"same.cls",previewable:true}]}).counts.blocked).toBe(1);
+  });
+
+  it("V3.5: apresenta inventário e permite filtrar caminhos sem ler os arquivos",async()=>{
+    const old={id:"a0H00002",createdAt:"2026-10-23T10:00:00Z"};
+    describeComponent.mockResolvedValue({...DETAIL,histories:[HISTORY,old]});
+    inspectHistoryArchive.mockImplementation(({historyId,entryPath})=>Promise.resolve(
+      entryPath ? {selectedPath:entryPath,text:"Conteúdo só deve ser lido após seleção"} :
+      {entries: historyId===old.id ?
+        [{path:"classes/shared.cls",previewable:true},{path:"classes/deleted.cls",previewable:true},
+          {path:"binary/blob.bin",previewable:false}] :
+        [{path:"classes/shared.cls",previewable:true},{path:"classes/new.cls",previewable:true},
+          {path:"binary/blob.bin",previewable:false}]}
+    ));
+    const el=mount();await flush();
+    el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click();await flush();
+    [...el.shadowRoot.querySelectorAll("lightning-button")]
+      .find(x=>x.label==="Comparar históricos").click();await flush();
+    const index=el.shadowRoot.querySelector(".cd-zip-index");
+    expect(index).not.toBeNull();
+    expect(index.querySelectorAll(".cd-zip-index-row")).toHaveLength(4);
+    expect(index.textContent).toContain("1 somente base");
+    expect(index.textContent).toContain("1 somente destino");
+    expect(index.textContent).toContain("1 indisponíveis");
+    expect(el.shadowRoot.querySelectorAll(".cd-compare-file lightning-combobox")).toHaveLength(1);
+    expect(inspectHistoryArchive).toHaveBeenCalledTimes(2);
+    const filter=index.querySelector("lightning-combobox");
+    filter.dispatchEvent(new CustomEvent("change",{detail:{value:"base"}}));await flush();
+    expect(index.querySelectorAll(".cd-zip-index-row")).toHaveLength(1);
+    expect(index.textContent).toContain("classes/deleted.cls");
+    filter.dispatchEvent(new CustomEvent("change",{detail:{value:"target"}}));await flush();
+    expect(index.textContent).toContain("classes/new.cls");
+    expect(index.textContent).not.toContain("classes/deleted.cls");
+    filter.dispatchEvent(new CustomEvent("change",{detail:{value:"common"}}));await flush();
+    expect(index.querySelectorAll(".cd-zip-index-row")).toHaveLength(1);
+    expect(index.textContent).toContain("classes/shared.cls");
+    expect(inspectHistoryArchive).toHaveBeenCalledTimes(2);
+    el.shadowRoot.querySelector(".cd-compare-file lightning-combobox")
+      .dispatchEvent(new CustomEvent("change",{detail:{value:"classes/shared.cls"}}));await flush();
+    expect(inspectHistoryArchive).toHaveBeenCalledTimes(4);
+    expect(el.shadowRoot.querySelector(".cd-diff-viewport")).not.toBeNull();
+  });
+
+  it("V3.5: sem caminhos comuns ainda exibe os exclusivos sem abrir conteúdo",async()=>{
+    const old={id:"a0H00002",createdAt:"2026-10-23T10:00:00Z"};
+    describeComponent.mockResolvedValue({...DETAIL,histories:[HISTORY,old]});
+    inspectHistoryArchive.mockImplementation(({historyId})=>Promise.resolve({
+      entries:[{path:historyId===old.id?"old/a.cls":"new/b.cls",previewable:true}]
+    }));
+    const el=mount();await flush();
+    el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click();await flush();
+    [...el.shadowRoot.querySelectorAll("lightning-button")]
+      .find(x=>x.label==="Comparar históricos").click();await flush();
+    expect(el.shadowRoot.querySelector(".cd-zip-index")).not.toBeNull();
+    expect(text(el)).toContain("Nenhum caminho está disponível para comparação textual");
+    expect(el.shadowRoot.querySelector(".cd-compare-file")).toBeNull();
+    expect(el.shadowRoot.querySelectorAll(".cd-zip-index-row")).toHaveLength(2);
+    expect(inspectHistoryArchive).toHaveBeenCalledTimes(2);
+  });
+
+  it("V3.5: mantém a lista de arquivos ao selecionar um ZIP com resposta só de conteúdo",async()=>{
+    const el=mount();await flush();
+    el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click();await flush();
+    [...el.shadowRoot.querySelectorAll("lightning-button")]
+      .find(x=>x.label==="Explorar ZIP").click();await flush();
+    expect(el.shadowRoot.querySelectorAll(".cd-archive-item")).toHaveLength(2);
+    inspectHistoryArchive.mockResolvedValueOnce({
+      selectedPath:"classes/T_DefineFlowByObjectAPP.cls",text:"public class MyClass {}"
+    });
+    el.shadowRoot.querySelector(".cd-archive-item").click();await flush();
+    expect(el.shadowRoot.querySelectorAll(".cd-archive-item")).toHaveLength(2);
+    expect(text(el)).toContain("public class MyClass {}");
   });
 
 });
