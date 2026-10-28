@@ -5,6 +5,7 @@ import getComponentTypes from "@salesforce/apex/DevSreComponentDescriberControll
 import describeComponent from "@salesforce/apex/DevSreComponentDescriberController.describeComponent";
 import inspectHistoryArchive from "@salesforce/apex/DevSreComponentDescriberController.inspectHistoryArchive";
 import { archivePathInventory, lineDiff, sideBySideDiff } from "./historyDiff";
+import { componentEvidence } from "./componentEvidence";
 
 export default class DevSreComponentDescriber extends NavigationMixin(LightningElement) {
   search = "";
@@ -232,6 +233,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   get detailCommittedOn() { return this.detail?.component?.committedOn || null; }
   get detailBranchName() { return this.detail?.component?.branchName || ""; }
   get detailBranchId() { return this.detail?.component?.branchId; }
+  get traceabilityEntries() { return componentEvidence(this.detail); }
   get detailType() { return this.detail?.component?.componentType || "Não informado"; }
   get noMatches() { return this.searched && !this.loading && !this.error && !this.hasResults; }
 

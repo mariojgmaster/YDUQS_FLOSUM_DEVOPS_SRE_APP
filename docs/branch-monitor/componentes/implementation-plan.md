@@ -113,3 +113,20 @@
 **Homologação manual:** com 2 históricos elegíveis, validar (1) caminho presente nos dois, (2) arquivo só base, (3) só destino, (4) binário indisponível, (5) filtro de status sem chamada Apex adicional, (6) Diff do caminho comum sem alteração na paginação/scroll, (7) ZIP aberto preservando a lista após selecionar arquivo, (8) troca de históricos atualizando os contadores. Em navegadores 360/390/768px e desktop, conferir ausência de sobreposição no inventário.
 
 **Gates:** CI/lint/Jest/policy → PR protegida → merge SHA master → ChatOps PLAN → ChatOps DEPLOY autorizado → COMPARE somente leitura. Homologação visual permanece manual.
+
+
+## V3.6-A — rastreabilidade e grau de evidência (guia 03 / preparação do marco 06)
+
+**Entrega:** um painel de proveniência na ficha de `devSreComponentDescriber`, usando **exclusivamente** os dados já retornados por `DevSreComponentDescriberController.describeComponent`. Sem alterações no Apex, SOQL, Flosum, fluxo de Diff ou no layout aprovado. Pacote `branch-monitor-v3-6a-evidence`.
+
+- **Registro:** `component.id` identifica um Flosum__Component__c consultado; o campo Name é autonumeração, não Metadata FullName.
+- **Branch:** o controlador usa relação tipada e acesso USER_MODE. Há vínculo confirmado somente se `component.branchId` está disponível; sem referência legível, o painel informa não confirmado.
+- **Históricos:** `historyQuality = TYPED_LINK_SAMPLE` confirma consulta do relacionamento tipado (até 20 registros), não um conjunto de revisões completo nem prova de deploy. `historiesHasMore` indica amostra limitada. Qualidade indisponível não significa zero versões.
+- **FullName:** explicitamente **não verificado**, mesmo quando Component Name, Source e Version estão preenchidos. Esta API não devolve correlação canônica validada.
+- **Deploy:** explicitamente **não comprovado**, inclusive se uma flag futura desconhecida aparecer. Para correlação real será necessário mapear por fonte verificada o `Flosum__Metadata_Log__c`, operações e organização de destino; nunca usar `Last_Commit`, data de `Committed On` ou nome registrado como prova.
+- UI sem badges de sucesso global: rótulos neutros por linha e descrição da origem. O componente continua somente leitura; o classificador falha de forma conservadora com flags desconhecidas.
+- Cobertura Jest: tipos de evidência, vínculo inacessível, histórico além da amostra, valor de qualidade desconhecido, transição Ficha→Comparar→Ficha sem chamadas adicionais.
+
+**Importante:** esta é **V3.6-A**, não conclusão de correlação de FullName/deploy. A etapa V3.6-B exige inventário técnico dos vínculos reais com Metadata Log e validação na org antes de qualquer implementação de evidência de deploy.
+
+**Homologação na DevSreFeat:** Componentes → selecionar um registro → Ficha → Rastreabilidade e evidências. Confirmar 5 linhas; verificar Branch acessível versus não acessível, histórico consultado versus indisponível, etiquetas FullName *Não verificado* e Implantação *Não comprovada*. Navegar Históricos→Comparar→Ficha e verificar a manutenção de estados/filtros, Diff alinhado e funcionamento sem nova busca. Revisar viewport 390px e desktop.
