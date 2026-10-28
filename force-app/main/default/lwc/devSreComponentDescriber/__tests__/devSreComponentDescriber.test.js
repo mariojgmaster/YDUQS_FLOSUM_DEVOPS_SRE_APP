@@ -291,7 +291,7 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     expect(text(el)).toContain("1 linhas removidas");
     expect(text(el)).toContain("<img src=x onerror=alert(1)>");
     expect(el.shadowRoot.querySelector(".cd-diff-panes img")).toBeNull();
-    expect(el.shadowRoot.querySelectorAll(".cd-diff-pane:first-child .cd-diff-cell")).toHaveLength(2);
+    expect(el.shadowRoot.querySelectorAll(".cd-diff-pane[data-side='base'] .cd-diff-cell")).toHaveLength(2);
     expect(text(el)).toContain("Não estabelece identidade canônica");
   });
   it("não disponibiliza comparação com apenas um History e respeita reset",async()=>{
@@ -341,15 +341,15 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     expect(el.shadowRoot.querySelectorAll(".cd-compare-selectors lightning-combobox")).toHaveLength(2);
     const file=el.shadowRoot.querySelector(".cd-compare-file lightning-combobox");
     file.dispatchEvent(new CustomEvent("change",{detail:{value:common}}));await flush();
-    expect(el.shadowRoot.querySelectorAll(".cd-diff-pane:first-child .cd-diff-cell")).toHaveLength(2);
+    expect(el.shadowRoot.querySelectorAll(".cd-diff-pane[data-side='base'] .cd-diff-cell")).toHaveLength(2);
     const only=[...el.shadowRoot.querySelectorAll("lightning-button")]
       .find(b=>b.label==="Apenas alterações");
     only.click();await flush();
-    expect(el.shadowRoot.querySelectorAll(".cd-diff-pane:first-child .cd-diff-cell")).toHaveLength(1);
+    expect(el.shadowRoot.querySelectorAll(".cd-diff-pane[data-side='base'] .cd-diff-cell")).toHaveLength(1);
     const all=[...el.shadowRoot.querySelectorAll("lightning-button")]
       .find(b=>b.label==="Lado a lado");
     all.click();await flush();
-    expect(el.shadowRoot.querySelectorAll(".cd-diff-pane:first-child .cd-diff-cell")).toHaveLength(2);
+    expect(el.shadowRoot.querySelectorAll(".cd-diff-pane[data-side='base'] .cd-diff-cell")).toHaveLength(2);
     el.shadowRoot.querySelector("lightning-button-icon[title='Inverter base e destino']").click();await flush();
     expect(inspectHistoryArchive).toHaveBeenCalledWith({historyId:HISTORY.id,entryPath:null});
     expect(inspectHistoryArchive).toHaveBeenCalledWith({historyId:older.id,entryPath:null});
@@ -465,7 +465,7 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     el.shadowRoot.querySelector(".cd-compare-file lightning-combobox")
       .dispatchEvent(new CustomEvent("change",{detail:{value:"classes/Example.cls"}}));
     await flush();
-    expect(el.shadowRoot.querySelectorAll(".cd-diff-pane:first-child .cd-diff-cell")).toHaveLength(250);
+    expect(el.shadowRoot.querySelectorAll(".cd-diff-pane[data-side='base'] .cd-diff-cell")).toHaveLength(250);
     expect(text(el)).toContain("Bloco 1 de 3");
     const next=[...el.shadowRoot.querySelectorAll("lightning-button")].find(b=>b.label==="Próximo bloco");
     next.click();await flush();
