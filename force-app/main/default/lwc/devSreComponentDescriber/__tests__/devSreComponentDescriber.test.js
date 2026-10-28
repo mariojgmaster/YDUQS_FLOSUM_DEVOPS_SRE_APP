@@ -599,7 +599,7 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     const path="classes/Example.cls";
     inspectHistoryArchive.mockImplementation(({historyId,entryPath})=>Promise.resolve(
       entryPath
-        ? {selectedPath:entryPath,text:historyId===older.id?"igual\\nbase":"igual\\ndestino"}
+        ? {selectedPath:entryPath,text:historyId===older.id?"igual\nbase":"igual\ndestino"}
         : {entries:[{path,previewable:true}]}
     ));
     const el=mount();await flush();
