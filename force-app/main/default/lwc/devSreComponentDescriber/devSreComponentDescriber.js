@@ -51,7 +51,6 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   diffPageSize = 250;
   diffPairsAll = [];
   diffPairsChanges = [];
-  _syncingDiffScroll = false;
   _compareRequest = 0;
   _debounce;
   _typeDebounce;
@@ -350,18 +349,8 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   handleDiffPrevious() { if(!this.diffPreviousDisabled){this.diffPage--;this.resetDiffScroll();} }
   handleDiffNext() { if(!this.diffNextDisabled){this.diffPage++;this.resetDiffScroll();} }
   resetDiffScroll() {
-    this.template.querySelectorAll(".cd-diff-pane").forEach(pane => {pane.scrollTop=0;});
-  }
-  handleDiffPaneScroll(event) {
-    if(this._syncingDiffScroll) return;
-    const source=event.currentTarget;
-    const otherSide=source.dataset.side==="base"?"target":"base";
-    const target=this.template.querySelector(`.cd-diff-pane[data-side="${otherSide}"]`);
-    if(!target || target.scrollTop===source.scrollTop) return;
-    // Only vertical displacement is shared. Each horizontal scroll remains independent.
-    this._syncingDiffScroll=true;
-    target.scrollTop=source.scrollTop;
-    Promise.resolve().then(()=>{this._syncingDiffScroll=false;});
+    const viewport = this.template.querySelector(".cd-diff-viewport");
+    if (viewport) viewport.scrollTop = 0;
   }
   handleSwapHistories() {
     if (!this.compareOpen) return;
