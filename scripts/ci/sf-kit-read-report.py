@@ -53,6 +53,10 @@ def produce(operation, package, zip_path, candidate_dir=None):
         differing_files=diff,
         differing_members=changed,
         differing_parts=parts,
+        apex_metadata_facts=policy.mismatched_apex_metadata_facts(local, remote, listed)
+            if any(part.endswith(":metadata") for part in parts) else [],
+        apex_metadata_shapes=policy.differing_apex_metadata_structure(local, remote, listed)
+            if any(part.endswith(":metadata") for part in parts) else [],
         differences=[{"member": item} for item in changed],
     )
     return result
