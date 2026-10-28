@@ -67,6 +67,26 @@ class KitReadTests(unittest.TestCase):
         self.assertIn("source", report["differing_parts"][0])
         self.assertNotIn("SECRET_REMOTE", json.dumps(report))
 
+    def test_safe_apex_metadata_drift_has_no_raw_org_content(self):
+        modified = dict(self.blobs)
+        old = modified["classes/CompareSecurityCode.cls-meta.xml"]
+        modified["classes/CompareSecurityCode.cls-meta.xml"] = old.replace(
+            b"<apiVersion>67.0</apiVersion>",
+            b"<apiVersion>66.0</apiVersion>")
+        self.zip(modified)
+        report = module.produce("compare", "security-apex", self.remote, self.candidate)
+        self.assertEqual(report["result"], "different")
+        self.assertEqual(report["differing_parts"], ["ApexClass:CompareSecurityCode:metadata"])
+        self.assertEqual(report["apex_metadata_facts"],
+                         ["ApexClass:CompareSecurityCode:baselineApi=67.0,remoteApi=66.0,"
+                          "baselineStatus=Active,remoteStatus=Active"])
+        self.assertEqual(report["apex_metadata_shapes"],
+                         ["ApexClass:CompareSecurityCode:baseline=coreOnly,remote=coreOnly"])
+        serialized = json.dumps(report)
+        self.assertNotIn("<ApexClass", serialized)
+        self.assertNotIn("public class", serialized)
+        self.assertNotIn("classes/Compare", serialized)
+
     def test_remote_metadata_outside_manifest_is_rejected(self):
         attack = dict(self.blobs, **{"classes/UnlistedClass.cls": b"unsafe"})
         self.zip(attack)
