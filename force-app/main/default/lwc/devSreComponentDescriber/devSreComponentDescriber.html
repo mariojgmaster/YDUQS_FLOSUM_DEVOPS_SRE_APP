@@ -241,9 +241,10 @@
                       <div class="cd-diff-viewport" role="region" tabindex="0"
                         aria-label="Comparação de código com uma única rolagem vertical para Base e Destino">
                         <div class="cd-diff-panes" role="group" aria-label="Código em duas colunas com linhas alinhadas">
-                        <section class="cd-diff-pane" tabindex="0" role="region" data-side="base"
-                          aria-label="Código do histórico base; rolagem horizontal independente">
+                        <div class="cd-diff-col">
                           <header class="cd-diff-pane-title">Histórico base</header>
+                          <section class="cd-diff-pane" tabindex="0" role="region" data-side="base"
+                            aria-label="Código do histórico base; rolagem horizontal independente">
                           <div class="cd-diff-pane-lines">
                             <template for:each={diffBaseRows} for:item="line">
                               <div key={line.key} class={line.className}>
@@ -252,10 +253,12 @@
                               </div>
                             </template>
                           </div>
-                        </section>
-                        <section class="cd-diff-pane" tabindex="0" role="region" data-side="target"
-                          aria-label="Código do histórico de destino; rolagem horizontal independente">
+                          </section>
+                        </div>
+                        <div class="cd-diff-col">
                           <header class="cd-diff-pane-title">Histórico de destino</header>
+                          <section class="cd-diff-pane" tabindex="0" role="region" data-side="target"
+                            aria-label="Código do histórico de destino; rolagem horizontal independente">
                           <div class="cd-diff-pane-lines">
                             <template for:each={diffTargetRows} for:item="line">
                               <div key={line.key} class={line.className}>
@@ -264,7 +267,8 @@
                               </div>
                             </template>
                           </div>
-                        </section>
+                          </section>
+                        </div>
                         </div>
                       </div>
                       <div class="cd-diff-pagination" role="group" aria-label="Navegação entre blocos de linhas">
