@@ -353,3 +353,34 @@
   .cd-history-actions{flex-direction:column;align-items:flex-start}
   .cd-workspace-identity{max-width:34vw}
 }
+
+/* V3.5 — read-only comparative ZIP path inventory, no change to approved Diff viewport. */
+.cd-zip-index{margin:.65rem .85rem .9rem;border:1px solid var(--ds-color-border-default,#dbe2eb);
+  border-radius:.4rem;min-width:0;background:var(--ds-color-surface-primary,#fff);overflow:hidden}
+.cd-zip-index-head{display:flex;justify-content:space-between;align-items:center;
+  gap:.7rem;flex-wrap:wrap;padding:.7rem .8rem}
+.cd-zip-index-head h5{font-size:.82rem;font-weight:700;margin:0}
+.cd-zip-index-head .cd-muted{font-size:.72rem;line-height:1.45;margin:.25rem 0 0}
+.cd-zip-index-head lightning-combobox{flex:0 1 14rem;min-width:11rem}
+.cd-zip-index-summary{display:flex;flex-wrap:wrap;gap:.4rem;padding:.5rem .8rem;
+  border-block:1px solid var(--ds-color-border-subtle,#edf0f5);font-size:.73rem}
+.cd-zip-index-summary span{border:1px solid var(--ds-color-border-subtle,#edf0f5);border-radius:.3rem;
+  padding:.28rem .5rem;background:var(--ds-color-surface-secondary,#f5f8fb);color:var(--ds-color-text-primary,#1d293b)}
+.cd-zip-index-list{list-style:none;margin:0;padding:.3rem;max-height:15rem;overflow-y:auto;overscroll-behavior:contain}
+.cd-zip-index-row{display:grid;grid-template-columns:minmax(7rem,12rem) minmax(0,1fr);
+  gap:.65rem;align-items:start;min-width:0;padding:.45rem .6rem;
+  border-bottom:1px solid var(--ds-color-border-subtle,#edf0f5);font-size:.76rem}
+.cd-zip-index-row:last-child{border-bottom:0}
+.cd-zip-index-status{font-weight:600;font-size:.71rem;color:var(--ds-color-text-secondary,#60718b)}
+.cd-zip-index-row_base .cd-zip-index-status{color:var(--ds-color-text-danger,#b21d1d)}
+.cd-zip-index-row_target .cd-zip-index-status{color:var(--ds-color-text-success,#2e7549)}
+.cd-zip-index-path{font:normal .75rem/1.4 Consolas,Monaco,monospace;overflow-wrap:anywhere;
+  color:var(--ds-color-text-primary,#1d293b)}
+.cd-zip-index-note{margin:.4rem .85rem .9rem;padding:.75rem .8rem;border:1px solid var(--ds-color-border-subtle,#edf0f5);
+  border-radius:.35rem;background:var(--ds-color-surface-secondary,#f5f8fb);font-size:.78rem;line-height:1.5}
+@media(max-width:48rem){
+  .cd-zip-index{margin:.55rem}
+  .cd-zip-index-head lightning-combobox{flex:1 1 100%;min-width:0}
+  .cd-zip-index-row{grid-template-columns:minmax(0,1fr);gap:.25rem}
+  .cd-zip-index-list{max-height:13rem}
+}
