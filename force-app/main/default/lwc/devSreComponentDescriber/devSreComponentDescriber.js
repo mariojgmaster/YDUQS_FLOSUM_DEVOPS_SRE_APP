@@ -364,7 +364,13 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     this.archiveError = undefined;
     try {
       const response = await inspectHistoryArchive({historyId: this.archiveHistoryId, entryPath});
-      if (request === this._archiveRequest) this.archiveData = response;
+      if (request === this._archiveRequest) {
+        // Reading one text member may return only selectedPath/text. Keep the
+        // previously verified ZIP index rather than hiding the file list.
+        this.archiveData = entryPath && Array.isArray(this.archiveData?.entries) &&
+          !Array.isArray(response?.entries) ?
+          {...this.archiveData, ...response} : response;
+      }
     } catch (error) {
       if (request === this._archiveRequest) {
         this.archiveError = this.message(error, "Não foi possível abrir o ZIP acessível.");
