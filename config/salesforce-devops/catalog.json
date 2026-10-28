@@ -338,6 +338,18 @@
         "ApexClass",
         "LightningComponentBundle"
       ]
+    },
+    "branch-monitor-v3-3-states": {
+      "manifest": "manifest/sf-branch-monitor-v3-3-states.xml",
+      "test_level": "RunSpecifiedTests",
+      "tests": [
+        "DevSreComponentDescriberTest",
+        "DevSreHistoryArchiveReaderTest",
+        "DevSreBranchMonitorTest"
+      ],
+      "allowed_types": [
+        "LightningComponentBundle"
+      ]
     }
   }
 }
