@@ -214,7 +214,37 @@
                 <template lwc:elseif={compareError}>
                   <div class="cd-state cd-state_error" role="alert"><lightning-icon icon-name="utility:error" size="small" alternative-text=""></lightning-icon><div class="cd-state-content"><strong>Não foi possível comparar os históricos</strong><p>{compareError}</p><div class="cd-state-actions"><lightning-button label="Reconsultar arquivos para comparação" onclick={handleRetryCompare}></lightning-button></div></div></div>
                 </template>
-                <template lwc:elseif={hasComparePaths}>
+                <template lwc:elseif={hasCompareInventory}>
+                  <section class="cd-zip-index" aria-label="Inventário comparativo dos arquivos ZIP">
+                    <div class="cd-zip-index-head">
+                      <div>
+                        <h5>Inventário dos ZIPs</h5>
+                        <p class="cd-muted">Caminhos identificados nos dois históricos · a presença do mesmo arquivo não comprova conteúdo igual.</p>
+                      </div>
+                      <lightning-combobox label="Filtrar caminhos" options={compareInventoryFilterOptions}
+                        value={compareInventoryFilter} onchange={handleCompareInventoryFilterChange}></lightning-combobox>
+                    </div>
+                    <div class="cd-zip-index-summary" role="status" aria-label="Resumo dos caminhos acessíveis">
+                      <span>{compareInventoryCounts.common} em ambos</span>
+                      <span>{compareInventoryCounts.base} somente base</span>
+                      <span>{compareInventoryCounts.target} somente destino</span>
+                      <span>{compareInventoryCounts.blocked} indisponíveis</span>
+                    </div>
+                    <template lwc:if={hasMatchingCompareInventory}>
+                      <ul class="cd-zip-index-list" aria-label="Caminhos dos arquivos identificados">
+                        <template for:each={compareInventoryRows} for:item="entry">
+                          <li key={entry.path} class={entry.rowClass}>
+                            <span class="cd-zip-index-status">{entry.label}</span>
+                            <span class="cd-zip-index-path" title={entry.path}>{entry.path}</span>
+                          </li>
+                        </template>
+                      </ul>
+                    </template>
+                    <template lwc:else>
+                      <p class="cd-empty" role="status">Não há caminhos nessa categoria. Experimente o filtro Todos.</p>
+                    </template>
+                  </section>
+                  <template lwc:if={hasComparePaths}>
                   <div class="cd-compare-file">
                     <lightning-combobox label="Arquivo de texto presente nos dois ZIPs"
                       placeholder="Selecione um arquivo para comparar" value={comparePath}
@@ -286,9 +316,13 @@
                       </div>
                     </template>
                   </template>
+                  </template>
+                  <template lwc:else>
+                    <p class="cd-zip-index-note" role="status">Nenhum caminho está disponível para comparação textual nos dois ZIPs. Os arquivos exclusivos ou indisponíveis aparecem no inventário acima, sem leitura de conteúdo.</p>
+                  </template>
                 </template>
                 <template lwc:else>
-                  <div class="cd-state" role="status"><lightning-icon icon-name="utility:info" size="small" alternative-text=""></lightning-icon><div class="cd-state-content"><strong>Sem arquivos comparáveis</strong><p>Não há arquivos de texto com o mesmo caminho, acessíveis nos dois ZIPs selecionados. Escolha outros históricos acima para uma nova consulta.</p></div></div>
+                  <div class="cd-state" role="status"><lightning-icon icon-name="utility:info" size="small" alternative-text=""></lightning-icon><div class="cd-state-content"><strong>Sem arquivos identificados</strong><p>Nenhum caminho de arquivo foi retornado para os dois ZIPs acessíveis selecionados.</p></div></div>
                 </template>
                 <p class="cd-muted cd-compare-foot">Somente leitura · rolagem vertical única · horizontal independente em cada coluna · todas as linhas disponíveis por blocos navegáveis.</p>
               </section>

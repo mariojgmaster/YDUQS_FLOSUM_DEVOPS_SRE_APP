@@ -96,3 +96,20 @@
 **Homologação funcional manual obrigatória:** no navegador DevSreFeat, testar 360px, 390px, 768px e desktop. Verificar inventário (sem scroll lateral externo), filtros, seleção→ficha→históricos→ZIP→comparação, botões Base/Destino, conteúdo longo, scroll horizontal só dentro de código e vertical único preservado; voltar sem perder filtros. Validar também teclado e zoom 200% (a mesma largura CSS, se aplicável). Uma PR verde/deploy OK não comprova homologação visual no dispositivo.
 
 **Deploy:** PR → CI/Jest/policy → merge com SHA pinado → ChatOps PLAN (RunSpecifiedTests) → DEPLOY aprovado → COMPARE read-only. Nenhum workflow improvisado.
+
+
+## V3.5 — inventário comparativo de ZIPs e robustez da leitura
+
+**Escopo implementado:** inventário *por caminho* entre dois ZIPs associados a históricos do mesmo Component. Complementa `Comparar` e `Arquivos ZIP` sem mexer na geometria/alinhamento aprovado do Diff nem nos contratos Apex. Package ID `branch-monitor-v3-5-zip-inventory`.
+
+- Índices do Apex, no máximo 200 entradas por ZIP, produzem categorias **Em ambos (comparável)**, **Somente na base**, **Somente no destino** e **Indisponível para pré-visualização** (inclui entradas binárias/não elegíveis ou duplicatas ambíguas). Não altera os ZIPs nem escreve no Flosum.
+- O usuário filtra o inventário; o filtro é local, sem consultas extras à Salesforce. Contagens representam apenas os *arquivos acessíveis no índice consultado*, **não** todo o repositório Flosum.
+- Arquivos com mesmo caminho *não* são afirmados iguais. Conteúdo só é buscado para os caminhos comuns de texto elegíveis e selecionados na combobox. Apenas após a busca de ambos os conteúdos o Diff mostra linhas adicionadas/removidas.
+- Mesmo sem caminhos comuns, exibe os exclusivos e indisponíveis, em vez de uma mensagem genérica de comparação vazia. Historicals novos e troca de seleção invalidam respostas assíncronas anteriores.
+- A leitura de um arquivo ZIP preserva a lista de entradas carregada se o endpoint retornar apenas `selectedPath` e `text`. A preview continua exclusiva de texto, sem execução do conteúdo.
+- **Sem inferência de renomeação** (um exclusivo da base e outro do destino não têm correspondência garantida), sem checksum ou equivalência de metadados Git; limite técnico de arquivos ZIP ainda depende do heap Apex existente. Esta etapa **não** aumenta o limite de 200 entradas por ZIP nem resolve indisponibilidade de 6 MiB em heap insuficiente.
+- Testes Jest para inventário, filtros e proteção de leitura; testes de regressão existentes protegem o viewport com Y compartilhado e X independente.
+
+**Homologação manual:** com 2 históricos elegíveis, validar (1) caminho presente nos dois, (2) arquivo só base, (3) só destino, (4) binário indisponível, (5) filtro de status sem chamada Apex adicional, (6) Diff do caminho comum sem alteração na paginação/scroll, (7) ZIP aberto preservando a lista após selecionar arquivo, (8) troca de históricos atualizando os contadores. Em navegadores 360/390/768px e desktop, conferir ausência de sobreposição no inventário.
+
+**Gates:** CI/lint/Jest/policy → PR protegida → merge SHA master → ChatOps PLAN → ChatOps DEPLOY autorizado → COMPARE somente leitura. Homologação visual permanece manual.

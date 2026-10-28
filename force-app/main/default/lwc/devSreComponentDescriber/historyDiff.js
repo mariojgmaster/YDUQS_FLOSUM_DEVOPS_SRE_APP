@@ -5,6 +5,42 @@
  */
 const MAX_EXACT_CELLS = 360000;
 
+/**
+ * Summary of *accessible ZIP inventory paths*, not a comparison of file content.
+ * A shared path is comparable only when both ZIP readers explicitly mark it previewable.
+ * Never infer that same-named files contain equal code. This is a bounded (<=200 per
+ * ZIP) read-only view over entries returned by the existing Apex reader.
+ */
+export function archivePathInventory(base, target) {
+  const toMap = archive => {
+    const entries = new Map();
+    for (const entry of archive?.entries || []) {
+      if (typeof entry?.path !== "string" || !entry.path || !entry.path.trim()) continue;
+      const existing = entries.get(entry.path);
+      // Duplicate paths cannot safely be treated as comparable.
+      entries.set(entry.path, existing === undefined ? entry.previewable === true : false);
+    }
+    return entries;
+  };
+  const b = toMap(base), t = toMap(target);
+  const rows = [...new Set([...b.keys(), ...t.keys()])].sort((a, bPath) => a.localeCompare(bPath))
+    .map(path => {
+      const inBase = b.has(path), inTarget = t.has(path);
+      const status = !((inBase ? b.get(path) : true) && (inTarget ? t.get(path) : true)) ?
+        "blocked" : inBase && inTarget ? "common" : inBase ? "base" : "target";
+      const labels = {
+        common: "Em ambos · conteúdo ainda não comparado",
+        base: "Somente na base",
+        target: "Somente no destino",
+        blocked: "Pré-visualização indisponível"
+      };
+      return {path, status, label: labels[status], rowClass: "cd-zip-index-row cd-zip-index-row_" + status};
+    });
+  const counts = {common:0,base:0,target:0,blocked:0};
+  for (const row of rows) counts[row.status]++;
+  return {rows,counts};
+}
+
 export function commonPreviewPaths(base, target) {
   const b = new Set((base?.entries || [])
     .filter(x => x.previewable && typeof x.path === "string")

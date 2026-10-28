@@ -4,7 +4,7 @@ import searchFilteredComponents from "@salesforce/apex/DevSreComponentDescriberC
 import getComponentTypes from "@salesforce/apex/DevSreComponentDescriberController.getComponentTypes";
 import describeComponent from "@salesforce/apex/DevSreComponentDescriberController.describeComponent";
 import inspectHistoryArchive from "@salesforce/apex/DevSreComponentDescriberController.inspectHistoryArchive";
-import { commonPreviewPaths, lineDiff, sideBySideDiff } from "./historyDiff";
+import { archivePathInventory, lineDiff, sideBySideDiff } from "./historyDiff";
 
 export default class DevSreComponentDescriber extends NavigationMixin(LightningElement) {
   search = "";
@@ -45,6 +45,8 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   compareBaseId = "";
   compareTargetId = "";
   comparePaths = [];
+  compareInventory = null;
+  compareInventoryFilter = "all";
   comparePath = "";
   compareDiff;
   diffOnlyChanges = false;
@@ -103,6 +105,25 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     return this.comparePaths.map(path => ({ label: path, value: path }));
   }
   get hasComparePaths() { return this.comparePaths.length > 0; }
+  get hasCompareInventory() { return (this.compareInventory?.rows?.length || 0) > 0; }
+  get compareInventoryCounts() { return this.compareInventory?.counts || {common:0,base:0,target:0,blocked:0}; }
+  get compareInventoryRows() {
+    const rows = this.compareInventory?.rows || [];
+    return this.compareInventoryFilter === "all" ? rows :
+      rows.filter(row => row.status === this.compareInventoryFilter);
+  }
+  get hasMatchingCompareInventory() { return this.compareInventoryRows.length > 0; }
+  get compareInventoryFilterOptions() {
+    const counts = this.compareInventoryCounts;
+    const total = Object.values(counts).reduce((a,b)=>a+b,0);
+    return [
+      {label:`Todos (${total})`,value:"all"},
+      {label:`Em ambos (${counts.common})`,value:"common"},
+      {label:`Somente base (${counts.base})`,value:"base"},
+      {label:`Somente destino (${counts.target})`,value:"target"},
+      {label:`Indisponíveis (${counts.blocked})`,value:"blocked"}
+    ];
+  }
   get hasCompareRows() { return (this.compareDiff?.rows || []).length > 0; }
   get compareRows() { return this.compareDiff?.rows || []; }
   get diffBaseRows() { return this.sideBySideRows.map(row => ({ key: row.key, ...row.left })); }
@@ -343,7 +364,13 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     this.archiveError = undefined;
     try {
       const response = await inspectHistoryArchive({historyId: this.archiveHistoryId, entryPath});
-      if (request === this._archiveRequest) this.archiveData = response;
+      if (request === this._archiveRequest) {
+        // Reading one text member may return only selectedPath/text. Keep the
+        // previously verified ZIP index rather than hiding the file list.
+        this.archiveData = entryPath && Array.isArray(this.archiveData?.entries) &&
+          !Array.isArray(response?.entries) ?
+          {...this.archiveData, ...response} : response;
+      }
     } catch (error) {
       if (request === this._archiveRequest) {
         this.archiveError = this.message(error, "Não foi possível abrir o ZIP acessível.");
@@ -371,6 +398,10 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   handleRetryCompare() {
     if (this.compareOpen && !this.compareLoading) this.loadCompareArchives();
   }
+  handleCompareInventoryFilterChange(event) {
+    const value = event.detail.value;
+    if (["all","common","base","target","blocked"].includes(value)) this.compareInventoryFilter = value;
+  }
   handleCompareClose() {
     if (this.workspaceTab === "comparar") this.workspaceTab = "historicos";
     ++this._compareRequest;
@@ -379,6 +410,8 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     this.compareLoading = false;
     this.compareError = undefined;
     this.comparePaths = [];
+    this.compareInventory = null;
+    this.compareInventoryFilter = "all";
     this.comparePath = "";
     this.compareDiff = undefined;
     this.diffOnlyChanges = false;
@@ -421,6 +454,8 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     this.diffPairsAll=[];
     this.diffPairsChanges=[];
     this.comparePaths = [];
+    this.compareInventory = null;
+    this.compareInventoryFilter = "all";
     this.comparePath = "";
     const allowedIds = new Set(this.histories.map(x => x.id));
     if (!this.compareOpen || !allowedIds.has(this.compareBaseId) ||
@@ -436,7 +471,9 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
         inspectHistoryArchive({ historyId: this.compareTargetId, entryPath: null })
       ]);
       if (request !== this._compareRequest) return;
-      this.comparePaths = commonPreviewPaths(base, target);
+      this.compareInventory = archivePathInventory(base, target);
+      this.comparePaths = this.compareInventory.rows.filter(row => row.status === "common")
+        .map(row => row.path);
     } catch (error) {
       if (request === this._compareRequest)
         this.compareError = this.message(error, "Não foi possível acessar os dois ZIPs.");
