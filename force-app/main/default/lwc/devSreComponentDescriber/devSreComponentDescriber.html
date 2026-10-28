@@ -232,16 +232,17 @@
                         <lightning-button label="Lado a lado" variant={allLinesButtonVariant} onclick={handleDiffModeAll}></lightning-button>
                         <lightning-button label="Apenas alterações" variant={onlyChangesButtonVariant} onclick={handleDiffModeChanged}></lightning-button>
                       </lightning-button-group>
-                      <span class="cd-muted">Vertical sincronizado · horizontal independente</span>
+                      <span class="cd-muted">Vertical compartilhado · horizontal independente</span>
                     </div>
                     <template lwc:if={hasNoChangedLines}>
                       <p class="cd-empty" role="status">Os dois arquivos têm conteúdo idêntico. Não há alterações para exibir.</p>
                     </template>
                     <template lwc:else>
-                      <div class="cd-diff-panes" role="group" aria-label="Visualização de código com rolagem vertical sincronizada">
+                      <div class="cd-diff-viewport" role="region" tabindex="0"
+                        aria-label="Comparação de código com uma única rolagem vertical para Base e Destino">
+                        <div class="cd-diff-panes" role="group" aria-label="Código em duas colunas com linhas alinhadas">
                         <section class="cd-diff-pane" tabindex="0" role="region" data-side="base"
-                          onscroll={handleDiffPaneScroll}
-                          aria-label="Código do histórico base; horizontal independente e vertical sincronizado">
+                          aria-label="Código do histórico base; rolagem horizontal independente">
                           <header class="cd-diff-pane-title">Histórico base</header>
                           <div class="cd-diff-pane-lines">
                             <template for:each={diffBaseRows} for:item="line">
@@ -253,8 +254,7 @@
                           </div>
                         </section>
                         <section class="cd-diff-pane" tabindex="0" role="region" data-side="target"
-                          onscroll={handleDiffPaneScroll}
-                          aria-label="Código do histórico de destino; horizontal independente e vertical sincronizado">
+                          aria-label="Código do histórico de destino; rolagem horizontal independente">
                           <header class="cd-diff-pane-title">Histórico de destino</header>
                           <div class="cd-diff-pane-lines">
                             <template for:each={diffTargetRows} for:item="line">
@@ -265,6 +265,7 @@
                             </template>
                           </div>
                         </section>
+                        </div>
                       </div>
                       <div class="cd-diff-pagination" role="group" aria-label="Navegação entre blocos de linhas">
                         <lightning-button label="Bloco anterior" onclick={handleDiffPrevious}
@@ -279,7 +280,7 @@
                 <template lwc:else>
                   <p class="cd-empty" role="status">Não há arquivos de texto com o mesmo caminho, acessíveis nos dois ZIPs selecionados.</p>
                 </template>
-                <p class="cd-muted cd-compare-foot">Somente leitura · vertical sincronizado · horizontal independente · todas as linhas disponíveis por blocos navegáveis.</p>
+                <p class="cd-muted cd-compare-foot">Somente leitura · rolagem vertical única · horizontal independente em cada coluna · todas as linhas disponíveis por blocos navegáveis.</p>
               </section>
             </template>
             <template lwc:if={showArchiveSection}>
