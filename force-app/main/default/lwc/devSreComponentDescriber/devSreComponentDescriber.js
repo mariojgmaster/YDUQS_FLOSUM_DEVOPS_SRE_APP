@@ -267,6 +267,9 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   handleArchiveFilterChange(event) {
     this.archiveFilter = event.target.value || "";
   }
+  handleArchiveClearFilter() {
+    this.archiveFilter = "";
+  }
   handleClose() {
     this.handleCompareClose();
     this.detailExpanded = false;
