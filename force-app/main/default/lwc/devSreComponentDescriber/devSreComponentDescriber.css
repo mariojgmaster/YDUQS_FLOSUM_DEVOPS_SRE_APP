@@ -406,3 +406,26 @@
   color:var(--ds-color-text-secondary,#60718b);background:var(--ds-color-surface-secondary,#f5f8fb)}
 @media(max-width:48rem){.cd-evidence-head{padding:.75rem}.cd-evidence-list{padding:.25rem .5rem}
   .cd-evidence-title{align-items:flex-start}.cd-evidence-status{max-width:100%}}
+
+/* V3.6-B: bounded, read-only contextual Branch operations; no Diff geometry changes. */
+.cd-branch-logs{border:1px solid var(--ds-color-border-subtle,#edf0f5);border-radius:.4rem;min-width:0;overflow:hidden}
+.cd-branch-logs-head{display:flex;gap:.7rem;justify-content:space-between;align-items:center;flex-wrap:wrap;padding:.85rem}
+.cd-branch-logs-head .cd-muted{line-height:1.45;margin:.3rem 0 0}
+.cd-branch-logs-head lightning-button{flex-shrink:0}
+.cd-branch-logs-caution{margin:0;padding:.65rem .85rem;color:var(--ds-color-text-primary,#1d293b);
+  background:var(--ds-color-surface-secondary,#f5f8fb);font-size:.76rem;line-height:1.55;
+  border-block:1px solid var(--ds-color-border-subtle,#edf0f5)}
+.cd-branch-logs-subtitle{padding:.65rem .85rem;font-size:.77rem;font-weight:600;overflow-wrap:anywhere}
+.cd-branch-log-list{list-style:none;margin:0;padding:0 .75rem .75rem;display:grid;gap:.55rem}
+.cd-branch-log{padding:.7rem .8rem;min-width:0;border:1px solid var(--ds-color-border-subtle,#edf0f5);
+  border-radius:.3rem;background:var(--ds-color-surface-primary,#fff)}
+.cd-branch-log-title{display:flex;flex-wrap:wrap;gap:.35rem .7rem;align-items:center;justify-content:space-between}
+.cd-branch-log-title strong{overflow-wrap:anywhere;font-size:.78rem}
+.cd-branch-log p{margin:.35rem 0;color:var(--ds-color-text-secondary,#60718b);font-size:.72rem}
+.cd-branch-log-times{display:flex;gap:.35rem 1rem;flex-wrap:wrap;margin:.4rem 0 .6rem;
+  color:var(--ds-color-text-secondary,#60718b);font-size:.72rem}
+.cd-branch-log-more,.cd-branch-logs-hint{padding:.8rem .85rem;font-size:.76rem;
+  line-height:1.5;color:var(--ds-color-text-secondary,#60718b);overflow-wrap:anywhere}
+.cd-branch-log-more{border-top:1px solid var(--ds-color-border-subtle,#edf0f5)}
+@media(max-width:48rem){.cd-branch-logs-head lightning-button{width:100%}
+  .cd-branch-log-list{padding:.35rem}.cd-branch-log-title{align-items:flex-start}}
