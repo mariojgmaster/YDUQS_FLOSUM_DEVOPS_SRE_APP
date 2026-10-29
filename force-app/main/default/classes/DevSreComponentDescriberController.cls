@@ -402,7 +402,10 @@ public with sharing class DevSreComponentDescriberController {
     }
 
     @TestVisible private static BranchLogContext emptyBranchLogContext() {
-        BranchLogContext context = emptyBranchLogContext();
+        BranchLogContext context = new BranchLogContext();
+        context.rows = new List<BranchLogRow>();
+        context.hasMore = false;
+        context.componentMembershipVerified = false;
         return context;
     }
 
@@ -425,10 +428,7 @@ public with sharing class DevSreComponentDescriberController {
         if (componentId == null || componentId.getSObjectType() != Flosum__Component__c.SObjectType)
             throw new AuraHandledException('Selecione um Component Flosum válido.');
         String branchField = componentBranchField();
-        BranchLogContext context = new BranchLogContext();
-        context.rows = new List<BranchLogRow>();
-        context.hasMore = false;
-        context.componentMembershipVerified = false;
+        BranchLogContext context = emptyBranchLogContext();
         try {
             List<SObject> components = Database.queryWithBinds(
                 'SELECT Id, ' + branchField + ' FROM Flosum__Component__c ' +
