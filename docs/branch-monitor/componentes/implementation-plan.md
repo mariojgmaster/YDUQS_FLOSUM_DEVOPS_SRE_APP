@@ -130,3 +130,24 @@
 **Importante:** esta é **V3.6-A**, não conclusão de correlação de FullName/deploy. A etapa V3.6-B exige inventário técnico dos vínculos reais com Metadata Log e validação na org antes de qualquer implementação de evidência de deploy.
 
 **Homologação na DevSreFeat:** Componentes → selecionar um registro → Ficha → Rastreabilidade e evidências. Confirmar 5 linhas; verificar Branch acessível versus não acessível, histórico consultado versus indisponível, etiquetas FullName *Não verificado* e Implantação *Não comprovada*. Navegar Históricos→Comparar→Ficha e verificar a manutenção de estados/filtros, Diff alinhado e funcionamento sem nova busca. Revisar viewport 390px e desktop.
+
+
+## V3.6-B — operações da Branch associada (Metadata Log), com proveniência limitada
+
+**Escopo:** `branch-monitor-v3-6b-branch-logs`: `DevSreComponentDescriberController` + `devSreComponentDescriber`, sem criar objetos, sem atualizar Flosum ou alterar o Diff. Usa o contrato técnico **verificado** em `docs/devops-sre-analytics/flosum-source-contract.md`.
+
+**Premissa:** o lookup `Flosum__Component__c → Flosum__Branch__c` é tipado e acessível, e `Flosum__Metadata_Log__c.Flosum__Branch__c` referencia a Branch da operação. Não existe vínculo individual comprovado Component → Metadata Log. Logo, **somente operações contextuais da Branch**, nunca status de implantação do componente, FullName ou Lead Time/DORA certificados.
+
+**Apex:** `getBranchLogContext(componentId)` valida Id tipado, resolve o Component e a Branch com `USER_MODE` e consulta até **11 Metadata Logs** usando lookup de Branch principal (não Source Branch), ordenando por CreatedDate/Id; retorna no máximo 10 com indicador `hasMore`. Não recebe um BranchId arbitrário. O acesso aos campos do log passa por `Database.queryWithBinds(..., AccessLevel.USER_MODE)`; ausência de permissão resulta em erro explícito, não em lista vazia falsamente completa.
+
+**DTO minimizado:** Id do log para navegação no Flosum, tipo de processo, status, Start Date e Completed Date, presença de Organização e estado conservador. Não devolve `Result` em HTML, Async Request Id, fonte de ZIP, credenciais, token, código nem valores de configuração de ambiente.
+
+**Gates de sucesso candidato, *somente para o próprio log*:** `Process_Type = Deployment`, `Status = Completed`, `Job_Completed = true`, `Succeed = true`, `Is_Error = false`, `Completed_Date` presente, intervalo temporal coerente e organização relacionada preenchida. Se falta qualquer sinal, `NOT_CERTIFIED`. Mesmo com todos, `BRANCH_DEPLOY_CANDIDATE` **não significa** deployment de um Component nem certificação de destino PROD.
+
+**UX:** seção na Ficha `Operações da Branch · Metadata Log`. Consulta **sob demanda**, histórico limitado e mensagem explícita de contexto; resultados apresentam operação/status e início/conclusão UTC, com ação Abrir log no Flosum. Erros de permissão são estados de falha, e `0` registros acessíveis **não comprova ausência histórica**. Respostas assíncronas de Component anterior são descartadas. Navegação Ficha/Históricos/ZIP/Diff preservada.
+
+**Pendências da correlação real:** vínculo comprovado Metadata Log → componente efetivamente incluído em cada deployment, organização de destino com configuração explícita, regras de contagem e reconciliação por operação e request Id. O fato de dois registros compartilharem a Branch jamais pode preencher essas lacunas.
+
+**Homologação funcional:** acessar um Component com Branch; confirmar ausência de leitura automática; clicar `Consultar logs da Branch`; verificar até 10 registros, status/UTC, abrir um log. Alternar entre componentes e confirmar que nenhum log da Branch anterior permanece. Validar casos sem Branch, sem permissão de Metadata Log e com >10 logs (quando houver), sem inventar amostra completa. Revalidar Diff alinhado no desktop, mobile 390px e Ficha→Comparar→Ficha. CI/Jest/Apex dry-run não substituem teste visual.
+
+**Governança:** CI + Security + policy → merge master → PLAN sandbox → DEPLOY por intenção exata + SHA + dry-run/testes → COMPARE somente leitura. Nenhuma alteração em PROD.

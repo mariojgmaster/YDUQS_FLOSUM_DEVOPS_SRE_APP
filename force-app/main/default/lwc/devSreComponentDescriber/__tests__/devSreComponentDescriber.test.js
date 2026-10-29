@@ -4,6 +4,7 @@ import searchFilteredComponents from "@salesforce/apex/DevSreComponentDescriberC
 import getComponentTypes from "@salesforce/apex/DevSreComponentDescriberController.getComponentTypes";
 import describeComponent from "@salesforce/apex/DevSreComponentDescriberController.describeComponent";
 import inspectHistoryArchive from "@salesforce/apex/DevSreComponentDescriberController.inspectHistoryArchive";
+import getBranchLogContext from "@salesforce/apex/DevSreComponentDescriberController.getBranchLogContext";
 import { commonPreviewPaths, archivePathInventory, lineDiff, sideBySideDiff } from "../historyDiff";
 import { componentEvidence } from "../componentEvidence";
 
@@ -14,6 +15,8 @@ jest.mock("@salesforce/apex/DevSreComponentDescriberController.getComponentTypes
 jest.mock("@salesforce/apex/DevSreComponentDescriberController.describeComponent",
   () => ({default: jest.fn()}), {virtual: true});
 jest.mock("@salesforce/apex/DevSreComponentDescriberController.inspectHistoryArchive",
+  () => ({default: jest.fn()}), {virtual: true});
+jest.mock("@salesforce/apex/DevSreComponentDescriberController.getBranchLogContext",
   () => ({default: jest.fn()}), {virtual: true});
 
 const flush=async()=>{for(let i=0;i<15;i++)await Promise.resolve();};
@@ -46,6 +49,12 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     searchFilteredComponents.mockResolvedValue(PAGE);
     getComponentTypes.mockResolvedValue(TYPES);
     describeComponent.mockResolvedValue(DETAIL);
+    getBranchLogContext.mockResolvedValue({
+      sourceQuality:"BRANCH_LOG_SAMPLE",branchName:"Branch SIT",componentMembershipVerified:false,
+      hasMore:false,rows:[{id:"a0L00001",processType:"Deployment",sourceStatus:"Completed",
+        evidenceLabel:"Sucesso registrado no log da Branch",startedAt:"2026-10-20T10:00:00Z",
+        completedAt:"2026-10-20T10:08:00Z"}]
+    });
     inspectHistoryArchive.mockResolvedValue({
       attachmentName:"ApexClass",matchingArchives:1,entries:[
         {path:"classes/T_DefineFlowByObjectAPP.cls",size:37,previewable:true},
@@ -775,6 +784,63 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     expect(describeComponent).toHaveBeenCalledTimes(1);
     el.shadowRoot.querySelector(".cd-workspace-nav lightning-button[data-tab='ficha']").click();await flush();
     expect(el.shadowRoot.querySelector(".cd-evidence")).not.toBeNull();
+  });
+
+
+  it("V3.6-B: consulta logs somente após ação explícita e não certifica deploy do Component",async()=>{
+    const el=mount();await flush();
+    el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click();await flush();
+    expect(getBranchLogContext).not.toHaveBeenCalled();
+    expect(text(el)).toContain("não comprova");
+    const action=[...el.shadowRoot.querySelectorAll("lightning-button")]
+      .find(b=>b.label==="Consultar logs da Branch");
+    expect(action).toBeDefined();
+    action.click();await flush();
+    expect(getBranchLogContext).toHaveBeenCalledTimes(1);
+    expect(getBranchLogContext).toHaveBeenLastCalledWith({componentId:X.id});
+    const panel=el.shadowRoot.querySelector(".cd-branch-logs");
+    expect(panel.querySelectorAll(".cd-branch-log")).toHaveLength(1);
+    expect(panel.textContent).toContain("Sucesso registrado no log da Branch");
+    expect(panel.textContent).toContain("não comprova");
+    expect(describeComponent).toHaveBeenCalledTimes(1);
+  });
+
+  it("V3.6-B: não inventa zero operações quando a consulta da Branch falha",async()=>{
+    getBranchLogContext.mockRejectedValueOnce({body:{message:"Acesso negado ao Metadata Log"}});
+    const el=mount();await flush();
+    el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click();await flush();
+    [...el.shadowRoot.querySelectorAll("lightning-button")]
+      .find(b=>b.label==="Consultar logs da Branch").click();await flush();
+    expect(text(el)).toContain("Acesso negado ao Metadata Log");
+    expect(el.shadowRoot.querySelector(".cd-branch-log-list")).toBeNull();
+    expect(text(el)).toContain("não significa ausência de operações");
+  });
+
+  it("V3.6-B: invalida logs da Branch anterior ao selecionar outro Component",async()=>{
+    let finish;
+    getBranchLogContext.mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve;}));
+    const el=mount();await flush();
+    el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click();await flush();
+    [...el.shadowRoot.querySelectorAll("lightning-button")]
+      .find(b=>b.label==="Consultar logs da Branch").click();await flush();
+    const secondRow=el.shadowRoot.querySelector(".cd-table tbody tr:nth-child(2) .cd-link");
+    secondRow.click();await flush();
+    expect(getBranchLogContext).toHaveBeenCalledWith({componentId:X.id});
+    finish({sourceQuality:"BRANCH_LOG_SAMPLE",componentMembershipVerified:false,
+      rows:[{id:"old",processType:"Deployment",sourceStatus:"Completed"}]});await flush();
+    expect(el.shadowRoot.querySelectorAll(".cd-branch-log")).toHaveLength(0);
+    expect(text(el)).not.toContain("old");
+    expect(el.shadowRoot.querySelector(".cd-branch-logs-hint")).not.toBeNull();
+  });
+
+  it("V3.6-B: não permite consultar logs quando não há Branch acessível",async()=>{
+    describeComponent.mockResolvedValue({...DETAIL,component:{...X,branchId:null}});
+    const el=mount();await flush();
+    el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click();await flush();
+    expect([...el.shadowRoot.querySelectorAll("lightning-button")]
+      .find(b=>b.label==="Consultar logs da Branch")).toBeUndefined();
+    expect(text(el)).toContain("Sem Branch acessível");
+    expect(getBranchLogContext).not.toHaveBeenCalled();
   });
 
 });

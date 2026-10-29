@@ -4,6 +4,7 @@ import searchFilteredComponents from "@salesforce/apex/DevSreComponentDescriberC
 import getComponentTypes from "@salesforce/apex/DevSreComponentDescriberController.getComponentTypes";
 import describeComponent from "@salesforce/apex/DevSreComponentDescriberController.describeComponent";
 import inspectHistoryArchive from "@salesforce/apex/DevSreComponentDescriberController.inspectHistoryArchive";
+import getBranchLogContext from "@salesforce/apex/DevSreComponentDescriberController.getBranchLogContext";
 import { archivePathInventory, lineDiff, sideBySideDiff } from "./historyDiff";
 import { componentEvidence } from "./componentEvidence";
 
@@ -28,6 +29,10 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   selectedId;
   _searchRequest = 0;
   _detailRequest = 0;
+  _branchLogRequest = 0;
+  branchLogLoading = false;
+  branchLogError;
+  branchLogContext;
   _typeRequest = 0;
   archiveOpen = false;
   archiveFilter = "";
@@ -66,6 +71,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     clearTimeout(this._typeDebounce);
     ++this._searchRequest;
     ++this._detailRequest;
+    ++this._branchLogRequest;
     ++this._typeRequest;
     ++this._archiveRequest;
     ++this._compareRequest;
@@ -234,10 +240,20 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   get detailBranchName() { return this.detail?.component?.branchName || ""; }
   get detailBranchId() { return this.detail?.component?.branchId; }
   get traceabilityEntries() { return componentEvidence(this.detail); }
+  get hasAccessibleBranch() { return Boolean(this.detail?.component?.branchId); }
+  get branchLogLoaded() { return Boolean(this.branchLogContext); }
+  get branchLogRows() { return this.branchLogContext?.rows || []; }
+  get hasBranchLogRows() { return this.branchLogRows.length > 0; }
+  get branchLogHasMore() { return Boolean(this.branchLogContext?.hasMore); }
+  get branchLogBranchName() { return this.branchLogContext?.branchName || "Branch vinculada"; }
+  get branchLogNoBranch() {
+    return this.branchLogContext?.sourceQuality === "NO_ACCESSIBLE_BRANCH";
+  }
   get detailType() { return this.detail?.component?.componentType || "Não informado"; }
   get noMatches() { return this.searched && !this.loading && !this.error && !this.hasResults; }
 
   resetResults() {
+    this.resetBranchLogContext();
     this.handleCompareClose();
     this.handleArchiveClose();
     this.detailExpanded = false;
@@ -314,6 +330,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
     this.archiveFilter = "";
   }
   handleClose() {
+    this.resetBranchLogContext();
     this.handleCompareClose();
     this.detailExpanded = false;
     this.workspaceTab = "ficha";
@@ -326,6 +343,35 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   handleOpenComponent(event) { this.open(event.currentTarget.dataset.id, "Flosum__Component__c"); }
   handleOpenBranch(event) { this.open(event.currentTarget.dataset.id, "Flosum__Branch__c"); }
   handleOpenHistory(event) { this.open(event.currentTarget.dataset.id, "Flosum__Component_History__c"); }
+  handleOpenBranchLog(event) { this.open(event.currentTarget.dataset.id, "Flosum__Metadata_Log__c"); }
+  resetBranchLogContext() {
+    ++this._branchLogRequest;
+    this.branchLogContext = undefined;
+    this.branchLogError = undefined;
+    this.branchLogLoading = false;
+  }
+  async loadBranchLogs() {
+    if (!this.selectedId || !this.hasDetail || !this.hasAccessibleBranch || this.branchLogLoading) return;
+    const componentId = this.selectedId;
+    const request = ++this._branchLogRequest;
+    this.branchLogContext = undefined;
+    this.branchLogError = undefined;
+    this.branchLogLoading = true;
+    try {
+      const response = await getBranchLogContext({componentId});
+      if (request === this._branchLogRequest && this.selectedId === componentId) {
+        if (response?.componentMembershipVerified !== false)
+          throw new Error("Unsafe evidence scope");
+        this.branchLogContext = response;
+      }
+    } catch (error) {
+      if (request === this._branchLogRequest) {
+        this.branchLogError = this.message(error, "Não foi possível consultar os logs acessíveis da Branch.");
+      }
+    } finally {
+      if (request === this._branchLogRequest) this.branchLogLoading = false;
+    }
+  }
 
   handleRetryDetail() {
     if (this.selectedId && !this.detailLoading) this.loadDetail(this.selectedId);
@@ -601,7 +647,10 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
 
   async load(append) {
     if (!this.eligible) return;
-    if (!append) this.handleCompareClose();
+    if (!append) {
+      this.handleCompareClose();
+      this.resetBranchLogContext();
+    }
     const request = ++this._searchRequest;
     this.loading = true;
     this.error = undefined;
@@ -638,6 +687,7 @@ export default class DevSreComponentDescriber extends NavigationMixin(LightningE
   }
   async loadDetail(id) {
     if (!id) return;
+    this.resetBranchLogContext();
     this.handleCompareClose();
     this.detailExpanded = this.isNarrowViewport;
     this.workspaceTab = "ficha";

@@ -386,6 +386,19 @@
       "allowed_types": [
         "LightningComponentBundle"
       ]
+    },
+    "branch-monitor-v3-6b-branch-logs": {
+      "manifest": "manifest/sf-branch-monitor-v3-6b-branch-logs.xml",
+      "test_level": "RunSpecifiedTests",
+      "tests": [
+        "DevSreComponentDescriberTest",
+        "DevSreHistoryArchiveReaderTest",
+        "DevSreBranchMonitorTest"
+      ],
+      "allowed_types": [
+        "ApexClass",
+        "LightningComponentBundle"
+      ]
     }
   }
 }

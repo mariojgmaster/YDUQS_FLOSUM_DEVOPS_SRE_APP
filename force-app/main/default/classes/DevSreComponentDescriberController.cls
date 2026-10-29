@@ -344,4 +344,108 @@ public with sharing class DevSreComponentDescriberController {
             throw new AuraHandledException('Não foi possível consultar o histórico Flosum acessível.');
         }
     }
+
+    /**
+     * V3.6-B: bounded contextual view of Metadata Logs of this Component's
+     * *accessible Branch*. A Branch log does NOT establish Component membership
+     * in a deployment. No log-to-component inference or DORA classification.
+     */
+    public class BranchLogRow {
+        @AuraEnabled public Id id { get; set; }
+        @AuraEnabled public String processType { get; set; }
+        @AuraEnabled public String sourceStatus { get; set; }
+        @AuraEnabled public Datetime startedAt { get; set; }
+        @AuraEnabled public Datetime completedAt { get; set; }
+        @AuraEnabled public Boolean hasOrganisation { get; set; }
+        @AuraEnabled public String evidenceCode { get; set; }
+        @AuraEnabled public String evidenceLabel { get; set; }
+    }
+
+    public class BranchLogContext {
+        @AuraEnabled public String sourceQuality { get; set; }
+        @AuraEnabled public String branchName { get; set; }
+        @AuraEnabled public List<BranchLogRow> rows { get; set; }
+        @AuraEnabled public Boolean hasMore { get; set; }
+        @AuraEnabled public Boolean componentMembershipVerified { get; set; }
+    }
+
+    @TestVisible private static String branchLogQuery() {
+        // Static, schema-verified fields from flosum-source-contract.md.
+        // Branch is the main typed lookup; Source_Branch is not equivalent.
+        return 'SELECT Id, Flosum__Process_Type__c, Flosum__Status__c, ' +
+            'Flosum__Job_Completed__c, Flosum__Succeed__c, Flosum__Is_Error__c, ' +
+            'Flosum__Start_Date__c, Flosum__Completed_Date__c, Flosum__Organisation__c ' +
+            'FROM Flosum__Metadata_Log__c WHERE Flosum__Branch__c = :branchId ' +
+            'ORDER BY CreatedDate DESC, Id DESC LIMIT 11';
+    }
+
+    @TestVisible private static BranchLogRow summarizeBranchLog(SObject source) {
+        BranchLogRow row = new BranchLogRow();
+        row.id = (Id)source.get('Id');
+        row.processType = textField(source, 'Flosum__Process_Type__c');
+        row.sourceStatus = textField(source, 'Flosum__Status__c');
+        row.startedAt = (Datetime)source.get('Flosum__Start_Date__c');
+        row.completedAt = (Datetime)source.get('Flosum__Completed_Date__c');
+        row.hasOrganisation = source.get('Flosum__Organisation__c') != null;
+        // Success on a log is only a CANDIDATE, never per-Component deploy proof.
+        Boolean eligible = row.processType == 'Deployment' && row.sourceStatus == 'Completed' &&
+            ((Boolean)source.get('Flosum__Job_Completed__c')) == true &&
+            ((Boolean)source.get('Flosum__Succeed__c')) == true &&
+            ((Boolean)source.get('Flosum__Is_Error__c')) == false &&
+            row.completedAt != null &&
+            (row.startedAt == null || row.startedAt <= row.completedAt) &&
+            row.hasOrganisation;
+        row.evidenceCode = eligible ? 'BRANCH_DEPLOY_CANDIDATE' : 'NOT_CERTIFIED';
+        row.evidenceLabel = eligible ? 'Sucesso registrado no log da Branch' :
+            'Operação sem sucesso de deploy certificado';
+        return row;
+    }
+
+    @AuraEnabled(cacheable=true)
+    public static BranchLogContext getBranchLogContext(Id componentId) {
+        if (componentId == null || componentId.getSObjectType() != Flosum__Component__c.SObjectType)
+            throw new AuraHandledException('Selecione um Component Flosum válido.');
+        String branchField = componentBranchField();
+        BranchLogContext context = new BranchLogContext();
+        context.rows = new List<BranchLogRow>();
+        context.hasMore = false;
+        context.componentMembershipVerified = false;
+        try {
+            List<SObject> components = Database.queryWithBinds(
+                'SELECT Id, ' + branchField + ' FROM Flosum__Component__c ' +
+                'WHERE Id = :componentId LIMIT 1',
+                new Map<String,Object>{'componentId' => componentId}, AccessLevel.USER_MODE);
+            if (components.isEmpty())
+                throw new AuraHandledException('Componente não encontrado ou sem acesso.');
+            Id branchId = (Id)components[0].get(branchField);
+            if (branchId == null) {
+                context.sourceQuality = 'NO_ACCESSIBLE_BRANCH';
+                return context;
+            }
+            // Confirm that the linked Branch is accessible, not merely stored.
+            List<Flosum__Branch__c> branches = [
+                SELECT Id, Name FROM Flosum__Branch__c WHERE Id = :branchId WITH USER_MODE LIMIT 1
+            ];
+            if (branches.isEmpty()) {
+                context.sourceQuality = 'NO_ACCESSIBLE_BRANCH';
+                return context;
+            }
+            context.branchName = branches[0].Name;
+            if (!Flosum__Metadata_Log__c.SObjectType.getDescribe().isAccessible())
+                throw new AuraHandledException('Sem permissão de consulta aos Metadata Logs.');
+            List<SObject> logs = Database.queryWithBinds(branchLogQuery(),
+                new Map<String,Object>{'branchId' => branchId}, AccessLevel.USER_MODE);
+            context.hasMore = logs.size() > 10;
+            for (Integer i = 0; i < Math.min(10, logs.size()); i++)
+                context.rows.add(summarizeBranchLog(logs[i]));
+            context.sourceQuality = 'BRANCH_LOG_SAMPLE';
+            return context;
+        } catch (AuraHandledException known) {
+            throw known;
+        } catch (Exception error) {
+            throw new AuraHandledException(
+                'Não foi possível consultar os logs da Branch com as permissões atuais.');
+        }
+    }
+
 }

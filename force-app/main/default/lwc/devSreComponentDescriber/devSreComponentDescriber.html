@@ -161,6 +161,74 @@
               </ul>
               <p class="cd-evidence-footnote">Somente leitura. A validação do FullName e das operações de deploy requer fontes relacionadas e verificadas; não é inferida por datas ou nomes.</p>
             </section>
+            <section class="cd-branch-logs" aria-label="Contexto de operações da Branch Flosum">
+              <header class="cd-branch-logs-head">
+                <div>
+                  <h4 class="cd-section-title">Operações da Branch · Metadata Log</h4>
+                  <p class="cd-muted">Consulta sob demanda, limitada aos 10 logs mais recentes por criação e às permissões do usuário.</p>
+                </div>
+                <template lwc:if={hasAccessibleBranch}>
+                  <lightning-button label="Consultar logs da Branch" icon-name="utility:refresh"
+                    onclick={loadBranchLogs} disabled={branchLogLoading}></lightning-button>
+                </template>
+              </header>
+              <p class="cd-branch-logs-caution">Os logs são da <strong>Branch vinculada</strong>, não deste componente individual. Mesmo um Deployment concluído na Branch <strong>não comprova</strong> que este componente participou da implantação.</p>
+              <template lwc:if={branchLogLoading}>
+                <div class="cd-loading" role="status"><lightning-spinner size="small" alternative-text="Consultando logs da Branch"></lightning-spinner></div>
+              </template>
+              <template lwc:elseif={branchLogError}>
+                <div class="cd-state cd-state_error" role="alert">
+                  <div class="cd-state-content"><strong>Consulta indisponível</strong><p>{branchLogError}</p>
+                    <p>Verifique acesso ao Metadata Log e seus campos; falta de permissão não significa ausência de operações.</p></div>
+                </div>
+              </template>
+              <template lwc:elseif={branchLogLoaded}>
+                <template lwc:if={branchLogNoBranch}>
+                  <p class="cd-empty" role="status">A Branch associada não está acessível nesta consulta.</p>
+                </template>
+                <template lwc:else>
+                  <p class="cd-branch-logs-subtitle">{branchLogBranchName} · amostra de registros acessíveis</p>
+                  <template lwc:if={hasBranchLogRows}>
+                    <ol class="cd-branch-log-list">
+                      <template for:each={branchLogRows} for:item="log">
+                        <li key={log.id} class="cd-branch-log">
+                          <div class="cd-branch-log-title">
+                            <strong>{log.processType}</strong>
+                            <span class="cd-evidence-status">{log.evidenceLabel}</span>
+                          </div>
+                          <p>Status Flosum: {log.sourceStatus}</p>
+                          <div class="cd-branch-log-times">
+                            <template lwc:if={log.startedAt}>
+                              <span>Início (UTC): <lightning-formatted-date-time value={log.startedAt} time-zone="UTC"
+                                day="2-digit" month="2-digit" year="numeric" hour="2-digit" minute="2-digit"></lightning-formatted-date-time></span>
+                            </template>
+                            <template lwc:if={log.completedAt}>
+                              <span>Conclusão (UTC): <lightning-formatted-date-time value={log.completedAt} time-zone="UTC"
+                                day="2-digit" month="2-digit" year="numeric" hour="2-digit" minute="2-digit"></lightning-formatted-date-time></span>
+                            </template>
+                          </div>
+                          <button type="button" class="cd-link" data-id={log.id} onclick={handleOpenBranchLog}>Abrir log no Flosum</button>
+                        </li>
+                      </template>
+                    </ol>
+                  </template>
+                  <template lwc:else>
+                    <p class="cd-empty" role="status">Nenhum Metadata Log acessível para a Branch nesta consulta. Isso não comprova ausência de operações.</p>
+                  </template>
+                  <template lwc:if={branchLogHasMore}>
+                    <p class="cd-branch-log-more">Existem outros logs além dos 10 registros exibidos. Esta amostra não representa todo o histórico.</p>
+                  </template>
+                </template>
+              </template>
+              <template lwc:else>
+                <template lwc:if={hasAccessibleBranch}>
+                  <p class="cd-branch-logs-hint">Use Consultar logs da Branch para visualizar o histórico operacional relacionado à Branch acessível.</p>
+                </template>
+                <template lwc:else>
+                  <p class="cd-branch-logs-hint">Sem Branch acessível neste componente. Não é possível consultar operações relacionadas com segurança.</p>
+                </template>
+              </template>
+            </section>
             </template>
             <template lwc:if={showHistorySection}>
             <section class="cd-history-section" aria-label="Históricos relacionados ao componente">
