@@ -151,3 +151,10 @@
 **Homologação funcional:** acessar um Component com Branch; confirmar ausência de leitura automática; clicar `Consultar logs da Branch`; verificar até 10 registros, status/UTC, abrir um log. Alternar entre componentes e confirmar que nenhum log da Branch anterior permanece. Validar casos sem Branch, sem permissão de Metadata Log e com >10 logs (quando houver), sem inventar amostra completa. Revalidar Diff alinhado no desktop, mobile 390px e Ficha→Comparar→Ficha. CI/Jest/Apex dry-run não substituem teste visual.
 
 **Governança:** CI + Security + policy → merge master → PLAN sandbox → DEPLOY por intenção exata + SHA + dry-run/testes → COMPARE somente leitura. Nenhuma alteração em PROD.
+
+
+### V3.6-B — garantia de cobertura no dry-run
+
+O primeiro PLAN (#303) e o segundo (#305) retornaram `APEX_COVERAGE` (sem falhas de teste/compilação); o segundo mostrou `tests_run=25` apesar de novos testes versionados. Isso ocorreu porque o pacote não incluía `DevSreComponentDescriberTest`, portanto o dry-run ainda executava a versão antiga da classe de testes na org.
+
+O manifesto corrigido inclui **Controller + Test Class + LWC**. `RunSpecifiedTests` permanece com as três classes especificadas, agora atualizando as fixtures de teste antes do gate. A aprovação do PLAN/DEPLOY depende do resultado novo da Salesforce; nenhum sucesso foi presumido.
