@@ -389,9 +389,9 @@ public with sharing class DevSreComponentDescriberController {
         row.hasOrganisation = source.get('Flosum__Organisation__c') != null;
         // Success on a log is only a CANDIDATE, never per-Component deploy proof.
         Boolean eligible = row.processType == 'Deployment' && row.sourceStatus == 'Completed' &&
-            source.get('Flosum__Job_Completed__c') == true &&
-            source.get('Flosum__Succeed__c') == true &&
-            source.get('Flosum__Is_Error__c') == false &&
+            ((Boolean)source.get('Flosum__Job_Completed__c')) == true &&
+            ((Boolean)source.get('Flosum__Succeed__c')) == true &&
+            ((Boolean)source.get('Flosum__Is_Error__c')) == false &&
             row.completedAt != null &&
             (row.startedAt == null || row.startedAt <= row.completedAt) &&
             row.hasOrganisation;
