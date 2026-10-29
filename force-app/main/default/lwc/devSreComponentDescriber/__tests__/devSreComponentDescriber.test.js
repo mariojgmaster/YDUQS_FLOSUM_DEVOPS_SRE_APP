@@ -823,8 +823,8 @@ describe("Branch Monitor M2 — inventário e lookup Component Type",()=>{
     el.shadowRoot.querySelector(".cd-table tbody tr .cd-link").click();await flush();
     [...el.shadowRoot.querySelectorAll("lightning-button")]
       .find(b=>b.label==="Consultar logs da Branch").click();await flush();
-    const selectors=el.shadowRoot.querySelectorAll(".cd-table tbody tr .cd-link");
-    selectors[1].click();await flush();
+    const secondRow=el.shadowRoot.querySelector(".cd-table tbody tr:nth-child(2) .cd-link");
+    secondRow.click();await flush();
     expect(getBranchLogContext).toHaveBeenCalledWith({componentId:X.id});
     finish({sourceQuality:"BRANCH_LOG_SAMPLE",componentMembershipVerified:false,
       rows:[{id:"old",processType:"Deployment",sourceStatus:"Completed"}]});await flush();
