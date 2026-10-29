@@ -54,6 +54,10 @@ def produce(operation, package, zip_path, candidate_dir=None):
         differing_members=changed,
         differing_parts=parts,
         differences=[{"member": item} for item in changed],
+        # Only allowlisted Apex member IDs, API version/status, and bounded
+        # XML shape flags. Never emit source or arbitrary metadata values.
+        apex_metadata_facts=policy.mismatched_apex_metadata_facts(local, remote, listed) if not same else [],
+        apex_metadata_structure=policy.differing_apex_metadata_structure(local, remote, listed) if not same else [],
     )
     return result
 
