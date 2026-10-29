@@ -295,4 +295,53 @@ private class DevSreComponentDescriberTest {
         System.assertEquals('NOT_CERTIFIED',DevSreComponentDescriberController.summarizeBranchLog(log).evidenceCode);
     }
 
+
+    @IsTest static void branchLogSampleBuilderEnforcesTenRowLimitAndUnknownProvenance() {
+        List<SObject> records = new List<SObject>();
+        String prefix = Flosum__Metadata_Log__c.SObjectType.getDescribe().getKeyPrefix();
+        for (Integer i=1; i<=11; i++) {
+            Flosum__Metadata_Log__c row = new Flosum__Metadata_Log__c();
+            row.put('Id', (Id)(prefix + String.valueOf(i).leftPad(12,'0')));
+            row.put('Flosum__Process_Type__c',i==1?'Validate':'Deployment');
+            row.put('Flosum__Status__c','Completed');
+            row.put('Flosum__Job_Completed__c',false);
+            records.add(row);
+        }
+        DevSreComponentDescriberController.BranchLogContext ctx =
+            DevSreComponentDescriberController.buildBranchLogContext('Branch de Teste',records);
+        System.assertEquals('BRANCH_LOG_SAMPLE',ctx.sourceQuality);
+        System.assertEquals('Branch de Teste',ctx.branchName);
+        System.assertEquals(10,ctx.rows.size());
+        System.assertEquals(true,ctx.hasMore);
+        System.assertEquals(false,ctx.componentMembershipVerified);
+        System.assertEquals('NOT_CERTIFIED',ctx.rows[0].evidenceCode);
+        System.assertEquals('Validate',ctx.rows[0].processType);
+        System.assertEquals('NOT_CERTIFIED',ctx.rows[9].evidenceCode);
+
+        DevSreComponentDescriberController.BranchLogContext empty =
+            DevSreComponentDescriberController.buildBranchLogContext('Empty',new List<SObject>());
+        System.assertEquals(0,empty.rows.size());
+        System.assertEquals(false,empty.hasMore);
+        System.assertEquals('BRANCH_LOG_SAMPLE',empty.sourceQuality);
+        System.assertEquals(false,empty.componentMembershipVerified);
+        try {
+            DevSreComponentDescriberController.buildBranchLogContext('Invalid',null);
+            System.assert(false,'Null sample must fail');
+        } catch (AuraHandledException expected) {}
+        records.add(new Flosum__Metadata_Log__c());
+        try {
+            DevSreComponentDescriberController.buildBranchLogContext('Invalid',records);
+            System.assert(false,'Unbounded sample must fail');
+        } catch (AuraHandledException expected) {}
+    }
+
+    @IsTest static void branchLogReadRejectsNonexistentTypedComponent() {
+        String prefix=Flosum__Component__c.SObjectType.getDescribe().getKeyPrefix();
+        Id missing=(Id)(prefix+'000000000001');
+        try {
+            DevSreComponentDescriberController.getBranchLogContext(missing);
+            System.assert(false,'Never return unrelated Branch logs');
+        } catch (AuraHandledException expected) {}
+    }
+
 }

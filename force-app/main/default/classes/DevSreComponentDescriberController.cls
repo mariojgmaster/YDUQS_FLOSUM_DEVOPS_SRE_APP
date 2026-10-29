@@ -401,15 +401,34 @@ public with sharing class DevSreComponentDescriberController {
         return row;
     }
 
+    @TestVisible private static BranchLogContext emptyBranchLogContext() {
+        BranchLogContext context = new BranchLogContext();
+        context.rows = new List<BranchLogRow>();
+        context.hasMore = false;
+        context.componentMembershipVerified = false;
+        return context;
+    }
+
+    @TestVisible private static BranchLogContext buildBranchLogContext(
+        String branchName, List<SObject> logs
+    ) {
+        if (logs == null || logs.size() > 11)
+            throw new AuraHandledException('Amostra de Metadata Log fora do limite revisado.');
+        BranchLogContext context = emptyBranchLogContext();
+        context.branchName = branchName;
+        context.hasMore = logs.size() > 10;
+        for (Integer i = 0; i < Math.min(10, logs.size()); i++)
+            context.rows.add(summarizeBranchLog(logs[i]));
+        context.sourceQuality = 'BRANCH_LOG_SAMPLE';
+        return context;
+    }
+
     @AuraEnabled(cacheable=true)
     public static BranchLogContext getBranchLogContext(Id componentId) {
         if (componentId == null || componentId.getSObjectType() != Flosum__Component__c.SObjectType)
             throw new AuraHandledException('Selecione um Component Flosum válido.');
         String branchField = componentBranchField();
-        BranchLogContext context = new BranchLogContext();
-        context.rows = new List<BranchLogRow>();
-        context.hasMore = false;
-        context.componentMembershipVerified = false;
+        BranchLogContext context = emptyBranchLogContext();
         try {
             List<SObject> components = Database.queryWithBinds(
                 'SELECT Id, ' + branchField + ' FROM Flosum__Component__c ' +
@@ -435,11 +454,7 @@ public with sharing class DevSreComponentDescriberController {
                 throw new AuraHandledException('Sem permissão de consulta aos Metadata Logs.');
             List<SObject> logs = Database.queryWithBinds(branchLogQuery(),
                 new Map<String,Object>{'branchId' => branchId}, AccessLevel.USER_MODE);
-            context.hasMore = logs.size() > 10;
-            for (Integer i = 0; i < Math.min(10, logs.size()); i++)
-                context.rows.add(summarizeBranchLog(logs[i]));
-            context.sourceQuality = 'BRANCH_LOG_SAMPLE';
-            return context;
+            return buildBranchLogContext(context.branchName, logs);
         } catch (AuraHandledException known) {
             throw known;
         } catch (Exception error) {
