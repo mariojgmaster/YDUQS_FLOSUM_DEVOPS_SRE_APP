@@ -243,4 +243,56 @@ private class DevSreComponentDescriberTest {
             System.assert(false,'Unknown type invalid');
         } catch (AuraHandledException expected) {}
     }
+
+    @IsTest static void branchLogContextIsScopedAndQueryIsBounded() {
+        String query=DevSreComponentDescriberController.branchLogQuery();
+        System.assert(query.contains('FROM Flosum__Metadata_Log__c'));
+        System.assert(query.contains('WHERE Flosum__Branch__c = :branchId'));
+        System.assert(!query.contains('Flosum__Source_Branch__c ='));
+        System.assert(query.endsWith('ORDER BY CreatedDate DESC, Id DESC LIMIT 11'));
+        System.assert(query.contains('Flosum__Completed_Date__c'));
+        System.assert(!query.contains('Flosum__Result__c'));
+        try {
+            DevSreComponentDescriberController.getBranchLogContext(UserInfo.getUserId());
+            System.assert(false,'User ID must never be accepted as Component ID');
+        } catch (AuraHandledException expected) {}
+        try {
+            DevSreComponentDescriberController.getBranchLogContext(null);
+            System.assert(false,'Null Component ID must be blocked');
+        } catch (AuraHandledException expected) {}
+    }
+    @IsTest static void branchLogCandidateNeedsAllRecordedSuccessConditions() {
+        Flosum__Metadata_Log__c log=new Flosum__Metadata_Log__c();
+        DateTime startAt=DateTime.newInstanceGMT(2026,10,1,12,0,0);
+        DateTime endAt=DateTime.newInstanceGMT(2026,10,1,12,30,0);
+        log.put('Flosum__Process_Type__c','Deployment');
+        log.put('Flosum__Status__c','Completed');
+        log.put('Flosum__Job_Completed__c',true);
+        log.put('Flosum__Succeed__c',true);
+        log.put('Flosum__Is_Error__c',false);
+        log.put('Flosum__Start_Date__c',startAt);
+        log.put('Flosum__Completed_Date__c',endAt);
+        String prefix=Flosum__Organisation__c.SObjectType.getDescribe().getKeyPrefix();
+        log.put('Flosum__Organisation__c',(Id)(prefix+'000000000001'));
+        DevSreComponentDescriberController.BranchLogRow result=
+            DevSreComponentDescriberController.summarizeBranchLog(log);
+        System.assertEquals('BRANCH_DEPLOY_CANDIDATE',result.evidenceCode);
+        System.assertEquals('Deployment',result.processType);
+        System.assertEquals(endAt,result.completedAt);
+        System.assertEquals(true,result.hasOrganisation);
+        log.put('Flosum__Process_Type__c','Validate');
+        System.assertEquals('NOT_CERTIFIED',DevSreComponentDescriberController.summarizeBranchLog(log).evidenceCode);
+        log.put('Flosum__Process_Type__c','Deployment');
+        log.put('Flosum__Succeed__c',false);
+        System.assertEquals('NOT_CERTIFIED',DevSreComponentDescriberController.summarizeBranchLog(log).evidenceCode);
+        log.put('Flosum__Succeed__c',true);
+        log.put('Flosum__Completed_Date__c',null);
+        System.assertEquals('NOT_CERTIFIED',DevSreComponentDescriberController.summarizeBranchLog(log).evidenceCode);
+        log.put('Flosum__Completed_Date__c',startAt.addSeconds(-1));
+        System.assertEquals('NOT_CERTIFIED',DevSreComponentDescriberController.summarizeBranchLog(log).evidenceCode);
+        log.put('Flosum__Completed_Date__c',endAt);
+        log.put('Flosum__Organisation__c',null);
+        System.assertEquals('NOT_CERTIFIED',DevSreComponentDescriberController.summarizeBranchLog(log).evidenceCode);
+    }
+
 }
